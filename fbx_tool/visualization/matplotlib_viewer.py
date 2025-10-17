@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
 import fbx
-from analysis_modules.utils import get_animation_info, build_bone_hierarchy
+from fbx_tool.analysis.utils import get_animation_info, build_bone_hierarchy
 
 
 class SkeletonVisualizer:

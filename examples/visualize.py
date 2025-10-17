@@ -5,7 +5,7 @@ Demonstrates how to use the skeleton visualization features.
 """
 
 import sys
-from fbx_tool.analysis.fbx_loader import load_fbx_scene
+from fbx_tool.analysis.fbx_loader import load_fbx
 from fbx_tool.visualization.matplotlib_viewer import SkeletonVisualizer, visualize_skeleton_frame, create_skeleton_animation
 from fbx_tool.visualization.opengl_viewer import launch_skeleton_viewer
 
@@ -19,7 +19,7 @@ def example_matplotlib_single_frame(fbx_path):
     print("="*60)
 
     # Load FBX
-    scene = load_fbx_scene(fbx_path)
+    scene = load_fbx(fbx_path)
 
     # Visualize frame 0
     visualize_skeleton_frame(scene, frame_idx=0, save_path="skeleton_frame_0.png")
@@ -36,7 +36,7 @@ def example_matplotlib_animation(fbx_path):
     print("="*60)
 
     # Load FBX
-    scene = load_fbx_scene(fbx_path)
+    scene = load_fbx(fbx_path)
 
     # Create animation (first 100 frames at 30fps)
     create_skeleton_animation(
@@ -59,7 +59,7 @@ def example_matplotlib_custom(fbx_path):
     print("="*60)
 
     # Load FBX
-    scene = load_fbx_scene(fbx_path)
+    scene = load_fbx(fbx_path)
 
     # Create visualizer
     visualizer = SkeletonVisualizer(scene)
@@ -92,7 +92,7 @@ def example_opengl_viewer(fbx_path):
     print("="*60)
 
     # Load FBX
-    scene = load_fbx_scene(fbx_path)
+    scene = load_fbx(fbx_path)
 
     # Launch viewer (opens interactive window)
     launch_skeleton_viewer(scene)
@@ -110,7 +110,7 @@ def example_batch_visualization(fbx_path, output_dir="visualizations"):
     os.makedirs(output_dir, exist_ok=True)
 
     # Load FBX
-    scene = load_fbx_scene(fbx_path)
+    scene = load_fbx(fbx_path)
 
     # Create visualizer
     visualizer = SkeletonVisualizer(scene)
