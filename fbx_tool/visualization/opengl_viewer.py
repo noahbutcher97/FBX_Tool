@@ -6,7 +6,8 @@ Features camera controls, animation playback, and shader-based rendering.
 """
 
 import numpy as np
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSlider, QLabel
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+                              QSlider, QLabel, QCheckBox, QGroupBox, QGridLayout)
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from OpenGL.GL import *
@@ -26,6 +27,12 @@ class SkeletonGLWidget(QOpenGLWidget):
         self.anim_info = get_animation_info(scene)
         self.hierarchy = build_bone_hierarchy(scene)
 
+        # Detect coordinate system
+        axis_system = scene.GetGlobalSettings().GetAxisSystem()
+        up_vector, _ = axis_system.GetUpVector()
+        self.is_y_up = (up_vector == fbx.FbxAxisSystem.EUpVector.eYAxis)
+        print(f"FBX Coordinate System: {'Y-up' if self.is_y_up else 'Z-up (converting to Y-up)'}")
+
         # Animation data
         self.current_frame = 0
         self.total_frames = 0
@@ -37,9 +44,23 @@ class SkeletonGLWidget(QOpenGLWidget):
         self.camera_elevation = 20.0
         self.camera_target = np.array([0.0, 100.0, 0.0])  # Look at character height
 
+        # Store default camera for reset
+        self.default_camera = {
+            'distance': 400.0,
+            'azimuth': 45.0,
+            'elevation': 20.0,
+            'target': np.array([0.0, 100.0, 0.0])
+        }
+
         # Mouse interaction
         self.last_mouse_pos = None
         self.mouse_button = None
+
+        # Display options
+        self.show_grid = True
+        self.show_axes = True
+        self.show_bone_names = False
+        self.wireframe_mode = False
 
         # Extract animation data
         self._extract_transforms()
@@ -60,16 +81,33 @@ class SkeletonGLWidget(QOpenGLWidget):
                 if not node:
                     continue
 
+                # Get global transform (includes rotation and translation)
                 global_transform = node.EvaluateGlobalTransform(t)
                 translation = global_transform.GetT()
-                # Convert from FBX coordinate system (Z-up) to Y-up
-                # Swap Y and Z, negate new Z
-                position = np.array([translation[0], translation[2], -translation[1]])
+                rotation = global_transform.GetQ()  # Get quaternion rotation
+
+                # Convert FBX types to numpy arrays
+                # Apply coordinate conversion only if needed
+                if self.is_y_up:
+                    # Already Y-up (Mixamo, Unity, etc.) - use as-is
+                    position = np.array([translation[0], translation[1], translation[2]])
+                    # Quaternion: (x, y, z, w)
+                    quat = np.array([rotation[0], rotation[1], rotation[2], rotation[3]])
+                else:
+                    # Z-up (Blender, 3ds Max, etc.) - convert to Y-up
+                    # Swap Y and Z, negate new Z
+                    position = np.array([translation[0], translation[2], -translation[1]])
+                    # Also swap quaternion axes
+                    quat = np.array([rotation[0], rotation[2], -rotation[1], rotation[3]])
 
                 if bone_name not in transforms:
                     transforms[bone_name] = []
 
-                transforms[bone_name].append(position)
+                # Store both position and rotation for each frame
+                transforms[bone_name].append({
+                    'position': position,
+                    'rotation': quat
+                })
 
             current += self.anim_info['frame_time']
             frame_idx += 1
@@ -77,11 +115,12 @@ class SkeletonGLWidget(QOpenGLWidget):
         self.bone_transforms = transforms
         self.total_frames = frame_idx
 
-        # Calculate center for camera target
+        # Calculate center for camera target using first frame positions
         if transforms:
             all_positions = []
-            for positions in transforms.values():
-                all_positions.extend(positions)
+            for bone_data in transforms.values():
+                if bone_data:
+                    all_positions.append(bone_data[0]['position'])
             if all_positions:
                 all_positions = np.array(all_positions)
                 self.camera_target = np.mean(all_positions, axis=0)
@@ -131,10 +170,19 @@ class SkeletonGLWidget(QOpenGLWidget):
         )
 
         # Draw grid
-        self._draw_grid()
+        if self.show_grid:
+            self._draw_grid()
+
+        # Draw axes
+        if self.show_axes:
+            self._draw_axes()
 
         # Draw skeleton
+        if self.wireframe_mode:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
         self._draw_skeleton()
+        if self.wireframe_mode:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
     def _draw_grid(self):
         """Draw ground grid."""
@@ -156,16 +204,42 @@ class SkeletonGLWidget(QOpenGLWidget):
         glEnd()
         glEnable(GL_LIGHTING)
 
+    def _draw_axes(self):
+        """Draw coordinate axes (X=Red, Y=Green, Z=Blue)."""
+        glDisable(GL_LIGHTING)
+        glLineWidth(3.0)
+        glBegin(GL_LINES)
+
+        axis_length = 100.0
+
+        # X axis (Red)
+        glColor3f(1.0, 0.0, 0.0)
+        glVertex3f(0, 0, 0)
+        glVertex3f(axis_length, 0, 0)
+
+        # Y axis (Green)
+        glColor3f(0.0, 1.0, 0.0)
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, axis_length, 0)
+
+        # Z axis (Blue)
+        glColor3f(0.0, 0.0, 1.0)
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, 0, axis_length)
+
+        glEnd()
+        glEnable(GL_LIGHTING)
+
     def _draw_skeleton(self):
         """Draw skeleton bones and joints."""
         if self.current_frame >= self.total_frames:
             return
 
         # Get current frame data
-        joint_positions = {}
-        for bone_name, positions in self.bone_transforms.items():
-            if self.current_frame < len(positions):
-                joint_positions[bone_name] = positions[self.current_frame]
+        joint_transforms = {}
+        for bone_name, transforms in self.bone_transforms.items():
+            if self.current_frame < len(transforms):
+                joint_transforms[bone_name] = transforms[self.current_frame]
 
         # Draw bones
         glDisable(GL_LIGHTING)
@@ -174,9 +248,9 @@ class SkeletonGLWidget(QOpenGLWidget):
         glBegin(GL_LINES)
 
         for child, parent in self.hierarchy.items():
-            if parent and child in joint_positions and parent in joint_positions:
-                child_pos = joint_positions[child]
-                parent_pos = joint_positions[parent]
+            if parent and child in joint_transforms and parent in joint_transforms:
+                child_pos = joint_transforms[child]['position']
+                parent_pos = joint_transforms[parent]['position']
 
                 glVertex3f(parent_pos[0], parent_pos[1], parent_pos[2])
                 glVertex3f(child_pos[0], child_pos[1], child_pos[2])
@@ -188,7 +262,8 @@ class SkeletonGLWidget(QOpenGLWidget):
         glMaterialfv(GL_FRONT, GL_DIFFUSE, [1.0, 0.0, 0.0, 1.0])  # Red
         glMaterialfv(GL_FRONT, GL_AMBIENT, [0.3, 0.0, 0.0, 1.0])
 
-        for position in joint_positions.values():
+        for transform_data in joint_transforms.values():
+            position = transform_data['position']
             glPushMatrix()
             glTranslatef(position[0], position[1], position[2])
 
@@ -244,6 +319,70 @@ class SkeletonGLWidget(QOpenGLWidget):
         self.camera_distance = max(10, min(1000, self.camera_distance))
         self.update()
 
+    def keyPressEvent(self, event):
+        """Handle keyboard input."""
+        from PyQt6.QtCore import Qt
+
+        key = event.key()
+
+        # Frame navigation
+        if key == Qt.Key.Key_Left:
+            self.set_frame(max(0, self.current_frame - 1))
+        elif key == Qt.Key.Key_Right:
+            self.set_frame(min(self.total_frames - 1, self.current_frame + 1))
+        elif key == Qt.Key.Key_Home:
+            self.set_frame(0)
+        elif key == Qt.Key.Key_End:
+            self.set_frame(self.total_frames - 1)
+
+        # Camera controls
+        elif key == Qt.Key.Key_R:
+            self.reset_camera()
+        elif key == Qt.Key.Key_F:
+            self.set_camera_preset('front')
+        elif key == Qt.Key.Key_S:
+            self.set_camera_preset('side')
+        elif key == Qt.Key.Key_T:
+            self.set_camera_preset('top')
+
+        # Display toggles
+        elif key == Qt.Key.Key_G:
+            self.show_grid = not self.show_grid
+            self.update()
+        elif key == Qt.Key.Key_A:
+            self.show_axes = not self.show_axes
+            self.update()
+        elif key == Qt.Key.Key_N:
+            self.show_bone_names = not self.show_bone_names
+            self.update()
+        elif key == Qt.Key.Key_W:
+            self.wireframe_mode = not self.wireframe_mode
+            self.update()
+
+    def reset_camera(self):
+        """Reset camera to default position."""
+        self.camera_distance = self.default_camera['distance']
+        self.camera_azimuth = self.default_camera['azimuth']
+        self.camera_elevation = self.default_camera['elevation']
+        self.camera_target = self.default_camera['target'].copy()
+        self.update()
+
+    def set_camera_preset(self, preset):
+        """Set camera to predefined viewpoint."""
+        if preset == 'front':
+            self.camera_azimuth = 0.0
+            self.camera_elevation = 0.0
+        elif preset == 'side':
+            self.camera_azimuth = 90.0
+            self.camera_elevation = 0.0
+        elif preset == 'top':
+            self.camera_azimuth = 0.0
+            self.camera_elevation = 89.0
+        elif preset == 'back':
+            self.camera_azimuth = 180.0
+            self.camera_elevation = 0.0
+        self.update()
+
 
 class SkeletonViewerWidget(QWidget):
     """
@@ -255,6 +394,7 @@ class SkeletonViewerWidget(QWidget):
         self.scene = scene
         self.gl_widget = SkeletonGLWidget(scene)
         self.playing = False
+        self.playback_speed = 1.0  # Normal speed
         self.timer = QTimer()
         self.timer.timeout.connect(self._advance_frame)
 
@@ -267,29 +407,115 @@ class SkeletonViewerWidget(QWidget):
         # Add GL widget
         layout.addWidget(self.gl_widget, stretch=1)
 
-        # Controls
-        controls_layout = QHBoxLayout()
+        # Playback Controls
+        playback_group = QGroupBox("Playback Controls")
+        playback_layout = QHBoxLayout()
 
         # Play/Pause button
         self.play_button = QPushButton("Play")
         self.play_button.clicked.connect(self._toggle_playback)
-        controls_layout.addWidget(self.play_button)
+        self.play_button.setMinimumWidth(80)
+        playback_layout.addWidget(self.play_button)
 
         # Frame label
         self.frame_label = QLabel(f"Frame: 0 / {self.gl_widget.total_frames}")
-        controls_layout.addWidget(self.frame_label)
+        self.frame_label.setMinimumWidth(120)
+        playback_layout.addWidget(self.frame_label)
 
         # Frame slider
         self.frame_slider = QSlider(Qt.Orientation.Horizontal)
         self.frame_slider.setMinimum(0)
         self.frame_slider.setMaximum(self.gl_widget.total_frames - 1)
         self.frame_slider.valueChanged.connect(self._on_slider_change)
-        controls_layout.addWidget(self.frame_slider, stretch=1)
+        playback_layout.addWidget(self.frame_slider, stretch=1)
 
-        layout.addLayout(controls_layout)
+        # Speed label
+        playback_layout.addWidget(QLabel("Speed:"))
+
+        # Speed slider
+        self.speed_slider = QSlider(Qt.Orientation.Horizontal)
+        self.speed_slider.setMinimum(1)  # 0.1x speed
+        self.speed_slider.setMaximum(40)  # 4.0x speed
+        self.speed_slider.setValue(1)  # 0.1x speed
+        self.speed_slider.setMaximumWidth(100)
+        self.speed_slider.valueChanged.connect(self._on_speed_change)
+        playback_layout.addWidget(self.speed_slider)
+
+        self.speed_label = QLabel("0.1x")
+        self.speed_label.setMinimumWidth(40)
+        playback_layout.addWidget(self.speed_label)
+
+        playback_group.setLayout(playback_layout)
+        layout.addWidget(playback_group)
+
+        # Display Options and Camera Presets
+        options_layout = QHBoxLayout()
+
+        # Display options group
+        display_group = QGroupBox("Display Options")
+        display_layout = QGridLayout()
+
+        self.grid_checkbox = QCheckBox("Grid (G)")
+        self.grid_checkbox.setChecked(True)
+        self.grid_checkbox.stateChanged.connect(lambda: self._toggle_display('grid'))
+        display_layout.addWidget(self.grid_checkbox, 0, 0)
+
+        self.axes_checkbox = QCheckBox("Axes (A)")
+        self.axes_checkbox.setChecked(True)
+        self.axes_checkbox.stateChanged.connect(lambda: self._toggle_display('axes'))
+        display_layout.addWidget(self.axes_checkbox, 0, 1)
+
+        self.wireframe_checkbox = QCheckBox("Wireframe (W)")
+        self.wireframe_checkbox.setChecked(False)
+        self.wireframe_checkbox.stateChanged.connect(lambda: self._toggle_display('wireframe'))
+        display_layout.addWidget(self.wireframe_checkbox, 1, 0)
+
+        display_group.setLayout(display_layout)
+        options_layout.addWidget(display_group)
+
+        # Camera presets group
+        camera_group = QGroupBox("Camera Presets")
+        camera_layout = QGridLayout()
+
+        front_btn = QPushButton("Front (F)")
+        front_btn.clicked.connect(lambda: self.gl_widget.set_camera_preset('front'))
+        camera_layout.addWidget(front_btn, 0, 0)
+
+        side_btn = QPushButton("Side (S)")
+        side_btn.clicked.connect(lambda: self.gl_widget.set_camera_preset('side'))
+        camera_layout.addWidget(side_btn, 0, 1)
+
+        top_btn = QPushButton("Top (T)")
+        top_btn.clicked.connect(lambda: self.gl_widget.set_camera_preset('top'))
+        camera_layout.addWidget(top_btn, 1, 0)
+
+        reset_btn = QPushButton("Reset (R)")
+        reset_btn.clicked.connect(self.gl_widget.reset_camera)
+        camera_layout.addWidget(reset_btn, 1, 1)
+
+        camera_group.setLayout(camera_layout)
+        options_layout.addWidget(camera_group)
+
+        # Keyboard shortcuts info
+        shortcuts_group = QGroupBox("Keyboard Shortcuts")
+        shortcuts_layout = QVBoxLayout()
+        shortcuts_text = QLabel(
+            "Arrow Keys: Navigate frames\n"
+            "Home/End: First/Last frame\n"
+            "Left Mouse: Rotate camera\n"
+            "Right Mouse: Pan camera\n"
+            "Mouse Wheel: Zoom"
+        )
+        shortcuts_text.setStyleSheet("font-size: 9pt;")
+        shortcuts_layout.addWidget(shortcuts_text)
+        shortcuts_group.setLayout(shortcuts_layout)
+        options_layout.addWidget(shortcuts_group, stretch=1)
+
+        layout.addLayout(options_layout)
 
         self.setLayout(layout)
         self.setWindowTitle("FBX Tool - 3D Skeleton Viewer")
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def _toggle_playback(self):
         """Toggle animation playback."""
@@ -297,11 +523,39 @@ class SkeletonViewerWidget(QWidget):
 
         if self.playing:
             self.play_button.setText("Pause")
-            fps = self.gl_widget.anim_info['frame_rate']
+            fps = self.gl_widget.anim_info['frame_rate'] * self.playback_speed
             self.timer.start(int(1000 / fps))
         else:
             self.play_button.setText("Play")
             self.timer.stop()
+
+    def _on_speed_change(self, value):
+        """Handle playback speed change."""
+        self.playback_speed = value / 10.0  # Convert slider value to speed multiplier
+        self.speed_label.setText(f"{self.playback_speed:.1f}x")
+
+        # Update timer if playing
+        if self.playing:
+            fps = self.gl_widget.anim_info['frame_rate'] * self.playback_speed
+            self.timer.setInterval(int(1000 / fps))
+
+    def _toggle_display(self, option):
+        """Toggle display options."""
+        if option == 'grid':
+            self.gl_widget.show_grid = self.grid_checkbox.isChecked()
+        elif option == 'axes':
+            self.gl_widget.show_axes = self.axes_checkbox.isChecked()
+        elif option == 'wireframe':
+            self.gl_widget.wireframe_mode = self.wireframe_checkbox.isChecked()
+        self.gl_widget.update()
+
+    def keyPressEvent(self, event):
+        """Forward keyboard events to GL widget."""
+        if event.key() == Qt.Key.Key_Space:
+            self._toggle_playback()
+        else:
+            self.gl_widget.keyPressEvent(event)
+        super().keyPressEvent(event)
 
     def _advance_frame(self):
         """Advance to next frame."""

@@ -171,10 +171,10 @@ pip install -r requirements.txt
 
 ```powershell
 # Test GUI
-(.fbxenv) python main_gui.py
+(.fbxenv) python fbx_tool/gui/main_window.py
 
 # Test CLI
-(.fbxenv) python main.py path/to/animation.fbx
+(.fbxenv) python examples/run_analysis.py path/to/animation.fbx
 ```
 
 ---
@@ -182,7 +182,7 @@ pip install -r requirements.txt
 ## Step 8: Build Executable (Optional)
 
 ```powershell
-(.fbxenv) python -m PyInstaller --name="FBX_Tool" --onefile --windowed --clean main_gui.py
+(.fbxenv) python -m PyInstaller --name="FBX_Tool" --onefile --windowed --clean fbx_tool/gui/main_window.py
 ```
 
 **Output:** `dist\FBX_Tool.exe`
@@ -220,7 +220,7 @@ pip install -r requirements.txt
 
 **Solution:** Add hidden imports
 ```powershell
-python -m PyInstaller --name="FBX_Tool" --onefile --windowed --hidden-import=fbx main_gui.py
+python -m PyInstaller --name="FBX_Tool" --onefile --windowed --hidden-import=fbx fbx_tool/gui/main_window.py
 ```
 
 Or copy FBX DLLs to `dist/`:
@@ -239,7 +239,7 @@ copy "C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.7\lib\vs2022\x64\release\*.dl
 - [ ] Virtual environment created (`.fbxenv`)
 - [ ] Dependencies installed: `pip list` shows numpy, PyQt6
 - [ ] FBX SDK accessible in venv: `python -c "import fbx"`
-- [ ] GUI runs: `python main_gui.py`
+- [ ] GUI runs: `python fbx_tool/gui/main_window.py`
 - [ ] Can load and analyze FBX files
 
 ---

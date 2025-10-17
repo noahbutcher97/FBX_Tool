@@ -1,15 +1,32 @@
 # FBX Tool
 
-Professional desktop application for analyzing FBX animation files with biomechanical motion processing.
+Professional desktop application for analyzing FBX animation files with biomechanical motion processing and real-time 3D visualization.
 
 ![FBX Tool](assets/screenshot.png)
 
 ## Features
 
+### Analysis Tools
 - **Dopesheet Export** - Frame-by-frame bone rotation data in CSV format
 - **Joint Analysis** - Per-joint metrics including stability, range of motion, and IK suitability
 - **Chain Analysis** - Chain-level IK confidence and cross-temporal coherence
 - **Gait Analysis** - Stride segmentation and gait phase detection
+- **Dynamic Chain Detection** - Automatically detects bone chains from any skeleton naming convention
+- **Smart Animation Stack Selection** - Automatically finds the correct animation data (handles Mixamo files)
+
+### 3D Visualization
+- **Real-time OpenGL Viewer** - Interactive 3D skeleton animation playback
+- **Camera Controls** - Orbit, pan, zoom with mouse; preset views (Front/Side/Top)
+- **Playback Controls** - Adjustable speed (0.1x-4.0x), frame-by-frame navigation
+- **Display Options** - Toggle grid, axes, wireframe mode
+- **Keyboard Shortcuts** - Full keyboard navigation and control
+
+### Universal Compatibility
+- **Any Skeleton Naming** - Works with Mixamo, Unity, Blender, and custom rigs
+- **Coordinate System Detection** - Automatic Y-up/Z-up conversion
+- **Multiple Animation Stacks** - Smart detection of active animation data
+
+### Additional Features
 - **Robust Error Handling** - Continues execution even if individual analyses fail
 - **File-Specific Output** - Each FBX file gets its own output directory
 - **GUI & CLI** - Use graphical interface or command-line for batch processing
@@ -28,8 +45,8 @@ See [INSTALL.md](INSTALL.md) for detailed installation instructions.
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/fbx-tool.git
-cd fbx-tool
+git clone https://github.com/noahbutcher97/FBX_Tool.git
+cd FBX_Tool
 
 # Create virtual environment (Python 3.10 required!)
 python -m venv .fbxenv --system-site-packages
@@ -46,7 +63,7 @@ pip install -r requirements.txt
 
 #### GUI Mode
 ```bash
-python main_gui.py
+python fbx_tool/gui/main_window.py
 ```
 
 1. Click "Choose File(s)" or drag & drop FBX files
@@ -61,11 +78,45 @@ python main_gui.py
 #### CLI Mode
 ```bash
 # Single file
-python main.py path/to/animation.fbx
+python examples/run_analysis.py path/to/animation.fbx
 
-# Batch processing
-python main.py --batch input_folder/
+# Or using module entry point
+python -m fbx_tool path/to/animation.fbx
 ```
+
+### 3D Visualization Controls
+
+The interactive OpenGL viewer provides real-time animation playback with full control.
+
+📖 **[Complete 3D Viewer Guide](docs/3D_VIEWER_GUIDE.md)** - Detailed reference with tips & tricks
+
+#### Mouse Controls
+- **Left Click + Drag** - Orbit camera around character
+- **Right Click + Drag** - Pan camera position
+- **Mouse Wheel** - Zoom in/out
+
+#### Keyboard Shortcuts
+- **Space** - Play/Pause animation
+- **Left/Right Arrow** - Previous/Next frame
+- **Home/End** - Jump to first/last frame
+- **R** - Reset camera to default view
+- **F** - Front view (facing camera)
+- **S** - Side view (profile)
+- **T** - Top view (bird's eye)
+- **G** - Toggle grid on/off
+- **A** - Toggle coordinate axes on/off
+- **W** - Toggle wireframe mode on/off
+
+#### UI Controls
+- **Playback Speed Slider** - Adjust animation speed from 0.1x to 4.0x
+- **Frame Slider** - Scrub through animation timeline
+- **Camera Preset Buttons** - Quick access to standard views
+- **Display Options Checkboxes** - Toggle visual elements
+
+#### Coordinate Axes
+- **Red** - X-axis
+- **Green** - Y-axis (up)
+- **Blue** - Z-axis
 
 ## Output Files
 
@@ -117,18 +168,29 @@ output/
 
 ```
 FBX_Tool/
-├── main_gui.py                  # PyQt6 GUI entry point
-├── main.py                      # CLI entry point
-├── analysis_modules/            # Core analysis modules
+├── fbx_tool/                    # Main package
 │   ├── __init__.py
-│   ├── fbx_loader.py           # FBX scene loading
-│   ├── dopesheet_export.py     # Dopesheet generation
-│   ├── joint_analysis.py       # Joint metrics
-│   ├── chain_analysis.py       # Chain metrics
-│   ├── gait_analysis.py        # Gait detection
-│   ├── gait_summary.py         # Summary model
-│   └── utils.py                # Shared utilities
-├── requirements.txt             # Python dependencies
+│   ├── __main__.py             # Module entry point
+│   ├── analysis/               # Core analysis modules
+│   │   ├── fbx_loader.py       # FBX scene loading
+│   │   ├── dopesheet_export.py # Dopesheet generation
+│   │   ├── joint_analysis.py   # Joint metrics
+│   │   ├── chain_analysis.py   # Chain metrics
+│   │   ├── gait_analysis.py    # Gait detection
+│   │   ├── gait_summary.py     # Summary model
+│   │   └── utils.py            # Shared utilities
+│   ├── gui/                    # GUI package
+│   │   └── main_window.py      # PyQt6 GUI entry point
+│   └── visualization/          # 3D visualization
+│       ├── opengl_viewer.py    # OpenGL skeleton viewer
+│       └── matplotlib_viewer.py # Matplotlib charts (planned)
+├── examples/                    # Example scripts
+│   ├── run_analysis.py         # CLI example
+│   └── visualize.py            # Visualization example
+├── tests/                       # Test directory
+├── docs/                        # Documentation
+├── requirements.txt             # Full dependencies (core + visualization)
+├── requirements-dev.txt         # Development tools (includes requirements.txt)
 ├── pyproject.toml              # Project metadata
 ├── INSTALL.md                  # Installation guide
 ├── README.md                   # This file
@@ -143,7 +205,7 @@ FBX_Tool/
 .fbxenv\Scripts\activate
 
 # Build
-python -m PyInstaller --name="FBX_Tool" --onefile --windowed --clean main_gui.py
+python -m PyInstaller --name="FBX_Tool" --onefile --windowed --clean fbx_tool/gui/main_window.py
 
 # Output
 dist/FBX_Tool.exe
@@ -166,14 +228,14 @@ flake8 .
 
 ### Adding New Analysis Modules
 
-1. Create module in `analysis_modules/`
+1. Create module in `fbx_tool/analysis/`
 2. Implement analysis function with signature:
    ```python
    def analyze_something(scene, output_dir="output/"):
        # Your analysis logic
        return results
    ```
-3. Add to `main_gui.py` and `main.py`
+3. Add to `fbx_tool/gui/main_window.py` and `examples/run_analysis.py`
 4. Update `GaitSummaryAnalysis` model if needed
 
 ## Error Handling
@@ -207,20 +269,32 @@ Partial results saved to: output/animation/
 
 ## Known Issues
 
-- **"Unknown" Gait Type**: Occurs when left/right phase detection fails. Check `gait_summary.csv` for raw metrics.
+- **"Unknown" Gait Type**: Occurs when left/right phase detection fails or when analyzing non-walking animations. Check `gait_summary.csv` for raw metrics.
 - **FBX SDK Import Errors**: Ensure Python 3.10.x and FBX SDK 2020.3.7 are installed. See [INSTALL.md](INSTALL.md).
-- **High Memory Usage**: Large FBX files (>10k frames, 100+ bones) may consume significant RAM.
+- **High Memory Usage**: Large FBX files (>10k frames, 100+ bones) may consume significant RAM during analysis.
+- **Mixamo Files**: Tool automatically detects and uses the "mixamo.com" animation stack. If animation appears static, check that the file contains animation keyframes.
+
+## Recent Fixes (v1.1.0)
+
+- ✅ **Fixed**: Static animation display - Now properly detects and uses correct animation stack
+- ✅ **Fixed**: Mixamo file support - Automatically selects "mixamo.com" stack over "Take 001"
+- ✅ **Fixed**: Chain detection - Dynamic detection works with any skeleton naming convention
+- ✅ **Fixed**: Coordinate system - Automatic Y-up/Z-up detection and conversion
+- ✅ **Enhanced**: 3D Visualization - Added interactive controls, camera presets, and display options
 
 ## Future Enhancements
 
+- [x] ~~Real-time 3D animation preview~~ ✅ **Completed in v1.1.0**
+- [x] ~~Dynamic skeleton support~~ ✅ **Completed in v1.1.0**
 - [ ] Batch processing GUI
-- [ ] Real-time 3D animation preview
-- [ ] Matplotlib visualization charts
+- [ ] Matplotlib visualization charts (joint angles over time)
 - [ ] Export to Excel/PDF
 - [ ] Animation quality scoring
+- [ ] Bone selection and highlighting in 3D viewer
+- [ ] Frame-by-frame comparison mode
 - [ ] ML-based anomaly detection
-- [ ] Comparison mode (side-by-side)
 - [ ] Cloud integration for team collaboration
+- [ ] Screenshot/video export from 3D viewer
 
 ## Contributing
 
@@ -245,9 +319,9 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 ## Contact
 
-**Noah Butcher**  
-Email: posner.noah@gmail.com  
-GitHub: [@yourusername](https://github.com/yourusername)
+**Noah Butcher**
+Email: posner.noah@gmail.com
+GitHub: [@noahbutcher97](https://github.com/noahbutcher97)
 
 ## Citation
 
@@ -258,7 +332,7 @@ If you use FBX Tool in your research, please cite:
   author = {Butcher, Noah},
   title = {FBX Tool: Professional FBX Animation Analysis},
   year = {2025},
-  url = {https://github.com/yourusername/fbx-tool}
+  url = {https://github.com/noahbutcher97/FBX_Tool}
 }
 ```
 

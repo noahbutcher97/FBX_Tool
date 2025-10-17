@@ -3,7 +3,7 @@
 import csv
 import numpy as np
 import fbx
-from fbx_tool.analysis.utils import prepare_output_file, get_animation_info, build_bone_hierarchy, get_standard_chains
+from fbx_tool.analysis.utils import prepare_output_file, get_animation_info, build_bone_hierarchy, detect_chains_from_hierarchy
 
 def fbx_vector_to_array(vec):
     """Convert FbxVector4 to numpy array"""
@@ -28,7 +28,9 @@ def analyze_gait(scene, output_dir="output/"):
     rate = anim_info['frame_rate']
     frame_time = anim_info['frame_time']
     hierarchy = build_bone_hierarchy(scene)
-    chains = get_standard_chains()
+
+    # Dynamically detect chains from hierarchy
+    chains = detect_chains_from_hierarchy(hierarchy, min_chain_length=3)
 
     joint_data = {}
     current = start

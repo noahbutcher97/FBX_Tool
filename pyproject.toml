@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fbx-tool"
-version = "1.0.0"
-description = "Professional FBX animation analysis tool for biomechanical motion processing"
+version = "1.1.0"
+description = "Professional FBX animation analysis tool with real-time 3D visualization and biomechanical motion processing"
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Noah Butcher", email = "posner.noah@gmail.com"}
 ]
-keywords = ["fbx", "animation", "biomechanics", "gait-analysis", "motion-capture"]
+keywords = ["fbx", "animation", "biomechanics", "gait-analysis", "motion-capture", "3d-visualization", "opengl", "skeleton-viewer"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -37,19 +37,19 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/fbx-tool"
-Documentation = "https://github.com/yourusername/fbx-tool/blob/main/README.md"
-Repository = "https://github.com/yourusername/fbx-tool"
-Issues = "https://github.com/yourusername/fbx-tool/issues"
+Homepage = "https://github.com/noahbutcher97/FBX_Tool"
+Documentation = "https://github.com/noahbutcher97/FBX_Tool/blob/main/README.md"
+Repository = "https://github.com/noahbutcher97/FBX_Tool"
+Issues = "https://github.com/noahbutcher97/FBX_Tool/issues"
 
 [project.scripts]
-fbx-tool = "main:main"
+fbx-tool = "fbx_tool.gui.main_window:main"
 
 [tool.setuptools]
-packages = ["analysis_modules"]
+packages = ["fbx_tool"]
 
 [tool.setuptools.package-data]
-analysis_modules = ["*.py"]
+fbx_tool = ["*.py"]
 
 [tool.black]
 line-length = 120

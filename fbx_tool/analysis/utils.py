@@ -78,31 +78,64 @@ def write_csv(filepath, header, rows):
 def get_animation_info(scene):
     """
     Extract animation timing information from FBX scene.
-    
+    Automatically selects the animation stack with actual animation data.
+
     Args:
         scene (fbx.FbxScene): FBX scene object.
-    
+
     Returns:
-        dict: Animation info with start, stop, frame_rate, frame_time.
+        dict: Animation info with start, stop, frame_rate, frame_time, stack_name.
     """
-    anim_stack = scene.GetSrcObject(fbx.FbxCriteria.ObjectType(fbx.FbxAnimStack.ClassId), 0)
-    if not anim_stack:
+    stack_count = scene.GetSrcObjectCount(fbx.FbxCriteria.ObjectType(fbx.FbxAnimStack.ClassId))
+    if stack_count == 0:
         raise RuntimeError("No animation stack found in scene.")
-    
-    scene.SetCurrentAnimationStack(anim_stack)
-    take_info = anim_stack.GetLocalTimeSpan()
+
+    # Try to find a stack with actual animation data
+    # Priority: look for "mixamo.com" stack, then use longest duration stack
+    selected_stack = None
+    selected_index = 0
+    max_duration = 0
+
+    for i in range(stack_count):
+        stack = scene.GetSrcObject(fbx.FbxCriteria.ObjectType(fbx.FbxAnimStack.ClassId), i)
+        stack_name = stack.GetName()
+        time_span = stack.GetLocalTimeSpan()
+        duration = time_span.GetStop().GetSecondDouble() - time_span.GetStart().GetSecondDouble()
+
+        # Prefer mixamo.com stack (contains actual Mixamo animation)
+        if "mixamo" in stack_name.lower():
+            selected_stack = stack
+            selected_index = i
+            break
+
+        # Otherwise use the longest duration stack
+        if duration > max_duration:
+            max_duration = duration
+            selected_stack = stack
+            selected_index = i
+
+    if not selected_stack:
+        selected_stack = scene.GetSrcObject(fbx.FbxCriteria.ObjectType(fbx.FbxAnimStack.ClassId), 0)
+        selected_index = 0
+
+    scene.SetCurrentAnimationStack(selected_stack)
+    take_info = selected_stack.GetLocalTimeSpan()
     start = take_info.GetStart().GetSecondDouble()
     stop = take_info.GetStop().GetSecondDouble()
     time_mode = scene.GetGlobalSettings().GetTimeMode()
     frame_rate = fbx.FbxTime.GetFrameRate(time_mode)
     frame_time = 1.0 / frame_rate
-    
+
+    print(f"Using animation stack {selected_index}: '{selected_stack.GetName()}' ({stop - start:.2f}s)")
+
     return {
         "start": start,
         "stop": stop,
         "frame_rate": frame_rate,
         "frame_time": frame_time,
-        "duration": stop - start
+        "duration": stop - start,
+        "stack_name": selected_stack.GetName(),
+        "stack_index": selected_index
     }
 
 
@@ -201,7 +234,9 @@ def format_float(value, precision=6):
 def get_standard_chains():
     """
     Return standard bone chain definitions for humanoid rigs.
-    
+
+    DEPRECATED: Use detect_chains_from_hierarchy() for dynamic detection.
+
     Returns:
         dict: {chain_name: [bone_names]}
     """
@@ -212,6 +247,107 @@ def get_standard_chains():
         "RightArm": ["clavicle_r", "upperarm_r", "lowerarm_r", "hand_r"],
         "Spine": ["pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "head"]
     }
+
+
+def detect_chains_from_hierarchy(hierarchy, min_chain_length=3):
+    """
+    Automatically detect bone chains from skeleton hierarchy.
+    Detects all linear chains (sequences of bones where each has only one child).
+
+    Args:
+        hierarchy (dict): {child: parent} bone hierarchy mapping
+        min_chain_length (int): Minimum bones in a chain to be detected
+
+    Returns:
+        dict: {chain_name: [bone_names]} detected chains
+    """
+    # Build reverse hierarchy (parent -> children)
+    children_map = {}
+    for child, parent in hierarchy.items():
+        if parent:
+            children_map.setdefault(parent, []).append(child)
+
+    # Find chain roots (bones that aren't the only child of their parent)
+    chains = {}
+    visited = set()
+
+    def trace_chain(bone):
+        """Trace a linear chain starting from bone."""
+        chain = [bone]
+        current = bone
+
+        while True:
+            kids = children_map.get(current, [])
+            # Stop if we hit a branch (multiple children) or a leaf (no children)
+            if len(kids) != 1:
+                break
+            current = kids[0]
+            chain.append(current)
+
+        return chain
+
+    # Identify all chain starts
+    for bone in hierarchy.keys():
+        if bone in visited:
+            continue
+
+        # Skip if this bone is the only child (it's part of a chain, not a root)
+        parent = hierarchy.get(bone)
+        if parent:
+            siblings = children_map.get(parent, [])
+            if len(siblings) == 1:
+                continue  # Part of an existing chain
+
+        # Trace the chain from this root
+        chain = trace_chain(bone)
+
+        if len(chain) >= min_chain_length:
+            # Mark all bones in this chain as visited
+            visited.update(chain)
+
+            # Generate a chain name based on bone names
+            chain_name = _generate_chain_name(chain)
+            chains[chain_name] = chain
+
+    return chains
+
+
+def _generate_chain_name(chain):
+    """
+    Generate a descriptive name for a bone chain.
+
+    Args:
+        chain (list): List of bone names in the chain
+
+    Returns:
+        str: Generated chain name
+    """
+    first_bone = chain[0].lower()
+    last_bone = chain[-1].lower()
+
+    # Common naming patterns
+    if 'leg' in first_bone or 'thigh' in first_bone or 'upleg' in first_bone:
+        if 'left' in first_bone or '_l' in first_bone:
+            return "LeftLeg"
+        elif 'right' in first_bone or '_r' in first_bone:
+            return "RightLeg"
+        return "Leg"
+
+    elif 'arm' in first_bone or 'shoulder' in first_bone or 'clavicle' in first_bone:
+        if 'left' in first_bone or '_l' in first_bone:
+            return "LeftArm"
+        elif 'right' in first_bone or '_r' in first_bone:
+            return "RightArm"
+        return "Arm"
+
+    elif 'spine' in first_bone or 'hips' in first_bone or 'pelvis' in first_bone:
+        return "Spine"
+
+    elif 'neck' in first_bone or 'head' in first_bone:
+        return "Neck"
+
+    # Default: use first bone name
+    return chain[0]
 
 
 def validate_chain(chain, bone_names):
