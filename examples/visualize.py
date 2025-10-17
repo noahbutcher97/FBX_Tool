@@ -5,9 +5,9 @@ Demonstrates how to use the skeleton visualization features.
 """
 
 import sys
-from analysis_modules.fbx_loader import load_fbx_scene
-from skeleton_visualizer import SkeletonVisualizer, visualize_skeleton_frame, create_skeleton_animation
-from opengl_viewer import launch_skeleton_viewer
+from fbx_tool.analysis.fbx_loader import load_fbx_scene
+from fbx_tool.visualization.matplotlib_viewer import SkeletonVisualizer, visualize_skeleton_frame, create_skeleton_animation
+from fbx_tool.visualization.opengl_viewer import launch_skeleton_viewer
 
 
 def example_matplotlib_single_frame(fbx_path):

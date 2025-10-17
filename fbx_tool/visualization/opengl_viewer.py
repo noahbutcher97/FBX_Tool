@@ -12,7 +12,7 @@ from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from OpenGL.GL import *
 from OpenGL.GLU import *
 import fbx
-from analysis_modules.utils import get_animation_info, build_bone_hierarchy
+from fbx_tool.analysis.utils import get_animation_info, build_bone_hierarchy
 
 
 class SkeletonGLWidget(QOpenGLWidget):

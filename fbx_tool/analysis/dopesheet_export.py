@@ -4,7 +4,7 @@ Exports animation data in proper dopesheet format: bones as rows, frames as colu
 """
 import csv
 import fbx
-from analysis_modules.utils import prepare_output_file, get_animation_info, collect_bone_names
+from fbx_tool.analysis.utils import prepare_output_file, get_animation_info, collect_bone_names
 
 
 def export_dopesheet(scene, output_path, frame_rate=None):

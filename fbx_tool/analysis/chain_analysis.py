@@ -3,7 +3,7 @@
 import csv
 import numpy as np
 import fbx
-from analysis_modules.utils import prepare_output_file, get_animation_info, build_bone_hierarchy, get_standard_chains
+from fbx_tool.analysis.utils import prepare_output_file, get_animation_info, build_bone_hierarchy, get_standard_chains
 
 def fbx_vector_to_array(vec):
     """Convert FbxVector4 to numpy array"""

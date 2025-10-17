@@ -14,13 +14,13 @@ from PyQt6.QtWidgets import (
     QFileDialog, QTextEdit, QHBoxLayout, QProgressBar, QGroupBox
 )  # ✅ FIXED: Added closing parenthesis
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from analysis_modules.fbx_loader import load_fbx, get_scene_metadata
-from analysis_modules.dopesheet_export import export_dopesheet
-from analysis_modules.gait_analysis import analyze_gait
-from analysis_modules.chain_analysis import analyze_chains
-from analysis_modules.joint_analysis import analyze_joints
-from analysis_modules.gait_summary import GaitSummaryAnalysis
-from analysis_modules.utils import ensure_output_dir
+from fbx_tool.analysis.fbx_loader import load_fbx, get_scene_metadata
+from fbx_tool.analysis.dopesheet_export import export_dopesheet
+from fbx_tool.analysis.gait_analysis import analyze_gait
+from fbx_tool.analysis.chain_analysis import analyze_chains
+from fbx_tool.analysis.joint_analysis import analyze_joints
+from fbx_tool.analysis.gait_summary import GaitSummaryAnalysis
+from fbx_tool.analysis.utils import ensure_output_dir
 
 
 class AnalysisWorker(QThread):
@@ -339,3 +339,14 @@ if __name__ == '__main__':
     window = FBXAnalyzerApp()
     window.show()
     sys.exit(app.exec())
+
+def main():
+    """Main entry point for GUI."""
+    app = QApplication(sys.argv)
+    window = FBXAnalyzerApp()
+    window.show()
+    return app.exec()
+
+
+if __name__ == '__main__':
+    sys.exit(main())
