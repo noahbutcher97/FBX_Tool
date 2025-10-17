@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fbx-tool"
+version = "1.0.0"
+description = "Professional FBX animation analysis tool for biomechanical motion processing"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Noah Butcher", email = "posner.noah@gmail.com"}
+]
+keywords = ["fbx", "animation", "biomechanics", "gait-analysis", "motion-capture"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
+dependencies = [
+    "numpy>=1.24.0,<2.0.0",
+    "PyQt6>=6.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "pyinstaller>=6.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/fbx-tool"
+Documentation = "https://github.com/yourusername/fbx-tool/blob/main/README.md"
+Repository = "https://github.com/yourusername/fbx-tool"
+Issues = "https://github.com/yourusername/fbx-tool/issues"
+
+[project.scripts]
+fbx-tool = "main:main"
+
+[tool.setuptools]
+packages = ["analysis_modules"]
+
+[tool.setuptools.package-data]
+analysis_modules = ["*.py"]
+
+[tool.black]
+line-length = 120
+target-version = ['py310']
+include = '\.pyi?$'
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.pyinstaller]
+# PyInstaller configuration
+name = "FBX_Tool"
+console = false
+onefile = true

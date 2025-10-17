@@ -1,0 +1,23 @@
+# Create requirements.txt
+requirements = """# Core dependencies
+numpy>=1.24.0,<2.0.0
+PyQt6>=6.5.0
+
+# Build tools
+pyinstaller>=6.0.0
+
+# Development dependencies (optional)
+pytest>=7.4.0
+black>=23.0.0
+flake8>=6.0.0
+
+# FBX SDK
+# Note: FBX Python SDK must be installed separately
+# See INSTALL.md for installation instructions
+# The fbx module is provided by Autodesk FBX Python SDK 2020.x
+"""
+
+with open('requirements.txt', 'w') as f:
+    f.write(requirements)
+
+print("✓ Created requirements.txt")
