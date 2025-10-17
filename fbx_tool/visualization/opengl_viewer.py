@@ -32,10 +32,10 @@ class SkeletonGLWidget(QOpenGLWidget):
         self.bone_transforms = {}
 
         # Camera settings
-        self.camera_distance = 200.0
-        self.camera_rotation_x = 30.0
-        self.camera_rotation_y = 45.0
-        self.camera_target = np.array([0.0, 0.0, 0.0])
+        self.camera_distance = 400.0  # Start further back
+        self.camera_azimuth = 45.0  # Look down from above
+        self.camera_elevation = 20.0
+        self.camera_target = np.array([0.0, 100.0, 0.0])  # Look at character height
 
         # Mouse interaction
         self.last_mouse_pos = None
@@ -62,7 +62,9 @@ class SkeletonGLWidget(QOpenGLWidget):
 
                 global_transform = node.EvaluateGlobalTransform(t)
                 translation = global_transform.GetT()
-                position = np.array([translation[0], translation[1], translation[2]])
+                # Convert from FBX coordinate system (Z-up) to Y-up
+                # Swap Y and Z, negate new Z
+                position = np.array([translation[0], translation[2], -translation[1]])
 
                 if bone_name not in transforms:
                     transforms[bone_name] = []
@@ -114,9 +116,13 @@ class SkeletonGLWidget(QOpenGLWidget):
         glLoadIdentity()
 
         # Set up camera
-        cam_x = self.camera_target[0] + self.camera_distance * np.sin(np.radians(self.camera_rotation_y)) * np.cos(np.radians(self.camera_rotation_x))
-        cam_y = self.camera_target[1] + self.camera_distance * np.sin(np.radians(self.camera_rotation_x))
-        cam_z = self.camera_target[2] + self.camera_distance * np.cos(np.radians(self.camera_rotation_y)) * np.cos(np.radians(self.camera_rotation_x))
+        # Orbit camera
+        azimuth_rad = np.radians(self.camera_azimuth)
+        elevation_rad = np.radians(self.camera_elevation)
+        
+        cam_x = self.camera_target[0] + self.camera_distance * np.cos(elevation_rad) * np.sin(azimuth_rad)
+        cam_y = self.camera_target[1] + self.camera_distance * np.sin(elevation_rad)
+        cam_z = self.camera_target[2] + self.camera_distance * np.cos(elevation_rad) * np.cos(azimuth_rad)
 
         gluLookAt(
             cam_x, cam_y, cam_z,
@@ -212,10 +218,10 @@ class SkeletonGLWidget(QOpenGLWidget):
         dy = event.pos().y() - self.last_mouse_pos.y()
 
         if self.mouse_button == Qt.MouseButton.LeftButton:
-            # Rotate camera
-            self.camera_rotation_y += dx * 0.5
-            self.camera_rotation_x += dy * 0.5
-            self.camera_rotation_x = max(-89, min(89, self.camera_rotation_x))
+            # Orbit camera
+            self.camera_azimuth += dx * 0.5
+            self.camera_elevation -= dy * 0.5
+            self.camera_elevation = max(-89, min(89, self.camera_elevation))
 
         elif self.mouse_button == Qt.MouseButton.RightButton:
             # Pan camera
@@ -318,17 +324,27 @@ def launch_skeleton_viewer(scene):
 
     Args:
         scene: FBX scene object
+    
+    Returns:
+        SkeletonViewerWidget: The viewer widget instance
     """
     from PyQt6.QtWidgets import QApplication
     import sys
 
     app = QApplication.instance()
+    created_app = False
+    
     if app is None:
         app = QApplication(sys.argv)
+        created_app = True
 
     viewer = SkeletonViewerWidget(scene)
     viewer.resize(1200, 800)
     viewer.show()
 
-    if app:
+    # Only start event loop if we created the application
+    # If called from existing app, just return the viewer
+    if created_app:
         app.exec()
+    
+    return viewer

@@ -7,12 +7,11 @@ WITH ROBUST ERROR HANDLING - Continues execution even if individual steps fail.
 
 import sys
 import os
-import time
 import traceback
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QLabel,
     QFileDialog, QTextEdit, QHBoxLayout, QProgressBar, QGroupBox
-)  # ✅ FIXED: Added closing parenthesis
+)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from fbx_tool.analysis.fbx_loader import load_fbx, get_scene_metadata
 from fbx_tool.analysis.dopesheet_export import export_dopesheet
@@ -21,6 +20,7 @@ from fbx_tool.analysis.chain_analysis import analyze_chains
 from fbx_tool.analysis.joint_analysis import analyze_joints
 from fbx_tool.analysis.gait_summary import GaitSummaryAnalysis
 from fbx_tool.analysis.utils import ensure_output_dir
+from fbx_tool.visualization.opengl_viewer import launch_skeleton_viewer
 
 
 class AnalysisWorker(QThread):
@@ -33,7 +33,7 @@ class AnalysisWorker(QThread):
     - Tracks errors and displays summary at completion
     - File-specific output directories
     """
-    finished = pyqtSignal(object)
+    finished = pyqtSignal(object, object)  # (model, scene)
     error = pyqtSignal(str)
     progress = pyqtSignal(str)
 
@@ -42,7 +42,7 @@ class AnalysisWorker(QThread):
         self.fbx_file = fbx_file
         self.operations = operations
         self._is_running = True
-        self.errors = []  # Track errors that occur during analysis
+        self.errors = []
 
     def run(self):
         """Run analysis with robust error handling for each step."""
@@ -78,7 +78,7 @@ class AnalysisWorker(QThread):
                 error_msg = f"✗ CRITICAL: Failed to load FBX scene: {str(e)}"
                 self.progress.emit(error_msg)
                 self.error.emit(error_msg)
-                return  # Cannot continue without scene
+                return
 
             # STEP 2: Export Dopesheet (NON-CRITICAL)
             if "dopesheet" in self.operations and self._is_running:
@@ -136,7 +136,7 @@ class AnalysisWorker(QThread):
                         chain_conf=chain_conf,
                         joint_conf=joint_conf,
                         stride_segments=stride_segments
-                    )  # ✅ FIXED: Added closing parenthesis
+                    )
 
                     json_path = os.path.join(output_dir, "analysis_summary.json")
                     model.to_json(json_path)
@@ -149,13 +149,13 @@ class AnalysisWorker(QThread):
                             self.progress.emit(f"    - {step}: {msg}")
                         self.progress.emit(f"\nPartial results saved to: {output_dir}")
 
-                    self.finished.emit(model)
+                    self.finished.emit(model, scene)
 
                 except Exception as e:
                     error_msg = f"  ✗ Failed to create analysis model: {str(e)}"
                     self.progress.emit(error_msg)
                     self.errors.append(("Model Creation", str(e)))
-                    self.finished.emit(None)
+                    self.finished.emit(None, scene)
 
         except Exception as e:
             error_msg = f"✗ Unexpected error: {str(e)}"
@@ -176,7 +176,8 @@ class FBXAnalyzerApp(QWidget):
         self.setAcceptDrops(True)
         self.fbx_files = []
         self.worker = None
-        self.scene = None
+        self.current_scene = None
+        self.viewer_window = None  # Store viewer reference
         self.initUI()
 
     def initUI(self):
@@ -238,11 +239,18 @@ class FBXAnalyzerApp(QWidget):
         self.run_all_btn.setEnabled(False)
         ops_row3.addWidget(self.run_all_btn)
 
+        self.viz_btn = QPushButton("🎬 Visualize 3D")
+        self.viz_btn.clicked.connect(self.launch_visualizer)
+        self.viz_btn.setEnabled(False)
+        ops_row3.addWidget(self.viz_btn)
+        ops_layout.addLayout(ops_row3)
+
+        ops_row4 = QHBoxLayout()
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self.cancelAnalysis)
         self.cancel_btn.setEnabled(False)
-        ops_row3.addWidget(self.cancel_btn)
-        ops_layout.addLayout(ops_row3)
+        ops_row4.addWidget(self.cancel_btn)
+        ops_layout.addLayout(ops_row4)
 
         ops_group.setLayout(ops_layout)
         layout.addWidget(ops_group)
@@ -255,7 +263,8 @@ class FBXAnalyzerApp(QWidget):
             self.fbx_files = fnames
             self.label.setText(f"Selected {len(fnames)} file(s): {', '.join(os.path.basename(f) for f in fnames)}")
             self.enableOperationButtons(True)
-            self.result.setText("Ready to analyze.")
+            self.viz_btn.setEnabled(True)  # Enable viz immediately
+            self.result.setText("Ready to analyze or visualize.")
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -267,7 +276,8 @@ class FBXAnalyzerApp(QWidget):
             self.fbx_files = files
             self.label.setText(f"Dropped {len(files)} file(s): {', '.join(os.path.basename(f) for f in files)}")
             self.enableOperationButtons(True)
-            self.result.setText("Ready to analyze.")
+            self.viz_btn.setEnabled(True)  # Enable viz immediately
+            self.result.setText("Ready to analyze or visualize.")
 
     def runOperation(self, operations):
         if not self.fbx_files:
@@ -277,6 +287,7 @@ class FBXAnalyzerApp(QWidget):
         self.enableOperationButtons(False)
         self.choose_btn.setEnabled(False)
         self.cancel_btn.setEnabled(True)
+        self.viz_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)
         self.result.clear()
@@ -298,7 +309,8 @@ class FBXAnalyzerApp(QWidget):
     def updateProgress(self, message):
         self.result.append(message)
 
-    def onAnalysisComplete(self, model):
+    def onAnalysisComplete(self, model, scene):
+        self.current_scene = scene
         self.resetUI()
         self.result.append("\n" + "="*50)
         self.result.append("✓ Analysis Complete!")
@@ -309,10 +321,35 @@ class FBXAnalyzerApp(QWidget):
             base_name = os.path.splitext(os.path.basename(self.fbx_files[0]))[0]
             self.result.append(f"  Results saved to: output/{base_name}/")
         self.result.append("="*50)
+        
+        if self.current_scene:
+            self.viz_btn.setEnabled(True)
 
     def onAnalysisError(self, error_msg):
         self.resetUI()
         self.result.append(f"\n✗ Critical Error: {error_msg}")
+
+    def launch_visualizer(self):
+        """Launch 3D viewer, loading scene if necessary."""
+        try:
+            # If we don't have a scene yet, load it
+            if not self.current_scene and self.fbx_files:
+                self.result.append("\n⏳ Loading FBX for visualization...")
+                from fbx_tool.analysis.fbx_loader import load_fbx
+                self.current_scene = load_fbx(self.fbx_files[0])
+                self.result.append("✓ FBX loaded successfully")
+            
+            if self.current_scene:
+                self.result.append("🎬 Launching 3D viewer...")
+                # Store viewer reference to prevent garbage collection
+                self.viewer_window = launch_skeleton_viewer(self.current_scene)
+                self.result.append("✓ Viewer window opened")
+            else:
+                self.result.append("\n⚠ No FBX file selected. Please select a file first.")
+        except Exception as e:
+            import traceback
+            self.result.append(f"\n✗ Visualization error: {str(e)}")
+            self.result.append(f"Traceback:\n{traceback.format_exc()}")
 
     def enableOperationButtons(self, enabled):
         self.dopesheet_btn.setEnabled(enabled)
@@ -333,12 +370,6 @@ class FBXAnalyzerApp(QWidget):
             self.worker.wait()
         event.accept()
 
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = FBXAnalyzerApp()
-    window.show()
-    sys.exit(app.exec())
 
 def main():
     """Main entry point for GUI."""
