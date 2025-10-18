@@ -18,10 +18,16 @@ class GaitSummaryAnalysis:
         return len(self.stride_segments)
     
     def get_gait_type(self, chain="LeftLeg"):
-        return self.gait_summary.get(chain, {}).get("gait_type", "Unknown")
+        chain_data = self.gait_summary.get(chain, {})
+        if chain_data is None:
+            return "Unknown"
+        return chain_data.get("gait_type", "Unknown")
     
     def get_chain_confidence(self, chain):
-        return self.chain_conf.get(chain, {}).get("confidence", 0.0)
+        chain_data = self.chain_conf.get(chain, {})
+        if chain_data is None:
+            return 0.0
+        return chain_data.get("confidence", 0.0)
     
     def to_dict(self):
         data = {

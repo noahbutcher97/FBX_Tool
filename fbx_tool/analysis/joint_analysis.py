@@ -1,13 +1,18 @@
 """Joint Analysis Module"""
 
 import csv
-import numpy as np
-import fbx
-from fbx_tool.analysis.utils import prepare_output_file, get_animation_info, build_bone_hierarchy
 
-def fbx_vector_to_array(vec):
-    """Convert FbxVector4 to numpy array"""
-    return np.array([vec[0], vec[1], vec[2]])
+import fbx
+import numpy as np
+
+from fbx_tool.analysis.fbx_loader import get_scene_metadata
+from fbx_tool.analysis.utils import (
+    build_bone_hierarchy,
+    compute_ik_suitability,
+    fbx_vector_to_array,
+    prepare_output_file,
+)
+
 
 def analyze_joints(scene, output_dir="output/"):
     """
@@ -20,11 +25,11 @@ def analyze_joints(scene, output_dir="output/"):
     Returns:
         dict: Joint summary data {(parent, child): (stability, range_score, ik_score)}
     """
-    anim_info = get_animation_info(scene)
-    start = anim_info['start']
-    stop = anim_info['stop']
+    anim_info = get_scene_metadata(scene)
+    start = anim_info['start_time']
+    stop = anim_info['stop_time']
     rate = anim_info['frame_rate']
-    frame_time = anim_info['frame_time']
+    frame_time = 1.0 / rate  # Compute frame time from frame rate
     hierarchy = build_bone_hierarchy(scene)
 
     joint_data = {}
@@ -59,14 +64,15 @@ def analyze_joints(scene, output_dir="output/"):
     joint_summary = {}
     for joint, vals in joint_data.items():
         arr = np.array(vals)
-        std_r = np.std(arr[:, 3:6], axis=0)
-        min_r = np.min(arr[:, 3:6], axis=0)
-        max_r = np.max(arr[:, 3:6], axis=0)
-        rot_range = max_r - min_r
-        range_score = np.exp(-np.var(arr[:, 3:6])) * np.clip(np.sum(rot_range) / 540, 0, 1)
-        stab = 1 / (1 + np.linalg.norm(std_r))
-        ik_score = stab * 0.6 + range_score * 0.4
+        rotation_data = arr[:, 3:6]  # Extract rotation columns (X, Y, Z Euler angles)
+
+        # Compute IK suitability using shared function
+        stab, range_score, ik_score = compute_ik_suitability(rotation_data)
         joint_summary[joint] = (stab, range_score, ik_score)
+
+        # Get rotation range for CSV output
+        min_r = np.min(rotation_data, axis=0)
+        max_r = np.max(rotation_data, axis=0)
         enhanced.append([
             joint[0], joint[1],
             min_r[0], max_r[0], min_r[1], max_r[1], min_r[2], max_r[2],

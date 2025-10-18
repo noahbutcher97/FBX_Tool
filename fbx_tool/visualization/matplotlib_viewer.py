@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
 import fbx
-from fbx_tool.analysis.utils import get_animation_info, build_bone_hierarchy
+from fbx_tool.analysis.fbx_loader import get_scene_metadata
+from fbx_tool.analysis.utils import build_bone_hierarchy
 
 
 class SkeletonVisualizer:
@@ -33,13 +34,13 @@ class SkeletonVisualizer:
             scene: FBX scene object
         """
         self.scene = scene
-        self.anim_info = get_animation_info(scene)
+        self.anim_info = get_scene_metadata(scene)
         self.hierarchy = build_bone_hierarchy(scene)
 
-        self.start = self.anim_info['start']
-        self.stop = self.anim_info['stop']
+        self.start = self.anim_info['start_time']
+        self.stop = self.anim_info['stop_time']
         self.rate = self.anim_info['frame_rate']
-        self.frame_time = self.anim_info['frame_time']
+        self.frame_time = 1.0 / self.rate
 
         # Cache all bone transforms
         self.bone_transforms = self._extract_transforms()

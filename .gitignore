@@ -74,4 +74,5 @@ desktop.ini
 with open('.gitignore', 'w') as f:
     f.write(gitignore)
 
-print("✓ Created .gitignore")
+print("✓ Created .gitignore")nul
+fbx_tool/analysis/velocity_analysis.py.backup

@@ -3,25 +3,28 @@ Dopesheet Export Module
 Exports animation data in proper dopesheet format: bones as rows, frames as columns.
 """
 import csv
+
 import fbx
-from fbx_tool.analysis.utils import prepare_output_file, get_animation_info, collect_bone_names
+
+from fbx_tool.analysis.fbx_loader import get_scene_metadata
+from fbx_tool.analysis.utils import get_all_bones, prepare_output_file
 
 
 def export_dopesheet(scene, output_path, frame_rate=None):
     """Export animation dopesheet in optimized tabular format (bones × frames)."""
     prepare_output_file(output_path)
-    
+
     root = scene.GetRootNode()
     if not root:
         raise RuntimeError("No root node found in FBX scene.")
-    
-    anim_info = get_animation_info(scene)
+
+    anim_info = get_scene_metadata(scene)
     if frame_rate is None:
         frame_rate = anim_info["frame_rate"]
-    
+
     frame_time = 1.0 / frame_rate
-    start = anim_info["start"]
-    stop = anim_info["stop"]
+    start = anim_info["start_time"]
+    stop = anim_info["stop_time"]
 
     # Collect frame times
     frame_times = []
@@ -31,7 +34,8 @@ def export_dopesheet(scene, output_path, frame_rate=None):
         current_time += frame_time
 
     # Collect bones
-    bone_names = collect_bone_names(scene)
+    bones = get_all_bones(scene)
+    bone_names = [bone.GetName() for bone in bones]
 
     # Build transform data
     bone_data = {}

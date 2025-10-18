@@ -1,0 +1,30 @@
+# Testing dependencies for FBX Tool
+# Install with: pip install -r requirements-test.txt
+
+# Core testing
+pytest>=7.4.0
+pytest-cov>=4.1.0          # Code coverage
+pytest-xdist>=3.3.0        # Parallel testing
+pytest-mock>=3.11.0        # Mocking support
+pytest-timeout>=2.1.0      # Test timeouts
+
+# Code quality
+black>=23.7.0              # Code formatting
+flake8>=6.1.0              # Linting
+mypy>=1.5.0                # Type checking
+isort>=5.12.0              # Import sorting
+pylint>=2.17.0             # Additional linting
+
+# Pre-commit hooks
+pre-commit>=3.3.0
+
+# Coverage reporting
+coverage[toml]>=7.3.0
+
+# Testing utilities
+faker>=19.3.0              # Generate test data
+freezegun>=1.2.0           # Mock datetime
+hypothesis>=6.82.0         # Property-based testing
+
+# Include base requirements
+-r requirements.txt

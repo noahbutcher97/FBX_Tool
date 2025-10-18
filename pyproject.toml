@@ -62,6 +62,37 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 
+[tool.coverage.run]
+# Coverage configuration for pytest-xdist parallel execution
+# Note: pytest-cov handles parallel collection automatically with xdist
+concurrency = ["multiprocessing"]
+source = ["fbx_tool"]
+omit = [
+    "*/tests/*",
+    "*/.fbxenv/*",
+    "*/.venv/*",
+    "*/site-packages/*",
+]
+# Disable coverage warnings (expected "no data" warnings from empty xdist workers)
+disable_warnings = ["no-data-collected"]
+
+[tool.coverage.report]
+# Report configuration
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
 [tool.pyinstaller]
 # PyInstaller configuration
 name = "FBX_Tool"
