@@ -5,17 +5,19 @@ Tests stride segmentation, gait phase analysis, cycle rate calculation,
 and asymmetry detection following TDD principles.
 """
 
-import pytest
+from unittest.mock import MagicMock, Mock, patch
+
 import numpy as np
-from unittest.mock import Mock, MagicMock, patch
+import pytest
+
 from fbx_tool.analysis.gait_analysis import (
-    detect_foot_bone,
-    compute_gait_confidence,
-    calculate_asymmetry,
-    analyze_gait,
+    FOOT_BONE_KEYWORDS,
     GAIT_CONFIDENCE_NORMALIZER,
     GAIT_RUN_PHASE_THRESHOLD_SECONDS,
-    FOOT_BONE_KEYWORDS
+    analyze_gait,
+    calculate_asymmetry,
+    compute_gait_confidence,
+    detect_foot_bone,
 )
 
 
@@ -185,19 +187,17 @@ class TestAsymmetryCalculation:
 class TestGaitAnalysis:
     """Test suite for full gait analysis."""
 
-    @patch('fbx_tool.analysis.gait_analysis.get_scene_metadata')
-    @patch('fbx_tool.analysis.gait_analysis.build_bone_hierarchy')
-    @patch('fbx_tool.analysis.gait_analysis.detect_chains_from_hierarchy')
-    @patch('fbx_tool.analysis.gait_analysis.prepare_output_file')
-    @patch('builtins.open', new_callable=MagicMock)
-    @patch('csv.writer')
-    def test_analyze_gait_no_leg_chains(self, mock_csv, mock_open, mock_prepare, mock_detect_chains, mock_hierarchy, mock_anim_info):
+    @patch("fbx_tool.analysis.gait_analysis.get_scene_metadata")
+    @patch("fbx_tool.analysis.gait_analysis.build_bone_hierarchy")
+    @patch("fbx_tool.analysis.gait_analysis.detect_chains_from_hierarchy")
+    @patch("fbx_tool.analysis.gait_analysis.prepare_output_file")
+    @patch("builtins.open", new_callable=MagicMock)
+    @patch("csv.writer")
+    def test_analyze_gait_no_leg_chains(
+        self, mock_csv, mock_open, mock_prepare, mock_detect_chains, mock_hierarchy, mock_anim_info
+    ):
         """Should handle scenes with no detected leg chains."""
-        mock_anim_info.return_value = {
-            'start_time': 0.0,
-            'stop_time': 1.0,
-            'frame_rate': 30.0
-        }
+        mock_anim_info.return_value = {"start_time": 0.0, "stop_time": 1.0, "frame_rate": 30.0}
         mock_hierarchy.return_value = {}
         mock_detect_chains.return_value = {}  # No chains
 
@@ -206,33 +206,36 @@ class TestGaitAnalysis:
         stride_segments, gait_summary = analyze_gait(scene, output_dir="test_output")
 
         assert len(stride_segments) == 0
-        assert gait_summary['cycle_rate'] == 0.0
+        assert gait_summary["cycle_rate"] == 0.0
 
-    @patch('fbx_tool.analysis.gait_analysis.get_scene_metadata')
-    @patch('fbx_tool.analysis.gait_analysis.build_bone_hierarchy')
-    @patch('fbx_tool.analysis.gait_analysis.detect_chains_from_hierarchy')
-    @patch('fbx_tool.analysis.gait_analysis.prepare_output_file')
-    @patch('fbx_tool.analysis.gait_analysis.fbx_vector_to_array')
-    @patch('fbx_tool.analysis.gait_analysis.fbx')
-    @patch('builtins.open', new_callable=MagicMock)
-    @patch('csv.writer')
-    def test_analyze_gait_basic(self, mock_csv, mock_open, mock_fbx, mock_vec_to_array, mock_prepare, mock_detect_chains, mock_hierarchy, mock_anim_info):
+    @patch("fbx_tool.analysis.gait_analysis.get_scene_metadata")
+    @patch("fbx_tool.analysis.gait_analysis.build_bone_hierarchy")
+    @patch("fbx_tool.analysis.gait_analysis.detect_chains_from_hierarchy")
+    @patch("fbx_tool.analysis.gait_analysis.prepare_output_file")
+    @patch("fbx_tool.analysis.gait_analysis.fbx_vector_to_array")
+    @patch("fbx_tool.analysis.gait_analysis.fbx")
+    @patch("builtins.open", new_callable=MagicMock)
+    @patch("csv.writer")
+    def test_analyze_gait_basic(
+        self,
+        mock_csv,
+        mock_open,
+        mock_fbx,
+        mock_vec_to_array,
+        mock_prepare,
+        mock_detect_chains,
+        mock_hierarchy,
+        mock_anim_info,
+    ):
         """Should analyze gait and detect strides."""
         # Setup animation info
-        mock_anim_info.return_value = {
-            'start_time': 0.0,
-            'stop_time': 1.0,
-            'frame_rate': 30.0
-        }
+        mock_anim_info.return_value = {"start_time": 0.0, "stop_time": 1.0, "frame_rate": 30.0}
 
         # Setup hierarchy with leg chains
-        mock_hierarchy.return_value = {
-            "LeftFoot": "LeftLeg",
-            "RightFoot": "RightLeg"
-        }
+        mock_hierarchy.return_value = {"LeftFoot": "LeftLeg", "RightFoot": "RightLeg"}
         mock_detect_chains.return_value = {
             "LeftLeg": ["LeftThigh", "LeftCalf", "LeftFoot"],
-            "RightLeg": ["RightThigh", "RightCalf", "RightFoot"]
+            "RightLeg": ["RightThigh", "RightCalf", "RightFoot"],
         }
 
         # Mock scene with foot bone nodes
@@ -248,7 +251,7 @@ class TestGaitAnalysis:
             "LeftFoot": left_foot_node,
             "LeftLeg": left_leg_node,
             "RightFoot": right_foot_node,
-            "RightLeg": right_leg_node
+            "RightLeg": right_leg_node,
         }.get(name)
 
         # Mock FbxTime properly
@@ -295,9 +298,9 @@ class TestGaitAnalysis:
         stride_segments, gait_summary = analyze_gait(scene, output_dir="test_output")
 
         # Should detect some stride segments
-        assert 'cycle_rate' in gait_summary
-        assert 'confidence' in gait_summary
-        assert 'gait_type' in gait_summary
+        assert "cycle_rate" in gait_summary
+        assert "confidence" in gait_summary
+        assert "gait_type" in gait_summary
 
 
 class TestGaitTypeClassification:

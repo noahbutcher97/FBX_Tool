@@ -29,9 +29,7 @@ from PyQt6.QtWidgets import (
 )
 
 from fbx_tool.analysis.chain_analysis import analyze_chains
-from fbx_tool.analysis.constraint_violation_detection import (
-    analyze_constraint_violations,
-)
+from fbx_tool.analysis.constraint_violation_detection import analyze_constraint_violations
 from fbx_tool.analysis.directional_change_detection import analyze_directional_changes
 from fbx_tool.analysis.dopesheet_export import export_dopesheet
 from fbx_tool.analysis.fbx_loader import get_scene_metadata, load_fbx

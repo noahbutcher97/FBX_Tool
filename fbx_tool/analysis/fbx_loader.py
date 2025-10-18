@@ -8,6 +8,7 @@ based on activity metrics (animated bones, keyframe density, duration).
 import fbx
 import numpy as np
 
+
 def load_fbx(path):
     """
     Load an FBX file and return the scene object and manager.
@@ -28,6 +29,7 @@ def load_fbx(path):
         RuntimeError: If FBX SDK fails to load or parse the file.
     """
     import os
+
     if not os.path.exists(path):
         raise FileNotFoundError(f"FBX file not found: {path}")
 
@@ -68,20 +70,21 @@ def cleanup_fbx_scene(scene, manager):
     if manager is not None:
         manager.Destroy()
 
+
 def get_scene_metadata(scene):
     """
     Extract useful metadata from an FBX scene.
-    
+
     Args:
         scene (fbx.FbxScene): The FBX scene object.
-    
+
     Returns:
         dict: Metadata including frame rate, time range, bone count, etc.
     """
     anim_stack_count = scene.GetSrcObjectCount(fbx.FbxCriteria.ObjectType(fbx.FbxAnimStack.ClassId))
     if anim_stack_count == 0:
         return {"has_animation": False}
-    
+
     anim_stack = scene.GetSrcObject(fbx.FbxCriteria.ObjectType(fbx.FbxAnimStack.ClassId), 0)
     scene.SetCurrentAnimationStack(anim_stack)
     take_info = anim_stack.GetLocalTimeSpan()
@@ -89,10 +92,10 @@ def get_scene_metadata(scene):
     stop = take_info.GetStop().GetSecondDouble()
     time_mode = scene.GetGlobalSettings().GetTimeMode()
     frame_rate = fbx.FbxTime.GetFrameRate(time_mode)
-    
+
     root = scene.GetRootNode()
     bone_count = count_bones(root)
-    
+
     return {
         "has_animation": True,
         "start_time": start,
@@ -100,8 +103,9 @@ def get_scene_metadata(scene):
         "duration": stop - start,
         "frame_rate": frame_rate,
         "bone_count": bone_count,
-        "anim_stack_name": anim_stack.GetName()
+        "anim_stack_name": anim_stack.GetName(),
     }
+
 
 def count_bones(node):
     """Recursively count bones in the hierarchy."""
@@ -131,10 +135,21 @@ def evaluate_stack_activity(scene, anim_stack):
     # Core skeletal bones that indicate meaningful animation
     # Higher weight = more important for ranking
     CORE_BONE_PATTERNS = {
-        'hips': 3.0, 'pelvis': 3.0, 'spine': 2.5, 'chest': 2.0,
-        'neck': 2.0, 'head': 1.5,
-        'shoulder': 2.0, 'arm': 1.5, 'elbow': 1.5, 'hand': 1.0,
-        'leg': 2.0, 'thigh': 2.0, 'knee': 1.5, 'foot': 2.0, 'ankle': 2.0
+        "hips": 3.0,
+        "pelvis": 3.0,
+        "spine": 2.5,
+        "chest": 2.0,
+        "neck": 2.0,
+        "head": 1.5,
+        "shoulder": 2.0,
+        "arm": 1.5,
+        "elbow": 1.5,
+        "hand": 1.0,
+        "leg": 2.0,
+        "thigh": 2.0,
+        "knee": 1.5,
+        "foot": 2.0,
+        "ankle": 2.0,
     }
 
     # Get time span
@@ -145,13 +160,13 @@ def evaluate_stack_activity(scene, anim_stack):
 
     if duration <= 0:
         return {
-            'animated_curves': 0,
-            'animated_bones': 0,
-            'core_bone_weight': 0.0,
-            'duration': 0.0,
-            'keyframe_count': 0,
-            'keyframe_density': 0.0,
-            'activity_score': 0.0
+            "animated_curves": 0,
+            "animated_bones": 0,
+            "core_bone_weight": 0.0,
+            "duration": 0.0,
+            "keyframe_count": 0,
+            "keyframe_density": 0.0,
+            "activity_score": 0.0,
         }
 
     # Set as current stack to evaluate curves
@@ -238,21 +253,21 @@ def evaluate_stack_activity(scene, anim_stack):
     # Higher score = more meaningful animation
     # Weights are empirically tuned
     activity_score = (
-        (animated_curves * 0.1) +           # More curves = more animation
-        (animated_bone_count * 1.0) +       # More bones = fuller animation
-        (core_bone_weight * 2.0) +          # Core bones = high value
-        (duration * 0.5) +                  # Longer = more content
-        (keyframe_density * 0.01)           # Denser = higher quality
+        (animated_curves * 0.1)
+        + (animated_bone_count * 1.0)  # More curves = more animation
+        + (core_bone_weight * 2.0)  # More bones = fuller animation
+        + (duration * 0.5)  # Core bones = high value
+        + (keyframe_density * 0.01)  # Longer = more content  # Denser = higher quality
     )
 
     return {
-        'animated_curves': animated_curves,
-        'animated_bones': animated_bone_count,
-        'core_bone_weight': core_bone_weight,
-        'duration': duration,
-        'keyframe_count': total_keyframes,
-        'keyframe_density': keyframe_density,
-        'activity_score': activity_score
+        "animated_curves": animated_curves,
+        "animated_bones": animated_bone_count,
+        "core_bone_weight": core_bone_weight,
+        "duration": duration,
+        "keyframe_count": total_keyframes,
+        "keyframe_density": keyframe_density,
+        "activity_score": activity_score,
     }
 
 
@@ -285,23 +300,18 @@ def rank_animation_stacks(scene):
         stack = scene.GetSrcObject(fbx.FbxCriteria.ObjectType(fbx.FbxAnimStack.ClassId), i)
         metrics = evaluate_stack_activity(scene, stack)
 
-        stack_evaluations.append({
-            'stack': stack,
-            'name': stack.GetName(),
-            'index': i,
-            'metrics': metrics
-        })
+        stack_evaluations.append({"stack": stack, "name": stack.GetName(), "index": i, "metrics": metrics})
 
     # Sort by activity score (descending)
-    stack_evaluations.sort(key=lambda x: x['metrics']['activity_score'], reverse=True)
+    stack_evaluations.sort(key=lambda x: x["metrics"]["activity_score"], reverse=True)
 
     # Assign ranks
-    rank_labels = ['primary', 'secondary', 'tertiary']
+    rank_labels = ["primary", "secondary", "tertiary"]
     for i, evaluation in enumerate(stack_evaluations):
         if i < len(rank_labels):
-            evaluation['rank'] = rank_labels[i]
+            evaluation["rank"] = rank_labels[i]
         else:
-            evaluation['rank'] = f'rank_{i+1}'
+            evaluation["rank"] = f"rank_{i+1}"
 
     return stack_evaluations
 
@@ -331,10 +341,7 @@ def get_scene_metadata(scene, prefer_stack_name=None):
     ranked_stacks = rank_animation_stacks(scene)
 
     if not ranked_stacks:
-        return {
-            "has_animation": False,
-            "anim_stack_count": 0
-        }
+        return {"has_animation": False, "anim_stack_count": 0}
 
     # Select stack (prefer by name if specified, otherwise use primary)
     selected_stack_info = None
@@ -342,7 +349,7 @@ def get_scene_metadata(scene, prefer_stack_name=None):
     if prefer_stack_name:
         # Try to find stack by name
         for stack_info in ranked_stacks:
-            if prefer_stack_name.lower() in stack_info['name'].lower():
+            if prefer_stack_name.lower() in stack_info["name"].lower():
                 selected_stack_info = stack_info
                 break
 
@@ -351,7 +358,7 @@ def get_scene_metadata(scene, prefer_stack_name=None):
         selected_stack_info = ranked_stacks[0]
 
     # Set as current stack
-    anim_stack = selected_stack_info['stack']
+    anim_stack = selected_stack_info["stack"]
     scene.SetCurrentAnimationStack(anim_stack)
 
     # Extract timing information
@@ -368,14 +375,16 @@ def get_scene_metadata(scene, prefer_stack_name=None):
     # Compile lightweight stack summary (without FBX objects for serialization)
     stack_summary = []
     for stack_info in ranked_stacks:
-        stack_summary.append({
-            'name': stack_info['name'],
-            'rank': stack_info['rank'],
-            'index': stack_info['index'],
-            'activity_score': stack_info['metrics']['activity_score'],
-            'animated_bones': stack_info['metrics']['animated_bones'],
-            'duration': stack_info['metrics']['duration']
-        })
+        stack_summary.append(
+            {
+                "name": stack_info["name"],
+                "rank": stack_info["rank"],
+                "index": stack_info["index"],
+                "activity_score": stack_info["metrics"]["activity_score"],
+                "animated_bones": stack_info["metrics"]["animated_bones"],
+                "duration": stack_info["metrics"]["duration"],
+            }
+        )
 
     return {
         "has_animation": True,
@@ -384,9 +393,9 @@ def get_scene_metadata(scene, prefer_stack_name=None):
         "duration": stop - start,
         "frame_rate": frame_rate,
         "bone_count": bone_count,
-        "anim_stack_name": selected_stack_info['name'],
-        "anim_stack_rank": selected_stack_info['rank'],
-        "anim_stack_index": selected_stack_info['index'],
+        "anim_stack_name": selected_stack_info["name"],
+        "anim_stack_rank": selected_stack_info["rank"],
+        "anim_stack_index": selected_stack_info["index"],
         "anim_stack_count": len(ranked_stacks),
-        "all_stacks": stack_summary  # Summary of all available stacks
+        "all_stacks": stack_summary,  # Summary of all available stacks
     }

@@ -21,11 +21,11 @@ Outputs:
 - animation_metadata.json: Complete metadata package for LLM consumption
 """
 
-import json
 import csv
+import json
 import os
-from fbx_tool.analysis.utils import ensure_output_dir
 
+from fbx_tool.analysis.utils import ensure_output_dir
 
 # ==============================================================================
 # CONSTANTS
@@ -33,39 +33,40 @@ from fbx_tool.analysis.utils import ensure_output_dir
 
 # Natural language templates for segment descriptions
 SEGMENT_TEMPLATES = {
-    'idle_stationary': "standing still",
-    'walking_forward': "walking forward",
-    'walking_backward': "walking backward",
-    'walking_strafe_left': "walking while strafing left",
-    'walking_strafe_right': "walking while strafing right",
-    'running_forward': "running forward",
-    'running_backward': "running backward",
-    'sprinting_forward': "sprinting forward",
-    'jumping': "jumping",
-    'landing': "landing from a jump",
+    "idle_stationary": "standing still",
+    "walking_forward": "walking forward",
+    "walking_backward": "walking backward",
+    "walking_strafe_left": "walking while strafing left",
+    "walking_strafe_right": "walking while strafing right",
+    "running_forward": "running forward",
+    "running_backward": "running backward",
+    "sprinting_forward": "sprinting forward",
+    "jumping": "jumping",
+    "landing": "landing from a jump",
 }
 
 TRANSITION_TEMPLATES = {
-    'start_moving': "begins moving",
-    'stop_moving': "comes to a stop",
-    'accelerate': "accelerates",
-    'decelerate': "decelerates",
-    'direction_change': "changes direction",
-    'takeoff': "jumps",
-    'landing': "lands",
+    "start_moving": "begins moving",
+    "stop_moving": "comes to a stop",
+    "accelerate": "accelerates",
+    "decelerate": "decelerates",
+    "direction_change": "changes direction",
+    "takeoff": "jumps",
+    "landing": "lands",
 }
 
 TURNING_TEMPLATES = {
-    'slight': "makes a slight turn",
-    'moderate': "turns",
-    'sharp': "makes a sharp turn",
-    'very_sharp': "spins around",
+    "slight": "makes a slight turn",
+    "moderate": "turns",
+    "sharp": "makes a sharp turn",
+    "very_sharp": "spins around",
 }
 
 
 # ==============================================================================
 # HELPER FUNCTIONS
 # ==============================================================================
+
 
 def describe_segment(segment):
     """
@@ -77,18 +78,18 @@ def describe_segment(segment):
     Returns:
         str: Natural language description
     """
-    composite_label = segment.get('composite_label', '')
-    motion_state = segment.get('motion_state', 'unknown')
-    direction = segment.get('direction', 'unknown')
-    is_turning = segment.get('is_turning', False)
+    composite_label = segment.get("composite_label", "")
+    motion_state = segment.get("motion_state", "unknown")
+    direction = segment.get("direction", "unknown")
+    is_turning = segment.get("is_turning", False)
 
     # Try to find exact match in templates
     if composite_label in SEGMENT_TEMPLATES:
         description = SEGMENT_TEMPLATES[composite_label]
     else:
         # Fallback: construct description from components
-        state_desc = motion_state.replace('_', ' ')
-        direction_desc = direction.replace('_', ' ')
+        state_desc = motion_state.replace("_", " ")
+        direction_desc = direction.replace("_", " ")
 
         if direction == "stationary":
             description = f"{state_desc} in place"
@@ -116,7 +117,7 @@ def describe_transition(transition):
     Returns:
         str: Natural language description
     """
-    transition_type = transition.get('transition_type', 'other')
+    transition_type = transition.get("transition_type", "other")
 
     if transition_type in TRANSITION_TEMPLATES:
         return TRANSITION_TEMPLATES[transition_type]
@@ -158,10 +159,12 @@ def generate_narrative_summary(segments, transitions, turning_events, gait_summa
             # Check if there's a turning event during this segment
             turning_desc = None
             for turn in turning_events:
-                if (turn['start_frame'] >= next_segment['start_frame'] and
-                    turn['end_frame'] <= next_segment['end_frame']):
-                    severity = turn.get('severity', 'moderate')
-                    direction = turn.get('direction', 'left')
+                if (
+                    turn["start_frame"] >= next_segment["start_frame"]
+                    and turn["end_frame"] <= next_segment["end_frame"]
+                ):
+                    severity = turn.get("severity", "moderate")
+                    direction = turn.get("direction", "left")
                     turning_desc = f"{TURNING_TEMPLATES.get(severity, 'turns')} {direction}"
                     break
 
@@ -173,7 +176,7 @@ def generate_narrative_summary(segments, transitions, turning_events, gait_summa
     # Ending
     if segments:
         last_segment = segments[-1]
-        if last_segment['motion_state'] == 'idle':
+        if last_segment["motion_state"] == "idle":
             narrative_parts.append("and comes to rest")
 
     # Join parts into flowing narrative
@@ -205,12 +208,12 @@ def classify_animation_type(segments, gait_summary=None):
     # Count segment types
     motion_state_counts = {}
     for seg in segments:
-        state = seg.get('motion_state', 'unknown')
+        state = seg.get("motion_state", "unknown")
         motion_state_counts[state] = motion_state_counts.get(state, 0) + 1
 
     total_segments = len(segments)
     if total_segments == 0:
-        return {'type': 'unknown', 'confidence': 0.0}
+        return {"type": "unknown", "confidence": 0.0}
 
     # Determine dominant motion type
     dominant_state = max(motion_state_counts, key=motion_state_counts.get)
@@ -219,30 +222,30 @@ def classify_animation_type(segments, gait_summary=None):
     # Classify
     if dominance_ratio > 0.8:
         # Very consistent motion
-        if dominant_state == 'idle':
-            animation_type = 'static_pose'
-        elif dominant_state == 'walking':
-            animation_type = 'walk_cycle'
-        elif dominant_state == 'running':
-            animation_type = 'run_cycle'
+        if dominant_state == "idle":
+            animation_type = "static_pose"
+        elif dominant_state == "walking":
+            animation_type = "walk_cycle"
+        elif dominant_state == "running":
+            animation_type = "run_cycle"
         else:
-            animation_type = f'{dominant_state}_cycle'
+            animation_type = f"{dominant_state}_cycle"
         confidence = dominance_ratio
     else:
         # Mixed motion
-        if 'running' in motion_state_counts and 'walking' in motion_state_counts:
-            animation_type = 'mixed_locomotion'
-        elif 'jumping' in motion_state_counts:
-            animation_type = 'acrobatic'
+        if "running" in motion_state_counts and "walking" in motion_state_counts:
+            animation_type = "mixed_locomotion"
+        elif "jumping" in motion_state_counts:
+            animation_type = "acrobatic"
         else:
-            animation_type = 'varied_movement'
+            animation_type = "varied_movement"
         confidence = 0.7  # Lower confidence for mixed types
 
     return {
-        'type': animation_type,
-        'confidence': confidence,
-        'dominant_state': dominant_state,
-        'state_distribution': motion_state_counts
+        "type": animation_type,
+        "confidence": confidence,
+        "dominant_state": dominant_state,
+        "state_distribution": motion_state_counts,
     }
 
 
@@ -250,13 +253,9 @@ def classify_animation_type(segments, gait_summary=None):
 # MAIN ANALYSIS FUNCTION
 # ==============================================================================
 
+
 def generate_motion_summary(
-    segments,
-    transitions,
-    turning_events,
-    root_motion_summary,
-    gait_summary=None,
-    output_dir="output/"
+    segments, transitions, turning_events, root_motion_summary, gait_summary=None, output_dir="output/"
 ):
     """
     Generate comprehensive motion classification and natural language summary.
@@ -285,38 +284,40 @@ def generate_motion_summary(
     # Generate per-segment descriptions
     segment_descriptions = []
     for i, seg in enumerate(segments):
-        segment_descriptions.append({
-            'segment_id': i,
-            'start_frame': seg['start_frame'],
-            'end_frame': seg['end_frame'],
-            'duration_seconds': seg['duration_seconds'],
-            'motion_state': seg.get('motion_state', ''),
-            'direction': seg.get('direction', ''),
-            'description': describe_segment(seg)
-        })
+        segment_descriptions.append(
+            {
+                "segment_id": i,
+                "start_frame": seg["start_frame"],
+                "end_frame": seg["end_frame"],
+                "duration_seconds": seg["duration_seconds"],
+                "motion_state": seg.get("motion_state", ""),
+                "direction": seg.get("direction", ""),
+                "description": describe_segment(seg),
+            }
+        )
 
     # Compile complete metadata for AI consumption
     animation_metadata = {
-        'narrative_description': narrative,
-        'classification': classification,
-        'statistics': {
-            'total_duration': sum(seg['duration_seconds'] for seg in segments),
-            'segment_count': len(segments),
-            'transition_count': len(transitions),
-            'turning_event_count': len(turning_events),
+        "narrative_description": narrative,
+        "classification": classification,
+        "statistics": {
+            "total_duration": sum(seg["duration_seconds"] for seg in segments),
+            "segment_count": len(segments),
+            "transition_count": len(transitions),
+            "turning_event_count": len(turning_events),
         },
-        'root_motion': {
-            'total_distance': root_motion_summary.get('total_distance', 0),
-            'displacement': root_motion_summary.get('displacement', 0),
-            'dominant_direction': root_motion_summary.get('dominant_direction', 'unknown'),
+        "root_motion": {
+            "total_distance": root_motion_summary.get("total_distance", 0),
+            "displacement": root_motion_summary.get("displacement", 0),
+            "dominant_direction": root_motion_summary.get("dominant_direction", "unknown"),
         },
-        'segments': segment_descriptions,
-        'gait_metrics': gait_summary if gait_summary else {}
+        "segments": segment_descriptions,
+        "gait_metrics": gait_summary if gait_summary else {},
     }
 
     # Write natural language summary
     summary_txt_path = os.path.join(output_dir, "motion_summary.txt")
-    with open(summary_txt_path, 'w') as f:
+    with open(summary_txt_path, "w") as f:
         f.write("ANIMATION MOTION SUMMARY\n")
         f.write("=" * 80 + "\n\n")
         f.write(f"Classification: {classification['type']} (confidence: {classification['confidence']:.1%})\n\n")
@@ -328,20 +329,20 @@ def generate_motion_summary(
 
     # Write structured JSON for AI
     metadata_json_path = os.path.join(output_dir, "animation_metadata.json")
-    with open(metadata_json_path, 'w') as f:
+    with open(metadata_json_path, "w") as f:
         json.dump(animation_metadata, f, indent=2)
 
     # Write segment descriptions CSV
     if segment_descriptions:
         descriptions_csv_path = os.path.join(output_dir, "segment_descriptions.csv")
-        with open(descriptions_csv_path, 'w', newline='') as f:
+        with open(descriptions_csv_path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=segment_descriptions[0].keys())
             writer.writeheader()
             writer.writerows(segment_descriptions)
 
     # Write classification JSON
     classification_json_path = os.path.join(output_dir, "motion_classification.json")
-    with open(classification_json_path, 'w') as f:
+    with open(classification_json_path, "w") as f:
         json.dump(classification, f, indent=2)
 
     print(f"✓ Motion summary generated:")
@@ -350,8 +351,8 @@ def generate_motion_summary(
     print(f"\nNarrative: {narrative}")
 
     return {
-        'narrative': narrative,
-        'classification': classification,
-        'metadata': animation_metadata,
-        'segment_descriptions': segment_descriptions
+        "narrative": narrative,
+        "classification": classification,
+        "metadata": animation_metadata,
+        "segment_descriptions": segment_descriptions,
     }

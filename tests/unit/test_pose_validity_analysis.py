@@ -10,17 +10,19 @@ Tests cover:
 - Anatomical constraint validation
 """
 
-import pytest
-import numpy as np
 from unittest.mock import Mock
+
+import numpy as np
+import pytest
+
 from fbx_tool.analysis.pose_validity_analysis import (
+    analyze_pose_validity,
     compute_bone_lengths,
-    detect_bone_length_violations,
-    validate_joint_angle_limits,
-    detect_self_intersections,
     compute_symmetry_score,
+    detect_bone_length_violations,
     detect_pose_type,
-    analyze_pose_validity
+    detect_self_intersections,
+    validate_joint_angle_limits,
 )
 
 
@@ -52,16 +54,20 @@ class TestBoneLengthValidation:
 
     def test_compute_bone_lengths_varying(self):
         """Test bone length with varying positions."""
-        parent_positions = np.array([
-            [0, 0, 0],
-            [0, 0, 0],
-            [0, 0, 0],
-        ])
-        child_positions = np.array([
-            [1, 0, 0],  # Length = 1
-            [0, 2, 0],  # Length = 2
-            [0, 0, 3],  # Length = 3
-        ])
+        parent_positions = np.array(
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+            ]
+        )
+        child_positions = np.array(
+            [
+                [1, 0, 0],  # Length = 1
+                [0, 2, 0],  # Length = 2
+                [0, 0, 3],  # Length = 3
+            ]
+        )
 
         bone_lengths = compute_bone_lengths(parent_positions, child_positions)
 
@@ -73,9 +79,7 @@ class TestBoneLengthValidation:
         bone_lengths = np.ones(100) * 10.0  # Constant length
         reference_length = 10.0
 
-        violations = detect_bone_length_violations(
-            bone_lengths, reference_length, tolerance=0.05
-        )
+        violations = detect_bone_length_violations(bone_lengths, reference_length, tolerance=0.05)
 
         assert len(violations) == 0
 
@@ -85,14 +89,12 @@ class TestBoneLengthValidation:
         bone_lengths[40:60] = 12.0  # 20% stretch (beyond 5% tolerance)
         reference_length = 10.0
 
-        violations = detect_bone_length_violations(
-            bone_lengths, reference_length, tolerance=0.05
-        )
+        violations = detect_bone_length_violations(bone_lengths, reference_length, tolerance=0.05)
 
         assert len(violations) >= 1
         violation = violations[0]
-        assert violation['type'] == 'stretch'
-        assert violation['max_deviation_percent'] >= 15.0
+        assert violation["type"] == "stretch"
+        assert violation["max_deviation_percent"] >= 15.0
 
     def test_detect_bone_length_violations_squashing(self):
         """Test detection of bone squashing."""
@@ -100,14 +102,12 @@ class TestBoneLengthValidation:
         bone_lengths[30:50] = 8.0  # 20% squash
         reference_length = 10.0
 
-        violations = detect_bone_length_violations(
-            bone_lengths, reference_length, tolerance=0.05
-        )
+        violations = detect_bone_length_violations(bone_lengths, reference_length, tolerance=0.05)
 
         assert len(violations) >= 1
         violation = violations[0]
-        assert violation['type'] == 'squash'
-        assert violation['max_deviation_percent'] >= 15.0
+        assert violation["type"] == "squash"
+        assert violation["max_deviation_percent"] >= 15.0
 
     def test_detect_bone_length_violations_severity(self):
         """Test severity classification."""
@@ -115,11 +115,9 @@ class TestBoneLengthValidation:
         bone_lengths[20:30] = 15.0  # 50% stretch (severe)
         reference_length = 10.0
 
-        violations = detect_bone_length_violations(
-            bone_lengths, reference_length, tolerance=0.05
-        )
+        violations = detect_bone_length_violations(bone_lengths, reference_length, tolerance=0.05)
 
-        assert violations[0]['severity'] == 'high'
+        assert violations[0]["severity"] == "high"
 
 
 @pytest.mark.unit
@@ -131,9 +129,7 @@ class TestJointAngleLimits:
         # Elbow: 0-140° flexion
         angles = np.ones(100) * 90.0  # 90° - within limits
 
-        violations = validate_joint_angle_limits(
-            angles, joint_type='elbow', min_angle=0.0, max_angle=140.0
-        )
+        violations = validate_joint_angle_limits(angles, joint_type="elbow", min_angle=0.0, max_angle=140.0)
 
         assert len(violations) == 0
 
@@ -142,35 +138,29 @@ class TestJointAngleLimits:
         angles = np.ones(100) * 90.0
         angles[40:60] = 160.0  # Exceeds 140° elbow limit
 
-        violations = validate_joint_angle_limits(
-            angles, joint_type='elbow', min_angle=0.0, max_angle=140.0
-        )
+        violations = validate_joint_angle_limits(angles, joint_type="elbow", min_angle=0.0, max_angle=140.0)
 
         assert len(violations) >= 1
         violation = violations[0]
-        assert violation['type'] == 'max_exceeded'
-        assert violation['max_violation_degrees'] >= 15.0
+        assert violation["type"] == "max_exceeded"
+        assert violation["max_violation_degrees"] >= 15.0
 
     def test_validate_joint_angle_limits_below_min(self):
         """Test angles below minimum limit."""
         angles = np.ones(100) * 10.0
         angles[20:40] = -20.0  # Below 0° minimum
 
-        violations = validate_joint_angle_limits(
-            angles, joint_type='elbow', min_angle=0.0, max_angle=140.0
-        )
+        violations = validate_joint_angle_limits(angles, joint_type="elbow", min_angle=0.0, max_angle=140.0)
 
         assert len(violations) >= 1
         violation = violations[0]
-        assert violation['type'] == 'min_exceeded'
+        assert violation["type"] == "min_exceeded"
 
     def test_validate_joint_angle_limits_knee(self):
         """Test knee joint limits (0-130° flexion)."""
         angles = np.ones(50) * 150.0  # Hyperextension
 
-        violations = validate_joint_angle_limits(
-            angles, joint_type='knee', min_angle=0.0, max_angle=130.0
-        )
+        violations = validate_joint_angle_limits(angles, joint_type="knee", min_angle=0.0, max_angle=130.0)
 
         assert len(violations) >= 1
 
@@ -179,9 +169,7 @@ class TestJointAngleLimits:
         # Shoulder flexion: -60 to 180°
         angles = np.ones(50) * 90.0
 
-        violations = validate_joint_angle_limits(
-            angles, joint_type='shoulder', min_angle=-60.0, max_angle=180.0
-        )
+        violations = validate_joint_angle_limits(angles, joint_type="shoulder", min_angle=-60.0, max_angle=180.0)
 
         assert len(violations) == 0
 
@@ -190,11 +178,9 @@ class TestJointAngleLimits:
         angles = np.ones(50) * 90.0
         angles[20:30] = 200.0  # Severe violation (60° over limit of 140°)
 
-        violations = validate_joint_angle_limits(
-            angles, joint_type='elbow', min_angle=0.0, max_angle=140.0
-        )
+        violations = validate_joint_angle_limits(angles, joint_type="elbow", min_angle=0.0, max_angle=140.0)
 
-        assert violations[0]['severity'] in ['medium', 'high']
+        assert violations[0]["severity"] in ["medium", "high"]
 
 
 @pytest.mark.unit
@@ -208,9 +194,7 @@ class TestSelfIntersectionDetection:
         bone2_start = np.array([[0, 10, 0]] * 50)
         bone2_end = np.array([[10, 10, 0]] * 50)
 
-        intersections = detect_self_intersections(
-            bone1_start, bone1_end, bone2_start, bone2_end
-        )
+        intersections = detect_self_intersections(bone1_start, bone1_end, bone2_start, bone2_end)
 
         assert len(intersections) == 0
 
@@ -225,8 +209,7 @@ class TestSelfIntersectionDetection:
         bone2_end = np.array([[5, 10, 0]] * 50)
 
         intersections = detect_self_intersections(
-            bone1_start, bone1_end, bone2_start, bone2_end,
-            distance_threshold=0.5
+            bone1_start, bone1_end, bone2_start, bone2_end, distance_threshold=0.5
         )
 
         assert len(intersections) >= 1
@@ -240,8 +223,7 @@ class TestSelfIntersectionDetection:
 
         # With threshold of 0.5, should not detect
         intersections = detect_self_intersections(
-            bone1_start, bone1_end, bone2_start, bone2_end,
-            distance_threshold=0.5
+            bone1_start, bone1_end, bone2_start, bone2_end, distance_threshold=0.5
         )
 
         assert len(intersections) == 0
@@ -255,8 +237,7 @@ class TestSelfIntersectionDetection:
 
         # With larger threshold, should detect
         intersections = detect_self_intersections(
-            bone1_start, bone1_end, bone2_start, bone2_end,
-            distance_threshold=2.0
+            bone1_start, bone1_end, bone2_start, bone2_end, distance_threshold=2.0
         )
 
         assert len(intersections) >= 1
@@ -269,16 +250,20 @@ class TestSymmetryValidation:
     def test_compute_symmetry_score_perfect_symmetry(self):
         """Test with perfectly symmetric limbs."""
         # Left and right identical (mirrored)
-        left_positions = np.array([
-            [-5, 0, 0],
-            [-5, 0, 0],
-            [-5, 0, 0],
-        ])
-        right_positions = np.array([
-            [5, 0, 0],   # Mirrored X
-            [5, 0, 0],
-            [5, 0, 0],
-        ])
+        left_positions = np.array(
+            [
+                [-5, 0, 0],
+                [-5, 0, 0],
+                [-5, 0, 0],
+            ]
+        )
+        right_positions = np.array(
+            [
+                [5, 0, 0],  # Mirrored X
+                [5, 0, 0],
+                [5, 0, 0],
+            ]
+        )
 
         symmetry_score = compute_symmetry_score(left_positions, right_positions)
 
@@ -287,16 +272,20 @@ class TestSymmetryValidation:
 
     def test_compute_symmetry_score_asymmetric(self):
         """Test with asymmetric limb positions."""
-        left_positions = np.array([
-            [-5, 0, 0],
-            [-5, 5, 0],
-            [-5, 10, 0],
-        ])
-        right_positions = np.array([
-            [5, 0, 0],
-            [5, 15, 0],   # Very different Y
-            [5, 25, 0],   # Very different Y
-        ])
+        left_positions = np.array(
+            [
+                [-5, 0, 0],
+                [-5, 5, 0],
+                [-5, 10, 0],
+            ]
+        )
+        right_positions = np.array(
+            [
+                [5, 0, 0],
+                [5, 15, 0],  # Very different Y
+                [5, 25, 0],  # Very different Y
+            ]
+        )
 
         symmetry_score = compute_symmetry_score(left_positions, right_positions)
 
@@ -305,20 +294,22 @@ class TestSymmetryValidation:
 
     def test_compute_symmetry_score_rotation_invariant(self):
         """Test that symmetry considers rotation."""
-        left_rotations = np.array([
-            [0, 0, 0],
-            [45, 0, 0],
-            [90, 0, 0],
-        ])
-        right_rotations = np.array([
-            [0, 0, 0],
-            [45, 0, 0],   # Symmetric
-            [90, 0, 0],
-        ])
-
-        symmetry_score = compute_symmetry_score(
-            left_rotations, right_rotations, compare_rotations=True
+        left_rotations = np.array(
+            [
+                [0, 0, 0],
+                [45, 0, 0],
+                [90, 0, 0],
+            ]
         )
+        right_rotations = np.array(
+            [
+                [0, 0, 0],
+                [45, 0, 0],  # Symmetric
+                [90, 0, 0],
+            ]
+        )
+
+        symmetry_score = compute_symmetry_score(left_rotations, right_rotations, compare_rotations=True)
 
         assert symmetry_score >= 0.95
 
@@ -340,68 +331,68 @@ class TestPoseTypeDetection:
         """Test T-pose detection."""
         # T-pose: arms extended horizontally (90° from body)
         bone_rotations = {
-            'left_shoulder': np.array([[0, 0, 90]] * 10),   # Horizontal
-            'right_shoulder': np.array([[0, 0, -90]] * 10),  # Horizontal
-            'left_elbow': np.array([[0, 0, 0]] * 10),       # Straight
-            'right_elbow': np.array([[0, 0, 0]] * 10),      # Straight
+            "left_shoulder": np.array([[0, 0, 90]] * 10),  # Horizontal
+            "right_shoulder": np.array([[0, 0, -90]] * 10),  # Horizontal
+            "left_elbow": np.array([[0, 0, 0]] * 10),  # Straight
+            "right_elbow": np.array([[0, 0, 0]] * 10),  # Straight
         }
 
         pose_type, confidence = detect_pose_type(bone_rotations)
 
-        assert pose_type == 'T-pose'
+        assert pose_type == "T-pose"
         assert confidence >= 0.8
 
     def test_detect_pose_type_apose(self):
         """Test A-pose detection."""
         # A-pose: arms at 45° angle
         bone_rotations = {
-            'left_shoulder': np.array([[0, 0, 45]] * 10),
-            'right_shoulder': np.array([[0, 0, -45]] * 10),
-            'left_elbow': np.array([[0, 0, 0]] * 10),
-            'right_elbow': np.array([[0, 0, 0]] * 10),
+            "left_shoulder": np.array([[0, 0, 45]] * 10),
+            "right_shoulder": np.array([[0, 0, -45]] * 10),
+            "left_elbow": np.array([[0, 0, 0]] * 10),
+            "right_elbow": np.array([[0, 0, 0]] * 10),
         }
 
         pose_type, confidence = detect_pose_type(bone_rotations)
 
-        assert pose_type == 'A-pose'
+        assert pose_type == "A-pose"
         assert confidence >= 0.8
 
     def test_detect_pose_type_bind_pose(self):
         """Test bind pose detection (arms down)."""
         # Bind pose: arms at sides (0° rotation)
         bone_rotations = {
-            'left_shoulder': np.array([[0, 0, 0]] * 10),
-            'right_shoulder': np.array([[0, 0, 0]] * 10),
-            'left_elbow': np.array([[0, 0, 0]] * 10),
-            'right_elbow': np.array([[0, 0, 0]] * 10),
+            "left_shoulder": np.array([[0, 0, 0]] * 10),
+            "right_shoulder": np.array([[0, 0, 0]] * 10),
+            "left_elbow": np.array([[0, 0, 0]] * 10),
+            "right_elbow": np.array([[0, 0, 0]] * 10),
         }
 
         pose_type, confidence = detect_pose_type(bone_rotations)
 
-        assert pose_type == 'bind'
+        assert pose_type == "bind"
         assert confidence >= 0.8
 
     def test_detect_pose_type_animated(self):
         """Test with animated pose (not a reference pose)."""
         # Random animated rotations
         bone_rotations = {
-            'left_shoulder': np.random.randn(10, 3) * 45,
-            'right_shoulder': np.random.randn(10, 3) * 45,
-            'left_elbow': np.random.randn(10, 3) * 30,
-            'right_elbow': np.random.randn(10, 3) * 30,
+            "left_shoulder": np.random.randn(10, 3) * 45,
+            "right_shoulder": np.random.randn(10, 3) * 45,
+            "left_elbow": np.random.randn(10, 3) * 30,
+            "right_elbow": np.random.randn(10, 3) * 30,
         }
 
         pose_type, confidence = detect_pose_type(bone_rotations)
 
-        assert pose_type == 'animated'
+        assert pose_type == "animated"
         assert confidence < 0.6
 
     def test_detect_pose_type_low_confidence(self):
         """Test ambiguous pose detection."""
         # Ambiguous: arms at 60° (between A-pose and T-pose)
         bone_rotations = {
-            'left_shoulder': np.array([[0, 0, 60]] * 10),
-            'right_shoulder': np.array([[0, 0, -60]] * 10),
+            "left_shoulder": np.array([[0, 0, 60]] * 10),
+            "right_shoulder": np.array([[0, 0, -60]] * 10),
         }
 
         pose_type, confidence = detect_pose_type(bone_rotations)
@@ -419,11 +410,11 @@ class TestPoseValidityAnalysis:
         results = analyze_pose_validity(mock_scene, output_dir=temp_output_dir)
 
         # Check required fields
-        assert 'total_bones' in results
-        assert 'bones_with_length_violations' in results
-        assert 'bones_with_angle_violations' in results
-        assert 'self_intersections_detected' in results
-        assert 'overall_validity_score' in results
+        assert "total_bones" in results
+        assert "bones_with_length_violations" in results
+        assert "bones_with_angle_violations" in results
+        assert "self_intersections_detected" in results
+        assert "overall_validity_score" in results
 
     def test_analyze_pose_validity_outputs_csv(self, mock_scene, temp_output_dir):
         """Test that CSV files are generated."""
@@ -433,10 +424,10 @@ class TestPoseValidityAnalysis:
 
         # Check for expected output files
         expected_files = [
-            'bone_length_violations.csv',
-            'joint_angle_violations.csv',
-            'symmetry_analysis.csv',
-            'pose_validity_summary.csv'
+            "bone_length_violations.csv",
+            "joint_angle_violations.csv",
+            "symmetry_analysis.csv",
+            "pose_validity_summary.csv",
         ]
 
         for filename in expected_files:
@@ -448,7 +439,7 @@ class TestPoseValidityAnalysis:
         # Mock scene configured for valid pose
         results = analyze_pose_validity(mock_scene, output_dir=temp_output_dir)
 
-        assert results['overall_validity_score'] >= 0.8
+        assert results["overall_validity_score"] >= 0.8
 
     def test_analyze_pose_validity_severity_scoring(self, mock_scene, temp_output_dir):
         """Test that severity affects overall score."""
@@ -456,7 +447,7 @@ class TestPoseValidityAnalysis:
         results = analyze_pose_validity(mock_scene, output_dir=temp_output_dir)
 
         # Score should be between 0 and 1
-        assert 0.0 <= results['overall_validity_score'] <= 1.0
+        assert 0.0 <= results["overall_validity_score"] <= 1.0
 
 
 @pytest.mark.unit
@@ -469,9 +460,7 @@ class TestAnatomicalConstraints:
         # This is a constraint that joint angle limits should catch
         angles = np.array([0, 45, 90, 120])  # Normal flexion
 
-        violations = validate_joint_angle_limits(
-            angles, joint_type='elbow', min_angle=0.0, max_angle=140.0
-        )
+        violations = validate_joint_angle_limits(angles, joint_type="elbow", min_angle=0.0, max_angle=140.0)
 
         assert len(violations) == 0
 
@@ -479,9 +468,7 @@ class TestAnatomicalConstraints:
         """Test knee hyperextension detection."""
         angles = np.array([0, -10, -20, -30])  # Hyperextension (negative)
 
-        violations = validate_joint_angle_limits(
-            angles, joint_type='knee', min_angle=0.0, max_angle=130.0
-        )
+        violations = validate_joint_angle_limits(angles, joint_type="knee", min_angle=0.0, max_angle=130.0)
 
         # Should detect negative angles as violations
         assert len(violations) >= 1
@@ -491,9 +478,7 @@ class TestAnatomicalConstraints:
         # Shoulder can rotate ~180° in most directions
         angles = np.ones(50) * 90.0  # Normal range
 
-        violations = validate_joint_angle_limits(
-            angles, joint_type='shoulder', min_angle=-60.0, max_angle=180.0
-        )
+        violations = validate_joint_angle_limits(angles, joint_type="shoulder", min_angle=-60.0, max_angle=180.0)
 
         assert len(violations) == 0
 
@@ -536,9 +521,7 @@ class TestEdgeCases:
         angles = np.array([90.0, np.nan, 100.0, np.nan])
 
         # Should handle NaN gracefully (skip or filter)
-        violations = validate_joint_angle_limits(
-            angles, joint_type='elbow', min_angle=0.0, max_angle=140.0
-        )
+        violations = validate_joint_angle_limits(angles, joint_type="elbow", min_angle=0.0, max_angle=140.0)
 
         # Should not crash
         assert isinstance(violations, list)
@@ -549,9 +532,7 @@ class TestEdgeCases:
         bone_end = np.array([[10, 0, 0]] * 10)
 
         # Should not report self-intersection with itself
-        intersections = detect_self_intersections(
-            bone_start, bone_end, bone_start, bone_end
-        )
+        intersections = detect_self_intersections(bone_start, bone_end, bone_start, bone_end)
 
         # Implementation should filter out identical bones
         assert len(intersections) == 0

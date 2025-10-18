@@ -46,6 +46,7 @@ CONFIDENCE_TEMPORAL_WEIGHT = 0.3  # Secondary: is motion temporally smooth?
 # HELPER FUNCTIONS
 # ==============================================================================
 
+
 def compute_temporal_coherence(position_data, frame_rate):
     """
     Compute temporal coherence using non-overlapping window correlations.
@@ -73,9 +74,9 @@ def compute_temporal_coherence(position_data, frame_rate):
 
     # Use NON-overlapping windows to avoid artificial correlation
     # Compare window N with window N+1
-    for i in range(0, frames - 2*window_size, window_size):
-        w1 = position_data[i:i + window_size].flatten()
-        w2 = position_data[i + window_size:i + 2*window_size].flatten()
+    for i in range(0, frames - 2 * window_size, window_size):
+        w1 = position_data[i : i + window_size].flatten()
+        w2 = position_data[i + window_size : i + 2 * window_size].flatten()
 
         if len(w1) == len(w2) and len(w1) > 0:
             corr_matrix = np.corrcoef(w1, w2)
@@ -99,6 +100,7 @@ def compute_temporal_coherence(position_data, frame_rate):
 # ==============================================================================
 # MAIN ANALYSIS FUNCTION
 # ==============================================================================
+
 
 def analyze_chains(scene, output_dir="output/"):
     """
@@ -130,9 +132,9 @@ def analyze_chains(scene, output_dir="output/"):
     """
     # Get animation timing information
     anim_info = get_scene_metadata(scene)
-    start = anim_info['start_time']
-    stop = anim_info['stop_time']
-    rate = anim_info['frame_rate']
+    start = anim_info["start_time"]
+    stop = anim_info["stop_time"]
+    rate = anim_info["frame_rate"]
     frame_time = 1.0 / rate  # Compute frame time from frame rate
 
     # Build skeleton hierarchy and detect chains
@@ -160,10 +162,16 @@ def analyze_chains(scene, output_dir="output/"):
             rR_arr = fbx_vector_to_array(rR)
 
             key = (parent if parent else "Root", child)
-            joint_data.setdefault(key, []).append([
-                rT_arr[0], rT_arr[1], rT_arr[2],  # Translation XYZ
-                rR_arr[0], rR_arr[1], rR_arr[2]   # Rotation XYZ (Euler angles)
-            ])
+            joint_data.setdefault(key, []).append(
+                [
+                    rT_arr[0],
+                    rT_arr[1],
+                    rT_arr[2],  # Translation XYZ
+                    rR_arr[0],
+                    rR_arr[1],
+                    rR_arr[2],  # Rotation XYZ (Euler angles)
+                ]
+            )
         current += frame_time
 
     # Compute per-joint IK suitability scores
@@ -228,34 +236,21 @@ def analyze_chains(scene, output_dir="output/"):
         cross_temporal = compute_temporal_coherence(position_data, rate)  # ✅ FIXED: Non-overlapping windows
 
         # Combine IK suitability and temporal coherence into final confidence
-        final_conf = np.clip(
-            CONFIDENCE_IK_WEIGHT * mean_ik + CONFIDENCE_TEMPORAL_WEIGHT * cross_temporal,
-            0, 1
-        )
+        final_conf = np.clip(CONFIDENCE_IK_WEIGHT * mean_ik + CONFIDENCE_TEMPORAL_WEIGHT * cross_temporal, 0, 1)
 
-        chain_results.append([
-            cname,
-            round(float(mean_ik), 4),
-            round(float(cross_temporal), 4),
-            round(float(final_conf), 4)
-        ])
+        chain_results.append(
+            [cname, round(float(mean_ik), 4), round(float(cross_temporal), 4), round(float(final_conf), 4)]
+        )
 
     # Write results CSV
     output_path = output_dir + "chain_confidence.csv"
     prepare_output_file(output_path)
-    with open(output_path, 'w', newline='') as f:
+    with open(output_path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["Chain", "MeanIKSuitability", "CrossTemporalCoherence", "ChainIKConfidence"])
         w.writerows(chain_results)
 
     # Convert to dictionary for return value
-    chain_conf = {
-        row[0]: {
-            "mean_ik": row[1],
-            "cross_temp": row[2],
-            "confidence": row[3]
-        }
-        for row in chain_results
-    }
+    chain_conf = {row[0]: {"mean_ik": row[1], "cross_temp": row[2], "confidence": row[3]} for row in chain_results}
 
     return chain_conf

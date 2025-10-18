@@ -23,8 +23,9 @@ class TestBoneHierarchyBuilding:
 
     def test_build_bone_hierarchy_simple_chain(self):
         """Should build hierarchy dict from simple parent-child relationships."""
-        from fbx_tool.analysis.utils import build_bone_hierarchy
         import fbx
+
+        from fbx_tool.analysis.utils import build_bone_hierarchy
 
         # Create mock scene with simple hierarchy: Root -> Hips -> Spine
         mock_scene = Mock()
@@ -66,8 +67,9 @@ class TestBoneHierarchyBuilding:
 
     def test_build_bone_hierarchy_branching(self):
         """Should handle branching hierarchies (multiple children)."""
-        from fbx_tool.analysis.utils import build_bone_hierarchy
         import fbx
+
+        from fbx_tool.analysis.utils import build_bone_hierarchy
 
         # Create mock scene with branching: Hips -> [LeftLeg, RightLeg]
         mock_scene = Mock()

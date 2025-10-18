@@ -24,16 +24,10 @@ class TestAnalysisPipelineCaching:
     @patch("fbx_tool.analysis.utils._detect_root_bone")
     @patch("fbx_tool.analysis.fbx_loader.get_scene_metadata")
     @patch("fbx_tool.analysis.velocity_analysis.compute_derivatives")
-    def test_trajectory_extracted_once_for_multiple_modules(
-        self, mock_derivatives, mock_metadata, mock_detect
-    ):
+    def test_trajectory_extracted_once_for_multiple_modules(self, mock_derivatives, mock_metadata, mock_detect):
         """Should extract trajectory once and reuse for all modules."""
-        from fbx_tool.analysis.directional_change_detection import (
-            analyze_directional_changes,
-        )
-        from fbx_tool.analysis.motion_transition_detection import (
-            analyze_motion_transitions,
-        )
+        from fbx_tool.analysis.directional_change_detection import analyze_directional_changes
+        from fbx_tool.analysis.motion_transition_detection import analyze_motion_transitions
         from fbx_tool.analysis.root_motion_analysis import analyze_root_motion
         from fbx_tool.analysis.utils import clear_trajectory_cache
 
@@ -128,9 +122,7 @@ class TestAnalysisPipelineCaching:
     @patch("fbx_tool.analysis.utils._detect_root_bone")
     @patch("fbx_tool.analysis.fbx_loader.get_scene_metadata")
     @patch("fbx_tool.analysis.velocity_analysis.compute_derivatives")
-    def test_cache_cleared_between_different_files(
-        self, mock_derivatives, mock_metadata, mock_detect
-    ):
+    def test_cache_cleared_between_different_files(self, mock_derivatives, mock_metadata, mock_detect):
         """Should clear cache when loading a different FBX file."""
         from fbx_tool.analysis.root_motion_analysis import analyze_root_motion
         from fbx_tool.analysis.utils import clear_trajectory_cache, get_scene_cache_key
@@ -252,13 +244,9 @@ class TestAnalysisPipelineDataFlow:
     @patch("fbx_tool.analysis.utils._detect_root_bone")
     @patch("fbx_tool.analysis.fbx_loader.get_scene_metadata")
     @patch("fbx_tool.analysis.velocity_analysis.compute_derivatives")
-    def test_directional_changes_uses_root_motion_trajectory(
-        self, mock_derivatives, mock_metadata, mock_detect
-    ):
+    def test_directional_changes_uses_root_motion_trajectory(self, mock_derivatives, mock_metadata, mock_detect):
         """Directional changes should use the same trajectory as root motion."""
-        from fbx_tool.analysis.directional_change_detection import (
-            analyze_directional_changes,
-        )
+        from fbx_tool.analysis.directional_change_detection import analyze_directional_changes
         from fbx_tool.analysis.root_motion_analysis import analyze_root_motion
         from fbx_tool.analysis.utils import clear_trajectory_cache
 
@@ -351,12 +339,8 @@ class TestAnalysisPipelineOutputs:
     @patch("fbx_tool.analysis.velocity_analysis.compute_derivatives")
     def test_pipeline_creates_output_files(self, mock_derivatives, mock_metadata, mock_detect):
         """Should create CSV output files for each analysis module."""
-        from fbx_tool.analysis.directional_change_detection import (
-            analyze_directional_changes,
-        )
-        from fbx_tool.analysis.motion_transition_detection import (
-            analyze_motion_transitions,
-        )
+        from fbx_tool.analysis.directional_change_detection import analyze_directional_changes
+        from fbx_tool.analysis.motion_transition_detection import analyze_motion_transitions
         from fbx_tool.analysis.root_motion_analysis import analyze_root_motion
         from fbx_tool.analysis.utils import clear_trajectory_cache
 

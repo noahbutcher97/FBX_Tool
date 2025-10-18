@@ -8,15 +8,16 @@ Fixtures:
 - temp_output_dir: Temporary directory for test outputs
 """
 
-import pytest
-import numpy as np
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
 
+import numpy as np
+import pytest
 
 # ========== Mock FBX SDK Objects ==========
+
 
 @pytest.fixture
 def mock_fbx_bone():
@@ -71,29 +72,29 @@ def mock_bone_hierarchy():
     bones = {}
 
     # Spine
-    bones['hips'] = Mock(name='Hips')
-    bones['spine'] = Mock(name='Spine')
-    bones['chest'] = Mock(name='Chest')
+    bones["hips"] = Mock(name="Hips")
+    bones["spine"] = Mock(name="Spine")
+    bones["chest"] = Mock(name="Chest")
 
     # Left arm
-    bones['left_shoulder'] = Mock(name='LeftShoulder')
-    bones['left_elbow'] = Mock(name='LeftElbow')
-    bones['left_wrist'] = Mock(name='LeftWrist')
+    bones["left_shoulder"] = Mock(name="LeftShoulder")
+    bones["left_elbow"] = Mock(name="LeftElbow")
+    bones["left_wrist"] = Mock(name="LeftWrist")
 
     # Right arm
-    bones['right_shoulder'] = Mock(name='RightShoulder')
-    bones['right_elbow'] = Mock(name='RightElbow')
-    bones['right_wrist'] = Mock(name='RightWrist')
+    bones["right_shoulder"] = Mock(name="RightShoulder")
+    bones["right_elbow"] = Mock(name="RightElbow")
+    bones["right_wrist"] = Mock(name="RightWrist")
 
     # Left leg
-    bones['left_hip'] = Mock(name='LeftHip')
-    bones['left_knee'] = Mock(name='LeftKnee')
-    bones['left_foot'] = Mock(name='LeftFoot')
+    bones["left_hip"] = Mock(name="LeftHip")
+    bones["left_knee"] = Mock(name="LeftKnee")
+    bones["left_foot"] = Mock(name="LeftFoot")
 
     # Right leg
-    bones['right_hip'] = Mock(name='RightHip')
-    bones['right_knee'] = Mock(name='RightKnee')
-    bones['right_foot'] = Mock(name='RightFoot')
+    bones["right_hip"] = Mock(name="RightHip")
+    bones["right_knee"] = Mock(name="RightKnee")
+    bones["right_foot"] = Mock(name="RightFoot")
 
     # Configure mock methods
     for bone_name, bone in bones.items():
@@ -107,11 +108,12 @@ def mock_bone_hierarchy():
 
 # ========== Sample Data Fixtures ==========
 
+
 @pytest.fixture
 def sample_positions():
     """Generate sample position data for testing (walking motion)."""
     frames = 100
-    t = np.linspace(0, 2*np.pi, frames)
+    t = np.linspace(0, 2 * np.pi, frames)
 
     # Simple sinusoidal walk pattern
     positions = np.zeros((frames, 3))
@@ -126,7 +128,7 @@ def sample_positions():
 def sample_rotations():
     """Generate sample rotation data for testing."""
     frames = 100
-    t = np.linspace(0, 2*np.pi, frames)
+    t = np.linspace(0, 2 * np.pi, frames)
 
     # Simple rotation pattern
     rotations = np.zeros((frames, 3))
@@ -141,7 +143,7 @@ def sample_rotations():
 def sample_velocities():
     """Generate sample velocity data for testing."""
     frames = 100
-    t = np.linspace(0, 2*np.pi, frames)
+    t = np.linspace(0, 2 * np.pi, frames)
 
     velocities = np.zeros((frames, 3))
     velocities[:, 0] = np.ones(frames) * 5  # Constant forward velocity
@@ -165,6 +167,7 @@ def sample_total_frames():
 
 # ========== File System Fixtures ==========
 
+
 @pytest.fixture
 def temp_output_dir():
     """Create a temporary output directory that is cleaned up after test."""
@@ -178,13 +181,14 @@ def temp_output_dir():
 def sample_csv_data():
     """Sample CSV data for testing."""
     return [
-        {'bone_name': 'Bone1', 'value1': 1.0, 'value2': 2.0},
-        {'bone_name': 'Bone2', 'value1': 3.0, 'value2': 4.0},
-        {'bone_name': 'Bone3', 'value1': 5.0, 'value2': 6.0},
+        {"bone_name": "Bone1", "value1": 1.0, "value2": 2.0},
+        {"bone_name": "Bone2", "value1": 3.0, "value2": 4.0},
+        {"bone_name": "Bone3", "value1": 5.0, "value2": 6.0},
     ]
 
 
 # ========== Test Markers ==========
+
 
 def pytest_configure(config):
     """Register custom markers."""
@@ -197,14 +201,17 @@ def pytest_configure(config):
 
 # ========== Test Utilities ==========
 
+
 @pytest.fixture
 def assert_csv_exists():
     """Helper to assert CSV file exists and is valid."""
+
     def _assert_csv(filepath, min_rows=1):
         import csv
+
         assert Path(filepath).exists(), f"CSV file not found: {filepath}"
 
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
             assert len(rows) >= min_rows, f"Expected at least {min_rows} rows, got {len(rows)}"
@@ -217,6 +224,7 @@ def assert_csv_exists():
 @pytest.fixture
 def numpy_arrays_equal():
     """Helper to compare numpy arrays with tolerance."""
+
     def _arrays_equal(arr1, arr2, rtol=1e-5, atol=1e-8):
         return np.allclose(arr1, arr2, rtol=rtol, atol=atol)
 

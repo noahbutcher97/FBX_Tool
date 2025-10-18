@@ -1,6 +1,7 @@
 """Inspect bone names and hierarchy in FBX file."""
-import fbx
 import sys
+
+import fbx
 
 if len(sys.argv) < 2:
     print("Usage: python inspect_bones.py <fbx_file>")
@@ -23,6 +24,7 @@ importer.Destroy()
 # Print all bone names and hierarchy
 root = scene.GetRootNode()
 
+
 def print_hierarchy(node, depth=0):
     indent = "  " * depth
     attr = node.GetNodeAttribute()
@@ -41,11 +43,14 @@ def print_hierarchy(node, depth=0):
     for i in range(node.GetChildCount()):
         print_hierarchy(node.GetChild(i), depth + 1)
 
+
 print("\n=== Bone Hierarchy ===")
 print_hierarchy(root)
 
 # Count bone types
 bone_count = 0
+
+
 def count_bones(node):
     global bone_count
     if node.GetNodeAttribute():
@@ -53,6 +58,7 @@ def count_bones(node):
             bone_count += 1
     for i in range(node.GetChildCount()):
         count_bones(node.GetChild(i))
+
 
 count_bones(root)
 print(f"\n=== Summary ===")

@@ -42,11 +42,12 @@ GAIT_RUN_PHASE_THRESHOLD_SECONDS = 0.1
 
 # Foot Bone Detection
 # Keywords used to identify foot bones when using name-based detection
-FOOT_BONE_KEYWORDS = ['foot', 'ankle', 'tarsal']
+FOOT_BONE_KEYWORDS = ["foot", "ankle", "tarsal"]
 
 # ==============================================================================
 # HELPER FUNCTIONS
 # ==============================================================================
+
 
 def detect_foot_bone(chain):
     """
@@ -128,6 +129,7 @@ def calculate_asymmetry(left_strides, right_strides):
 # MAIN ANALYSIS FUNCTION
 # ==============================================================================
 
+
 def analyze_gait(scene, output_dir="output/"):
     """
     Performs stride segmentation and gait phase analysis.
@@ -153,9 +155,9 @@ def analyze_gait(scene, output_dir="output/"):
     """
     # Get animation timing information
     anim_info = get_scene_metadata(scene)
-    start = anim_info['start_time']
-    stop = anim_info['stop_time']
-    rate = anim_info['frame_rate']
+    start = anim_info["start_time"]
+    stop = anim_info["stop_time"]
+    rate = anim_info["frame_rate"]
     frame_time = 1.0 / rate  # Compute frame time from frame rate
     duration = stop - start
 
@@ -219,11 +221,13 @@ def analyze_gait(scene, output_dir="output/"):
         # This indicates foot transitioning from descending to ascending
         contacts_idx = []
         for i in range(1, len(vel) - 1):
-            if vel[i-1] <= 0 and vel[i] >= 0:
+            if vel[i - 1] <= 0 and vel[i] >= 0:
                 contacts_idx.append(i)
 
         if len(contacts_idx) < 2:
-            print(f"⚠ Warning: {cname} has insufficient foot contacts ({len(contacts_idx)} found, need 2+). Skipping gait analysis.")
+            print(
+                f"⚠ Warning: {cname} has insufficient foot contacts ({len(contacts_idx)} found, need 2+). Skipping gait analysis."
+            )
             continue
 
         # Segment strides between consecutive contacts
@@ -245,13 +249,18 @@ def analyze_gait(scene, output_dir="output/"):
             confidence = compute_gait_confidence(segment_vel)
 
             # Asymmetry will be calculated after both legs processed
-            stride_segments.append([
-                cname, int(last), int(c), "Stride",
-                float(stride_time),
-                round(float(confidence), 4),
-                stride_length,
-                0.0  # Placeholder for asymmetry
-            ])
+            stride_segments.append(
+                [
+                    cname,
+                    int(last),
+                    int(c),
+                    "Stride",
+                    float(stride_time),
+                    round(float(confidence), 4),
+                    stride_length,
+                    0.0,  # Placeholder for asymmetry
+                ]
+            )
             last = c
 
         # Cross-correlation between left and right foot for phase analysis
@@ -272,22 +281,24 @@ def analyze_gait(scene, output_dir="output/"):
                 # Normalize and correlate to find phase shift
                 pL_norm = pL - np.mean(pL)
                 pR_norm = pR - np.mean(pR)
-                corr = np.correlate(pL_norm, pR_norm, 'full')
+                corr = np.correlate(pL_norm, pR_norm, "full")
                 shift = (np.argmax(corr) - len(pL) + 1) / rate
 
                 # Calculate stride statistics for this leg
                 leg_strides = [s for s in stride_segments if s[0] == cname]
                 cycle_time = np.mean([s[4] for s in leg_strides]) if leg_strides else 0
 
-                summary_info.append([
-                    cname,
-                    len(contacts_idx),
-                    duration,
-                    float(cycle_time),
-                    float(np.mean(pos_vertical)),  # Mean foot height
-                    round(float(abs(shift)), 4),
-                    "GaitRun" if abs(shift) < GAIT_RUN_PHASE_THRESHOLD_SECONDS else "GaitWalk"
-                ])
+                summary_info.append(
+                    [
+                        cname,
+                        len(contacts_idx),
+                        duration,
+                        float(cycle_time),
+                        float(np.mean(pos_vertical)),  # Mean foot height
+                        round(float(abs(shift)), 4),
+                        "GaitRun" if abs(shift) < GAIT_RUN_PHASE_THRESHOLD_SECONDS else "GaitWalk",
+                    ]
+                )
 
     # ✅ FIXED: Calculate actual asymmetry between legs
     left_strides = [s for s in stride_segments if s[0] == "LeftLeg"]
@@ -301,7 +312,7 @@ def analyze_gait(scene, output_dir="output/"):
     # Write stride segments CSV
     output_path = output_dir + "chain_gait_segments.csv"
     prepare_output_file(output_path)
-    with open(output_path, 'w', newline='') as f:
+    with open(output_path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["Chain", "FrameStart", "FrameEnd", "Phase", "CycleTime", "Confidence", "StrideLength", "Asymmetry"])
         w.writerows(stride_segments)
@@ -309,9 +320,19 @@ def analyze_gait(scene, output_dir="output/"):
     # Write gait summary CSV
     output_path = output_dir + "gait_summary.csv"
     prepare_output_file(output_path)
-    with open(output_path, 'w', newline='') as f:
+    with open(output_path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["Chain", "ContactCount", "Duration", "MeanCycleTime", "MeanStrideHeight", "LeftRightPhaseShift", "GaitType"])
+        w.writerow(
+            [
+                "Chain",
+                "ContactCount",
+                "Duration",
+                "MeanCycleTime",
+                "MeanStrideHeight",
+                "LeftRightPhaseShift",
+                "GaitType",
+            ]
+        )
         w.writerows(summary_info)
 
     # ✅ FIXED: Correct cycle rate calculation
@@ -327,7 +348,7 @@ def analyze_gait(scene, output_dir="output/"):
         "cycle_rate": cycle_rate,
         "confidence": float(np.mean([s[5] for s in stride_segments])) if stride_segments else 0.0,
         "gait_type": summary_info[0][6] if summary_info else "Unknown",
-        "asymmetry": asymmetry
+        "asymmetry": asymmetry,
     }
 
     return stride_segments, gait_summary

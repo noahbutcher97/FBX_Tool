@@ -1,8 +1,10 @@
 """Test dynamic chain detection."""
 import sys
-sys.path.insert(0, 'C:\\Users\\posne\\Projects\\FBX_Tool')
+
+sys.path.insert(0, "C:\\Users\\posne\\Projects\\FBX_Tool")
 
 import fbx
+
 from fbx_tool.analysis.utils import build_bone_hierarchy, detect_chains_from_hierarchy
 
 fbx_file = "C:\\Users\\posne\\Downloads\\Walking.fbx"

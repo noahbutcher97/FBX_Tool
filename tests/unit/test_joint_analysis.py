@@ -4,9 +4,10 @@ Unit tests for joint_analysis module.
 Tests joint-level IK suitability analysis and rotation range computation.
 """
 
-import pytest
+from unittest.mock import MagicMock, Mock, patch
+
 import numpy as np
-from unittest.mock import Mock, MagicMock, patch
+import pytest
 
 
 class TestFbxVectorConversion:
@@ -72,13 +73,9 @@ class TestJointIKSuitabilityComputation:
     def test_ik_suitability_stable_joint(self):
         """Test IK suitability for a stable joint with minimal rotation."""
         # Joint with very small rotation variance (good for IK)
-        rotation_data = np.array([
-            [0.0, 0.0, 0.0],
-            [0.1, 0.1, 0.1],
-            [0.0, 0.0, 0.0],
-            [-0.1, -0.1, -0.1],
-            [0.0, 0.0, 0.0]
-        ])
+        rotation_data = np.array(
+            [[0.0, 0.0, 0.0], [0.1, 0.1, 0.1], [0.0, 0.0, 0.0], [-0.1, -0.1, -0.1], [0.0, 0.0, 0.0]]
+        )
 
         # Compute IK metrics manually
         std_r = np.std(rotation_data, axis=0)
@@ -90,13 +87,9 @@ class TestJointIKSuitabilityComputation:
     def test_ik_suitability_unstable_joint(self):
         """Test IK suitability for unstable joint with high variance."""
         # Joint with high rotation variance (bad for IK)
-        rotation_data = np.array([
-            [0.0, 0.0, 0.0],
-            [45.0, 30.0, 20.0],
-            [-30.0, 50.0, -40.0],
-            [60.0, -20.0, 35.0],
-            [-50.0, 40.0, -30.0]
-        ])
+        rotation_data = np.array(
+            [[0.0, 0.0, 0.0], [45.0, 30.0, 20.0], [-30.0, 50.0, -40.0], [60.0, -20.0, 35.0], [-50.0, 40.0, -30.0]]
+        )
 
         std_r = np.std(rotation_data, axis=0)
         stability = 1.0 / (1.0 + np.linalg.norm(std_r))
@@ -107,13 +100,9 @@ class TestJointIKSuitabilityComputation:
     def test_ik_range_score_sufficient_range(self):
         """Test range score for joint with sufficient rotation range."""
         # Joint with good rotation range (not too much, not too little)
-        rotation_data = np.array([
-            [0.0, 0.0, 0.0],
-            [30.0, 20.0, 15.0],
-            [60.0, 40.0, 30.0],
-            [30.0, 20.0, 15.0],
-            [0.0, 0.0, 0.0]
-        ])
+        rotation_data = np.array(
+            [[0.0, 0.0, 0.0], [30.0, 20.0, 15.0], [60.0, 40.0, 30.0], [30.0, 20.0, 15.0], [0.0, 0.0, 0.0]]
+        )
 
         min_r = np.min(rotation_data, axis=0)
         max_r = np.max(rotation_data, axis=0)
@@ -130,10 +119,7 @@ class TestJointIKSuitabilityComputation:
     def test_ik_range_score_excessive_range(self):
         """Test range score for joint with excessive rotation range."""
         # Joint with excessive rotation (clamped to 1.0)
-        rotation_data = np.array([
-            [-180.0, -180.0, -180.0],
-            [180.0, 180.0, 180.0]
-        ])
+        rotation_data = np.array([[-180.0, -180.0, -180.0], [180.0, 180.0, 180.0]])
 
         min_r = np.min(rotation_data, axis=0)
         max_r = np.max(rotation_data, axis=0)
@@ -163,11 +149,7 @@ class TestJointAnalysisEdgeCases:
     def test_joint_with_zero_rotation(self):
         """Test joint that never rotates (locked joint)."""
         # Completely static joint
-        rotation_data = np.array([
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0]
-        ])
+        rotation_data = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
 
         std_r = np.std(rotation_data, axis=0)
         stability = 1.0 / (1.0 + np.linalg.norm(std_r))
@@ -189,10 +171,7 @@ class TestJointAnalysisEdgeCases:
 
     def test_rotation_range_negative_to_positive(self):
         """Test rotation range calculation across negative and positive values."""
-        rotation_data = np.array([
-            [-45.0, -30.0, -15.0],
-            [45.0, 30.0, 15.0]
-        ])
+        rotation_data = np.array([[-45.0, -30.0, -15.0], [45.0, 30.0, 15.0]])
 
         min_r = np.min(rotation_data, axis=0)
         max_r = np.max(rotation_data, axis=0)
@@ -204,25 +183,19 @@ class TestJointAnalysisEdgeCases:
 class TestAnalyzeJointsFunction:
     """Test the main analyze_joints() function."""
 
-    @patch('fbx_tool.analysis.joint_analysis.get_scene_metadata')
-    @patch('fbx_tool.analysis.joint_analysis.build_bone_hierarchy')
-    @patch('fbx_tool.analysis.joint_analysis.prepare_output_file')
-    @patch('builtins.open', create=True)
+    @patch("fbx_tool.analysis.joint_analysis.get_scene_metadata")
+    @patch("fbx_tool.analysis.joint_analysis.build_bone_hierarchy")
+    @patch("fbx_tool.analysis.joint_analysis.prepare_output_file")
+    @patch("builtins.open", create=True)
     def test_analyze_joints_basic(self, mock_open, mock_prepare, mock_hierarchy, mock_anim_info):
         """Test basic joint analysis execution."""
         from fbx_tool.analysis.joint_analysis import analyze_joints
 
         # Mock animation info
-        mock_anim_info.return_value = {
-            'start_time': 0.0,
-            'stop_time': 0.1,
-            'frame_rate': 30.0
-        }
+        mock_anim_info.return_value = {"start_time": 0.0, "stop_time": 0.1, "frame_rate": 30.0}
 
         # Mock bone hierarchy
-        mock_hierarchy.return_value = {
-            'ChildBone': 'ParentBone'
-        }
+        mock_hierarchy.return_value = {"ChildBone": "ParentBone"}
 
         # Mock FBX scene
         mock_scene = MagicMock()
@@ -241,7 +214,7 @@ class TestAnalyzeJointsFunction:
         mock_node.EvaluateGlobalTransform.return_value = mock_transform
         mock_parent_node.EvaluateGlobalTransform.return_value = mock_transform
 
-        mock_scene.FindNodeByName.side_effect = lambda name: mock_node if name == 'ChildBone' else mock_parent_node
+        mock_scene.FindNodeByName.side_effect = lambda name: mock_node if name == "ChildBone" else mock_parent_node
 
         # Execute
         result = analyze_joints(mock_scene, output_dir="test_output/")
@@ -250,24 +223,17 @@ class TestAnalyzeJointsFunction:
         assert isinstance(result, dict)
         mock_prepare.assert_called_once()
 
-    @patch('fbx_tool.analysis.joint_analysis.get_scene_metadata')
-    @patch('fbx_tool.analysis.joint_analysis.build_bone_hierarchy')
-    @patch('fbx_tool.analysis.joint_analysis.prepare_output_file')
-    @patch('builtins.open', create=True)
+    @patch("fbx_tool.analysis.joint_analysis.get_scene_metadata")
+    @patch("fbx_tool.analysis.joint_analysis.build_bone_hierarchy")
+    @patch("fbx_tool.analysis.joint_analysis.prepare_output_file")
+    @patch("builtins.open", create=True)
     def test_analyze_joints_returns_summary(self, mock_open, mock_prepare, mock_hierarchy, mock_anim_info):
         """Test that analyze_joints returns correct summary structure."""
         from fbx_tool.analysis.joint_analysis import analyze_joints
 
-        mock_anim_info.return_value = {
-            'start_time': 0.0,
-            'stop_time': 0.1,
-            'frame_rate': 30.0
-        }
+        mock_anim_info.return_value = {"start_time": 0.0, "stop_time": 0.1, "frame_rate": 30.0}
 
-        mock_hierarchy.return_value = {
-            'Bone1': 'Root',
-            'Bone2': 'Bone1'
-        }
+        mock_hierarchy.return_value = {"Bone1": "Root", "Bone2": "Bone1"}
 
         mock_scene = MagicMock()
         mock_node = MagicMock()
@@ -302,28 +268,21 @@ class TestAnalyzeJointsFunction:
             assert 0.0 <= range_score <= 1.0
             assert 0.0 <= ik_score <= 1.0
 
-    @patch('fbx_tool.analysis.joint_analysis.get_scene_metadata')
-    @patch('fbx_tool.analysis.joint_analysis.build_bone_hierarchy')
+    @patch("fbx_tool.analysis.joint_analysis.get_scene_metadata")
+    @patch("fbx_tool.analysis.joint_analysis.build_bone_hierarchy")
     def test_analyze_joints_handles_missing_nodes(self, mock_hierarchy, mock_anim_info):
         """Test that analyze_joints gracefully handles missing nodes."""
         from fbx_tool.analysis.joint_analysis import analyze_joints
 
-        mock_anim_info.return_value = {
-            'start_time': 0.0,
-            'stop_time': 0.033,
-            'frame_rate': 30.0
-        }
+        mock_anim_info.return_value = {"start_time": 0.0, "stop_time": 0.033, "frame_rate": 30.0}
 
-        mock_hierarchy.return_value = {
-            'ExistingBone': 'Root',
-            'MissingBone': 'Root'
-        }
+        mock_hierarchy.return_value = {"ExistingBone": "Root", "MissingBone": "Root"}
 
         mock_scene = MagicMock()
 
         # Only ExistingBone returns a valid node
         def find_node_side_effect(name):
-            if name == 'ExistingBone' or name == 'Root':
+            if name == "ExistingBone" or name == "Root":
                 mock_node = MagicMock()
                 mock_transform = MagicMock()
                 mock_t_vec = Mock()
@@ -340,35 +299,32 @@ class TestAnalyzeJointsFunction:
 
         mock_scene.FindNodeByName.side_effect = find_node_side_effect
 
-        with patch('fbx_tool.analysis.joint_analysis.prepare_output_file'):
-            with patch('builtins.open', create=True):
+        with patch("fbx_tool.analysis.joint_analysis.prepare_output_file"):
+            with patch("builtins.open", create=True):
                 result = analyze_joints(mock_scene)
 
         # Should only include ExistingBone, not MissingBone
         bone_names = [joint[1] for joint in result.keys()]
-        assert 'ExistingBone' in bone_names
-        assert 'MissingBone' not in bone_names
+        assert "ExistingBone" in bone_names
+        assert "MissingBone" not in bone_names
 
 
 class TestJointAnalysisCSVOutput:
     """Test CSV output formatting."""
 
-    @patch('fbx_tool.analysis.joint_analysis.get_scene_metadata')
-    @patch('fbx_tool.analysis.joint_analysis.build_bone_hierarchy')
-    @patch('fbx_tool.analysis.joint_analysis.prepare_output_file')
+    @patch("fbx_tool.analysis.joint_analysis.get_scene_metadata")
+    @patch("fbx_tool.analysis.joint_analysis.build_bone_hierarchy")
+    @patch("fbx_tool.analysis.joint_analysis.prepare_output_file")
     def test_csv_has_correct_headers(self, mock_prepare, mock_hierarchy, mock_anim_info):
         """Test that CSV output has correct column headers."""
-        from fbx_tool.analysis.joint_analysis import analyze_joints
         import io
         from unittest.mock import mock_open
 
-        mock_anim_info.return_value = {
-            'start_time': 0.0,
-            'stop_time': 0.033,
-            'frame_rate': 30.0
-        }
+        from fbx_tool.analysis.joint_analysis import analyze_joints
 
-        mock_hierarchy.return_value = {'Bone1': 'Root'}
+        mock_anim_info.return_value = {"start_time": 0.0, "stop_time": 0.033, "frame_rate": 30.0}
+
+        mock_hierarchy.return_value = {"Bone1": "Root"}
 
         mock_scene = MagicMock()
         mock_node = MagicMock()
@@ -387,14 +343,25 @@ class TestJointAnalysisCSVOutput:
         # Capture CSV output using mock_open
         m = mock_open()
 
-        with patch('builtins.open', m):
+        with patch("builtins.open", m):
             analyze_joints(mock_scene, output_dir="test/")
 
         # Get the written content from mock
-        written_content = ''.join(call.args[0] for call in m().write.call_args_list if call.args)
+        written_content = "".join(call.args[0] for call in m().write.call_args_list if call.args)
 
         # Verify header row
-        expected_headers = ["Parent", "Child", "MinRotX", "MaxRotX", "MinRotY", "MaxRotY",
-                           "MinRotZ", "MaxRotZ", "Stability", "RangeScore", "IKSuitability"]
+        expected_headers = [
+            "Parent",
+            "Child",
+            "MinRotX",
+            "MaxRotX",
+            "MinRotY",
+            "MaxRotY",
+            "MinRotZ",
+            "MaxRotZ",
+            "Stability",
+            "RangeScore",
+            "IKSuitability",
+        ]
 
         assert all(header in written_content for header in expected_headers)

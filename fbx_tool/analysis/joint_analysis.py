@@ -26,9 +26,9 @@ def analyze_joints(scene, output_dir="output/"):
         dict: Joint summary data {(parent, child): (stability, range_score, ik_score)}
     """
     anim_info = get_scene_metadata(scene)
-    start = anim_info['start_time']
-    stop = anim_info['stop_time']
-    rate = anim_info['frame_rate']
+    start = anim_info["start_time"]
+    stop = anim_info["stop_time"]
+    rate = anim_info["frame_rate"]
     frame_time = 1.0 / rate  # Compute frame time from frame rate
     hierarchy = build_bone_hierarchy(scene)
 
@@ -54,10 +54,7 @@ def analyze_joints(scene, output_dir="output/"):
             rR_arr = fbx_vector_to_array(rR)
 
             key = (parent if parent else "Root", child)
-            joint_data.setdefault(key, []).append([
-                rT_arr[0], rT_arr[1], rT_arr[2],
-                rR_arr[0], rR_arr[1], rR_arr[2]
-            ])
+            joint_data.setdefault(key, []).append([rT_arr[0], rT_arr[1], rT_arr[2], rR_arr[0], rR_arr[1], rR_arr[2]])
         current += frame_time
 
     enhanced = []
@@ -73,17 +70,41 @@ def analyze_joints(scene, output_dir="output/"):
         # Get rotation range for CSV output
         min_r = np.min(rotation_data, axis=0)
         max_r = np.max(rotation_data, axis=0)
-        enhanced.append([
-            joint[0], joint[1],
-            min_r[0], max_r[0], min_r[1], max_r[1], min_r[2], max_r[2],
-            round(stab, 4), round(range_score, 4), round(ik_score, 4)
-        ])
+        enhanced.append(
+            [
+                joint[0],
+                joint[1],
+                min_r[0],
+                max_r[0],
+                min_r[1],
+                max_r[1],
+                min_r[2],
+                max_r[2],
+                round(stab, 4),
+                round(range_score, 4),
+                round(ik_score, 4),
+            ]
+        )
 
     output_path = output_dir + "joint_enhanced_relationships.csv"
     prepare_output_file(output_path)
-    with open(output_path, 'w', newline='') as f:
+    with open(output_path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["Parent", "Child", "MinRotX", "MaxRotX", "MinRotY", "MaxRotY", "MinRotZ", "MaxRotZ", "Stability", "RangeScore", "IKSuitability"])
+        w.writerow(
+            [
+                "Parent",
+                "Child",
+                "MinRotX",
+                "MaxRotX",
+                "MinRotY",
+                "MaxRotY",
+                "MinRotZ",
+                "MaxRotZ",
+                "Stability",
+                "RangeScore",
+                "IKSuitability",
+            ]
+        )
         w.writerows(enhanced)
 
     return joint_summary

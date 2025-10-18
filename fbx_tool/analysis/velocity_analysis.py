@@ -33,9 +33,11 @@ Outputs:
 - holistic_motion.csv: Whole-body motion quality
 """
 
-import numpy as np
 import csv
 import os
+
+import numpy as np
+
 from fbx_tool.analysis.utils import ensure_output_dir
 
 # ==============================================================================
@@ -190,12 +192,12 @@ def compute_directional_jitter(values_xyz, window_size=5):
     jitter_scores = {}
 
     # Compute jitter for each axis
-    for axis, axis_name in enumerate(['x', 'y', 'z']):
+    for axis, axis_name in enumerate(["x", "y", "z"]):
         jitter_scores[axis_name] = compute_jitter_score(values_xyz[:, axis], window_size)
 
     # Also compute jitter on magnitude
     magnitudes = compute_magnitudes(values_xyz)
-    jitter_scores['magnitude'] = compute_jitter_score(magnitudes, window_size)
+    jitter_scores["magnitude"] = compute_jitter_score(magnitudes, window_size)
 
     return jitter_scores
 
@@ -260,7 +262,7 @@ def compute_jitter_score(values, window_size=JITTER_WINDOW_SIZE):
     # Compute local variance using sliding window
     local_variances = []
     for i in range(len(values) - window_size + 1):
-        window = values[i:i + window_size]
+        window = values[i : i + window_size]
         local_variances.append(np.var(window))
 
     # Jitter score is mean of local variances
@@ -366,19 +368,19 @@ def compute_smoothing_parameters(jitter_score, smoothness_score, frame_rate):
     """
     # Determine smoothing intensity based on jitter thresholds
     if jitter_score > JITTER_HIGH_THRESHOLD:
-        intensity = 'high'
+        intensity = "high"
         kernel_size = SMOOTHING_KERNEL_HIGH
         gaussian_sigma = GAUSSIAN_SIGMA_HIGH
         cutoff_fraction = CUTOFF_FRACTION_HIGH_JITTER
         filter_order = BUTTERWORTH_ORDER_HIGH
     elif jitter_score > JITTER_MEDIUM_THRESHOLD:
-        intensity = 'medium'
+        intensity = "medium"
         kernel_size = SMOOTHING_KERNEL_MEDIUM
         gaussian_sigma = GAUSSIAN_SIGMA_MEDIUM
         cutoff_fraction = CUTOFF_FRACTION_MEDIUM_JITTER
         filter_order = BUTTERWORTH_ORDER_LOW
     else:
-        intensity = 'none'
+        intensity = "none"
         kernel_size = SMOOTHING_KERNEL_LOW
         gaussian_sigma = GAUSSIAN_SIGMA_LOW
         cutoff_fraction = CUTOFF_FRACTION_LOW_JITTER
@@ -392,13 +394,13 @@ def compute_smoothing_parameters(jitter_score, smoothness_score, frame_rate):
     savgol_polyorder = SAVGOL_POLYORDER_HIGH if kernel_size >= 5 else SAVGOL_POLYORDER_LOW
 
     return {
-        'intensity': intensity,
-        'kernel_size': kernel_size,
-        'gaussian_sigma': gaussian_sigma,
-        'cutoff_frequency_hz': cutoff_frequency,
-        'butterworth_order': filter_order,
-        'savgol_window': kernel_size,
-        'savgol_polyorder': savgol_polyorder
+        "intensity": intensity,
+        "kernel_size": kernel_size,
+        "gaussian_sigma": gaussian_sigma,
+        "cutoff_frequency_hz": cutoff_frequency,
+        "butterworth_order": filter_order,
+        "savgol_window": kernel_size,
+        "savgol_polyorder": savgol_polyorder,
     }
 
 
@@ -417,14 +419,15 @@ def analyze_velocity(scene, output_dir="output/"):
 
     # Get scene metadata
     from fbx_tool.analysis.fbx_loader import get_scene_metadata
+
     metadata = get_scene_metadata(scene)
 
-    if not metadata.get('has_animation', False):
+    if not metadata.get("has_animation", False):
         raise ValueError("No animation data found in scene")
 
-    start_time = metadata['start_time']
-    stop_time = metadata['stop_time']
-    frame_rate = metadata['frame_rate']
+    start_time = metadata["start_time"]
+    stop_time = metadata["stop_time"]
+    frame_rate = metadata["frame_rate"]
     duration = stop_time - start_time
     total_frames = int(duration * frame_rate) + 1  # +1 to include both start and end frames
 
@@ -433,11 +436,13 @@ def analyze_velocity(scene, output_dir="output/"):
 
     # Collect all bones
     bones = []
+
     def collect_bones(node):
         if node.GetNodeAttribute():
             attr_type = node.GetNodeAttribute().GetAttributeType()
             # Check if node is a skeleton bone
             import fbx as fbx_module
+
             if attr_type == fbx_module.FbxNodeAttribute.EType.eSkeleton:
                 bones.append(node)
         for i in range(node.GetChildCount()):
@@ -559,117 +564,135 @@ def analyze_velocity(scene, output_dir="output/"):
         directional_angular_jitter = compute_directional_jitter(angular_velocity)
 
         # Translational velocity summary
-        velocity_summary.append({
-            'bone_name': bone_name,
-            'mean_velocity': mean_velocity,
-            'max_velocity': max_velocity,
-            'mean_acceleration': mean_acceleration,
-            'max_acceleration': max_acceleration,
-            'mean_jerk': mean_jerk,
-            'max_jerk': max_jerk,
-            'smoothness_score': smoothness_score,
-            'frozen_frames': frozen_frame_count,
-            'frozen_percentage': frozen_percentage
-        })
+        velocity_summary.append(
+            {
+                "bone_name": bone_name,
+                "mean_velocity": mean_velocity,
+                "max_velocity": max_velocity,
+                "mean_acceleration": mean_acceleration,
+                "max_acceleration": max_acceleration,
+                "mean_jerk": mean_jerk,
+                "max_jerk": max_jerk,
+                "smoothness_score": smoothness_score,
+                "frozen_frames": frozen_frame_count,
+                "frozen_percentage": frozen_percentage,
+            }
+        )
 
         # Angular velocity summary (NEW)
-        angular_velocity_summary.append({
-            'bone_name': bone_name,
-            'mean_angular_velocity': mean_angular_velocity,
-            'max_angular_velocity': max_angular_velocity,
-            'mean_angular_acceleration': mean_angular_acceleration,
-            'max_angular_acceleration': max_angular_acceleration,
-            'mean_angular_jerk': mean_angular_jerk,
-            'max_angular_jerk': max_angular_jerk,
-            'angular_smoothness_score': angular_smoothness_score,
-            'angular_jitter_score': angular_jitter_score
-        })
+        angular_velocity_summary.append(
+            {
+                "bone_name": bone_name,
+                "mean_angular_velocity": mean_angular_velocity,
+                "max_angular_velocity": max_angular_velocity,
+                "mean_angular_acceleration": mean_angular_acceleration,
+                "max_angular_acceleration": max_angular_acceleration,
+                "mean_angular_jerk": mean_angular_jerk,
+                "max_angular_jerk": max_angular_jerk,
+                "angular_smoothness_score": angular_smoothness_score,
+                "angular_jitter_score": angular_jitter_score,
+            }
+        )
 
         # Detect velocity spikes
         velocity_spike_frames = detect_spikes(velocity_mag, VELOCITY_SPIKE_THRESHOLD_SIGMA)
         for frame_idx in velocity_spike_frames:
-            velocity_spikes.append({
-                'bone_name': bone_name,
-                'frame': int(frame_idx),
-                'velocity': velocity_mag[frame_idx],
-                'threshold': np.mean(velocity_mag) + VELOCITY_SPIKE_THRESHOLD_SIGMA * np.std(velocity_mag)
-            })
+            velocity_spikes.append(
+                {
+                    "bone_name": bone_name,
+                    "frame": int(frame_idx),
+                    "velocity": velocity_mag[frame_idx],
+                    "threshold": np.mean(velocity_mag) + VELOCITY_SPIKE_THRESHOLD_SIGMA * np.std(velocity_mag),
+                }
+            )
 
         # Detect acceleration peaks
         accel_spike_frames = detect_spikes(acceleration_mag, ACCELERATION_SPIKE_THRESHOLD_SIGMA)
         for frame_idx in accel_spike_frames:
-            acceleration_peaks.append({
-                'bone_name': bone_name,
-                'frame': int(frame_idx),
-                'acceleration': acceleration_mag[frame_idx],
-                'severity': acceleration_mag[frame_idx] / mean_acceleration if mean_acceleration > 0 else 0
-            })
+            acceleration_peaks.append(
+                {
+                    "bone_name": bone_name,
+                    "frame": int(frame_idx),
+                    "acceleration": acceleration_mag[frame_idx],
+                    "severity": acceleration_mag[frame_idx] / mean_acceleration if mean_acceleration > 0 else 0,
+                }
+            )
 
         # ENHANCEMENT C: Detect jerk spikes (translational)
         jerk_spike_frames = detect_spikes(jerk_mag, JERK_SPIKE_THRESHOLD_SIGMA)
         for frame_idx in jerk_spike_frames:
-            jerk_spikes.append({
-                'bone_name': bone_name,
-                'frame': int(frame_idx),
-                'jerk': jerk_mag[frame_idx],
-                'type': 'translational',
-                'severity': jerk_mag[frame_idx] / mean_jerk if mean_jerk > 0 else 0
-            })
+            jerk_spikes.append(
+                {
+                    "bone_name": bone_name,
+                    "frame": int(frame_idx),
+                    "jerk": jerk_mag[frame_idx],
+                    "type": "translational",
+                    "severity": jerk_mag[frame_idx] / mean_jerk if mean_jerk > 0 else 0,
+                }
+            )
 
         # ENHANCEMENT C: Detect angular jerk spikes
         angular_jerk_spike_frames = detect_spikes(angular_jerk_mag, JERK_SPIKE_THRESHOLD_SIGMA)
         for frame_idx in angular_jerk_spike_frames:
-            jerk_spikes.append({
-                'bone_name': bone_name,
-                'frame': int(frame_idx),
-                'jerk': angular_jerk_mag[frame_idx],
-                'type': 'rotational',
-                'severity': angular_jerk_mag[frame_idx] / mean_angular_jerk if mean_angular_jerk > 0 else 0
-            })
+            jerk_spikes.append(
+                {
+                    "bone_name": bone_name,
+                    "frame": int(frame_idx),
+                    "jerk": angular_jerk_mag[frame_idx],
+                    "type": "rotational",
+                    "severity": angular_jerk_mag[frame_idx] / mean_angular_jerk if mean_angular_jerk > 0 else 0,
+                }
+            )
 
         # ENHANCEMENT B: Enhanced jitter analysis with directional breakdown
-        jitter_analysis.append({
-            'bone_name': bone_name,
-            'jitter_score': jitter_score,
-            'jitter_x': directional_jitter['x'],
-            'jitter_y': directional_jitter['y'],
-            'jitter_z': directional_jitter['z'],
-            'angular_jitter_score': angular_jitter_score,
-            'angular_jitter_x': directional_angular_jitter['x'],
-            'angular_jitter_y': directional_angular_jitter['y'],
-            'angular_jitter_z': directional_angular_jitter['z'],
-            'smoothness_score': smoothness_score,
-            'angular_smoothness_score': angular_smoothness_score,
-            'recommended_smoothing': smoothing_params['intensity'],
-            'gaussian_sigma': smoothing_params['gaussian_sigma'],
-            'cutoff_frequency_hz': smoothing_params['cutoff_frequency_hz'],
-            'savgol_window': smoothing_params['savgol_window']
-        })
+        jitter_analysis.append(
+            {
+                "bone_name": bone_name,
+                "jitter_score": jitter_score,
+                "jitter_x": directional_jitter["x"],
+                "jitter_y": directional_jitter["y"],
+                "jitter_z": directional_jitter["z"],
+                "angular_jitter_score": angular_jitter_score,
+                "angular_jitter_x": directional_angular_jitter["x"],
+                "angular_jitter_y": directional_angular_jitter["y"],
+                "angular_jitter_z": directional_angular_jitter["z"],
+                "smoothness_score": smoothness_score,
+                "angular_smoothness_score": angular_smoothness_score,
+                "recommended_smoothing": smoothing_params["intensity"],
+                "gaussian_sigma": smoothing_params["gaussian_sigma"],
+                "cutoff_frequency_hz": smoothing_params["cutoff_frequency_hz"],
+                "savgol_window": smoothing_params["savgol_window"],
+            }
+        )
 
         # ENHANCEMENT A: Frame-by-frame temporal data
         for frame in range(total_frames):
-            jitter_temporal.append({
-                'bone_name': bone_name,
-                'frame': frame,
-                'velocity': velocity_mag[frame],
-                'acceleration': acceleration_mag[frame],
-                'jerk': jerk_mag[frame],
-                'angular_velocity': angular_velocity_mag[frame],
-                'angular_acceleration': angular_acceleration_mag[frame],
-                'angular_jerk': angular_jerk_mag[frame]
-            })
+            jitter_temporal.append(
+                {
+                    "bone_name": bone_name,
+                    "frame": frame,
+                    "velocity": velocity_mag[frame],
+                    "acceleration": acceleration_mag[frame],
+                    "jerk": jerk_mag[frame],
+                    "angular_velocity": angular_velocity_mag[frame],
+                    "angular_acceleration": angular_acceleration_mag[frame],
+                    "angular_jerk": angular_jerk_mag[frame],
+                }
+            )
 
-            smoothness_temporal.append({
-                'bone_name': bone_name,
-                'frame': frame,
-                # ✅ FIXED: Use constants to match compute_smoothness_score() formula
-                'smoothness': 1.0 / (1.0 + jerk_mag[frame] * SMOOTHNESS_SCALE_TRANSLATIONAL),
-                'angular_smoothness': 1.0 / (1.0 + angular_jerk_mag[frame] * SMOOTHNESS_SCALE_ROTATIONAL)
-            })
+            smoothness_temporal.append(
+                {
+                    "bone_name": bone_name,
+                    "frame": frame,
+                    # ✅ FIXED: Use constants to match compute_smoothness_score() formula
+                    "smoothness": 1.0 / (1.0 + jerk_mag[frame] * SMOOTHNESS_SCALE_TRANSLATIONAL),
+                    "angular_smoothness": 1.0 / (1.0 + angular_jerk_mag[frame] * SMOOTHNESS_SCALE_ROTATIONAL),
+                }
+            )
 
     # Write translational velocity summary CSV
     velocity_csv_path = os.path.join(output_dir, "velocity_summary.csv")
-    with open(velocity_csv_path, 'w', newline='') as f:
+    with open(velocity_csv_path, "w", newline="") as f:
         if velocity_summary:
             writer = csv.DictWriter(f, fieldnames=velocity_summary[0].keys())
             writer.writeheader()
@@ -677,7 +700,7 @@ def analyze_velocity(scene, output_dir="output/"):
 
     # Write angular velocity summary CSV (NEW)
     angular_velocity_csv_path = os.path.join(output_dir, "angular_velocity_summary.csv")
-    with open(angular_velocity_csv_path, 'w', newline='') as f:
+    with open(angular_velocity_csv_path, "w", newline="") as f:
         if angular_velocity_summary:
             writer = csv.DictWriter(f, fieldnames=angular_velocity_summary[0].keys())
             writer.writeheader()
@@ -685,7 +708,7 @@ def analyze_velocity(scene, output_dir="output/"):
 
     # Write acceleration peaks CSV
     accel_csv_path = os.path.join(output_dir, "acceleration_peaks.csv")
-    with open(accel_csv_path, 'w', newline='') as f:
+    with open(accel_csv_path, "w", newline="") as f:
         if acceleration_peaks:
             writer = csv.DictWriter(f, fieldnames=acceleration_peaks[0].keys())
             writer.writeheader()
@@ -693,7 +716,7 @@ def analyze_velocity(scene, output_dir="output/"):
 
     # Write jerk spikes CSV (ENHANCEMENT C)
     jerk_spikes_csv_path = os.path.join(output_dir, "jerk_spikes.csv")
-    with open(jerk_spikes_csv_path, 'w', newline='') as f:
+    with open(jerk_spikes_csv_path, "w", newline="") as f:
         if jerk_spikes:
             writer = csv.DictWriter(f, fieldnames=jerk_spikes[0].keys())
             writer.writeheader()
@@ -701,7 +724,7 @@ def analyze_velocity(scene, output_dir="output/"):
 
     # Write enhanced jitter analysis CSV (ENHANCEMENT B + D)
     jitter_csv_path = os.path.join(output_dir, "jitter_analysis.csv")
-    with open(jitter_csv_path, 'w', newline='') as f:
+    with open(jitter_csv_path, "w", newline="") as f:
         if jitter_analysis:
             writer = csv.DictWriter(f, fieldnames=jitter_analysis[0].keys())
             writer.writeheader()
@@ -709,7 +732,7 @@ def analyze_velocity(scene, output_dir="output/"):
 
     # Write jitter temporal CSV (ENHANCEMENT A)
     jitter_temporal_csv_path = os.path.join(output_dir, "jitter_temporal.csv")
-    with open(jitter_temporal_csv_path, 'w', newline='') as f:
+    with open(jitter_temporal_csv_path, "w", newline="") as f:
         if jitter_temporal:
             writer = csv.DictWriter(f, fieldnames=jitter_temporal[0].keys())
             writer.writeheader()
@@ -717,7 +740,7 @@ def analyze_velocity(scene, output_dir="output/"):
 
     # Write smoothness temporal CSV (ENHANCEMENT A)
     smoothness_temporal_csv_path = os.path.join(output_dir, "smoothness_temporal.csv")
-    with open(smoothness_temporal_csv_path, 'w', newline='') as f:
+    with open(smoothness_temporal_csv_path, "w", newline="") as f:
         if smoothness_temporal:
             writer = csv.DictWriter(f, fieldnames=smoothness_temporal[0].keys())
             writer.writeheader()
@@ -725,7 +748,7 @@ def analyze_velocity(scene, output_dir="output/"):
 
     # Write velocity spikes CSV
     spikes_csv_path = os.path.join(output_dir, "velocity_spikes.csv")
-    with open(spikes_csv_path, 'w', newline='') as f:
+    with open(spikes_csv_path, "w", newline="") as f:
         if velocity_spikes:
             writer = csv.DictWriter(f, fieldnames=velocity_spikes[0].keys())
             writer.writeheader()
@@ -737,7 +760,9 @@ def analyze_velocity(scene, output_dir="output/"):
 
     # HOLISTIC ANALYSIS
     print("Computing holistic motion metrics...")
-    holistic_data = analyze_holistic_motion(bones, frame_rate, total_frames, output_dir, scene, start_time, frame_duration)
+    holistic_data = analyze_holistic_motion(
+        bones, frame_rate, total_frames, output_dir, scene, start_time, frame_duration
+    )
 
     print(f"✓ Velocity analysis complete:")
     print(f"  - {len(velocity_summary)} bones analyzed")
@@ -748,19 +773,19 @@ def analyze_velocity(scene, output_dir="output/"):
     print(f"  - {len(jitter_temporal)} temporal jitter data points")
 
     # Count high jitter bones (translational or rotational)
-    high_jitter_bones = sum(1 for j in jitter_analysis if j['recommended_smoothing'] == 'high')
+    high_jitter_bones = sum(1 for j in jitter_analysis if j["recommended_smoothing"] == "high")
 
     # Return summary
     return {
-        'total_bones': len(bones),
-        'total_frames': total_frames,
-        'velocity_spikes_count': len(velocity_spikes),
-        'acceleration_peaks_count': len(acceleration_peaks),
-        'jerk_spikes_count': len(jerk_spikes),
-        'high_jitter_bones': high_jitter_bones,
-        'chains_analyzed': len(chain_velocity_data),
-        'holistic_metrics': holistic_data,
-        'temporal_data_points': len(jitter_temporal)
+        "total_bones": len(bones),
+        "total_frames": total_frames,
+        "velocity_spikes_count": len(velocity_spikes),
+        "acceleration_peaks_count": len(acceleration_peaks),
+        "jerk_spikes_count": len(jerk_spikes),
+        "high_jitter_bones": high_jitter_bones,
+        "chains_analyzed": len(chain_velocity_data),
+        "holistic_metrics": holistic_data,
+        "temporal_data_points": len(jitter_temporal),
     }
 
 
@@ -783,7 +808,7 @@ def analyze_chain_velocity(scene, bones, frame_rate, total_frames, output_dir):
     Returns:
         list: Chain velocity analysis results
     """
-    from fbx_tool.analysis.utils import detect_chains_from_hierarchy, build_bone_hierarchy
+    from fbx_tool.analysis.utils import build_bone_hierarchy, detect_chains_from_hierarchy
 
     # Build bone hierarchy and detect chains
     hierarchy = build_bone_hierarchy(scene)
@@ -853,7 +878,7 @@ def analyze_chain_velocity(scene, bones, frame_rate, total_frames, output_dir):
         # Measure using cross-correlation
         propagation_delays = []
         for i in range(len(chain_bones) - 1):
-            cross_corr = np.correlate(chain_velocities[i], chain_velocities[i + 1], mode='same')
+            cross_corr = np.correlate(chain_velocities[i], chain_velocities[i + 1], mode="same")
             delay_frame = np.argmax(cross_corr) - len(cross_corr) // 2
             propagation_delays.append(abs(delay_frame))
 
@@ -863,19 +888,23 @@ def analyze_chain_velocity(scene, bones, frame_rate, total_frames, output_dir):
         chain_jitter_scores = [compute_jitter_score(vel) for vel in chain_velocities]
         mean_chain_jitter = np.mean(chain_jitter_scores)
 
-        chain_results.append({
-            'chain_name': chain_name,
-            'bone_count': len(chain_bones),
-            'coherence_score': mean_coherence,
-            'propagation_delay_frames': mean_delay,
-            'chain_jitter_score': mean_chain_jitter,
-            'coordination_quality': 'good' if mean_coherence > COHERENCE_GOOD_THRESHOLD else ('fair' if mean_coherence > COHERENCE_FAIR_THRESHOLD else 'poor')
-        })
+        chain_results.append(
+            {
+                "chain_name": chain_name,
+                "bone_count": len(chain_bones),
+                "coherence_score": mean_coherence,
+                "propagation_delay_frames": mean_delay,
+                "chain_jitter_score": mean_chain_jitter,
+                "coordination_quality": "good"
+                if mean_coherence > COHERENCE_GOOD_THRESHOLD
+                else ("fair" if mean_coherence > COHERENCE_FAIR_THRESHOLD else "poor"),
+            }
+        )
 
     # Write chain velocity CSV
     if chain_results:
         chain_csv_path = os.path.join(output_dir, "chain_velocity.csv")
-        with open(chain_csv_path, 'w', newline='') as f:
+        with open(chain_csv_path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=chain_results[0].keys())
             writer.writeheader()
             writer.writerows(chain_results)
@@ -938,7 +967,7 @@ def analyze_holistic_motion(bones, frame_rate, total_frames, output_dir, scene, 
 
     # Total kinetic energy (simplified, assuming unit mass)
     # KE = 0.5 * m * v^2, using m=1 for relative comparison
-    kinetic_energy = 0.5 * (com_velocity_mag ** 2)
+    kinetic_energy = 0.5 * (com_velocity_mag**2)
     mean_kinetic_energy = np.mean(kinetic_energy)
     max_kinetic_energy = np.max(kinetic_energy)
 
@@ -946,25 +975,29 @@ def analyze_holistic_motion(bones, frame_rate, total_frames, output_dir, scene, 
     energy_variation = np.std(kinetic_energy)
 
     # Write holistic motion CSV (one row with overall metrics)
-    holistic_results = [{
-        'mean_com_velocity': np.mean(com_velocity_mag),
-        'max_com_velocity': np.max(com_velocity_mag),
-        'mean_com_acceleration': np.mean(com_acceleration_mag),
-        'max_com_acceleration': np.max(com_acceleration_mag),
-        'global_smoothness_score': global_smoothness,
-        'global_jitter_score': global_jitter,
-        'mean_kinetic_energy': mean_kinetic_energy,
-        'max_kinetic_energy': max_kinetic_energy,
-        'energy_variation': energy_variation,
-        'overall_quality': 'excellent' if global_smoothness > SMOOTHNESS_EXCELLENT_THRESHOLD else (
-            'good' if global_smoothness > SMOOTHNESS_GOOD_THRESHOLD else (
-                'fair' if global_smoothness > SMOOTHNESS_FAIR_THRESHOLD else 'poor'
-            )
-        )
-    }]
+    holistic_results = [
+        {
+            "mean_com_velocity": np.mean(com_velocity_mag),
+            "max_com_velocity": np.max(com_velocity_mag),
+            "mean_com_acceleration": np.mean(com_acceleration_mag),
+            "max_com_acceleration": np.max(com_acceleration_mag),
+            "global_smoothness_score": global_smoothness,
+            "global_jitter_score": global_jitter,
+            "mean_kinetic_energy": mean_kinetic_energy,
+            "max_kinetic_energy": max_kinetic_energy,
+            "energy_variation": energy_variation,
+            "overall_quality": "excellent"
+            if global_smoothness > SMOOTHNESS_EXCELLENT_THRESHOLD
+            else (
+                "good"
+                if global_smoothness > SMOOTHNESS_GOOD_THRESHOLD
+                else ("fair" if global_smoothness > SMOOTHNESS_FAIR_THRESHOLD else "poor")
+            ),
+        }
+    ]
 
     holistic_csv_path = os.path.join(output_dir, "holistic_motion.csv")
-    with open(holistic_csv_path, 'w', newline='') as f:
+    with open(holistic_csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=holistic_results[0].keys())
         writer.writeheader()
         writer.writerows(holistic_results)

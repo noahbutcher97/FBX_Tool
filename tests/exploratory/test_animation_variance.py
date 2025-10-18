@@ -1,5 +1,6 @@
 """Test if animation data actually varies across frames."""
 import sys
+
 import fbx
 import numpy as np
 
@@ -33,7 +34,7 @@ test_bones = [
     "mixamorig:LeftUpLeg",
     "mixamorig:RightUpLeg",
     "mixamorig:LeftArm",
-    "mixamorig:RightHand"
+    "mixamorig:RightHand",
 ]
 
 print(f"\n=== Testing Animation Variance ===")
@@ -76,8 +77,12 @@ for bone_name in test_bones:
     print(f"{bone_name}:")
     print(f"  Position variance: X={pos_variance[0]:.6f}, Y={pos_variance[1]:.6f}, Z={pos_variance[2]:.6f}")
     print(f"  Position range:    X={pos_range[0]:.2f}, Y={pos_range[1]:.2f}, Z={pos_range[2]:.2f}")
-    print(f"  Rotation variance: X={rot_variance[0]:.6f}, Y={rot_variance[1]:.6f}, Z={rot_variance[2]:.6f}, W={rot_variance[3]:.6f}")
-    print(f"  Rotation range:    X={rot_range[0]:.4f}, Y={rot_range[1]:.4f}, Z={rot_range[2]:.4f}, W={rot_range[3]:.4f}")
+    print(
+        f"  Rotation variance: X={rot_variance[0]:.6f}, Y={rot_variance[1]:.6f}, Z={rot_variance[2]:.6f}, W={rot_variance[3]:.6f}"
+    )
+    print(
+        f"  Rotation range:    X={rot_range[0]:.4f}, Y={rot_range[1]:.4f}, Z={rot_range[2]:.4f}, W={rot_range[3]:.4f}"
+    )
 
     if np.all(pos_variance < 0.01) and np.all(rot_variance < 0.0001):
         print(f"  ⚠ STATIC (no movement)")

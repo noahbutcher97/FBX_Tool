@@ -1,5 +1,6 @@
 """Inspect animation layers and curves in FBX file."""
 import sys
+
 import fbx
 
 fbx_file = "C:\\Users\\posne\\Downloads\\Walking.fbx"

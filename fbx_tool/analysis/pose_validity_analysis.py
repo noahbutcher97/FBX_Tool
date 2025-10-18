@@ -11,16 +11,18 @@ Analyzes animation poses for anatomical validity and common issues:
 Author: FBX Tool
 """
 
-import numpy as np
 import csv
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 
 @dataclass
 class BoneLengthViolation:
     """Represents a bone length violation event."""
+
     frame_start: int
     frame_end: int
     type: str  # 'stretch' or 'squash'
@@ -32,6 +34,7 @@ class BoneLengthViolation:
 @dataclass
 class JointAngleViolation:
     """Represents a joint angle limit violation."""
+
     frame_start: int
     frame_end: int
     type: str  # 'min_exceeded' or 'max_exceeded'
@@ -43,6 +46,7 @@ class JointAngleViolation:
 @dataclass
 class SelfIntersection:
     """Represents a self-intersection between two bones."""
+
     frame: int
     bone1_name: str
     bone2_name: str
@@ -74,9 +78,7 @@ def compute_bone_lengths(parent_positions: np.ndarray, child_positions: np.ndarr
 
 
 def detect_bone_length_violations(
-    bone_lengths: np.ndarray,
-    reference_length: float,
-    tolerance: float = 0.05
+    bone_lengths: np.ndarray, reference_length: float, tolerance: float = 0.05
 ) -> List[Dict[str, Any]]:
     """
     Detect bone length violations (stretching or squashing).
@@ -122,58 +124,59 @@ def detect_bone_length_violations(
 
     # Process stretch violations
     for start, end in find_segments(stretch_mask):
-        segment_deviations = deviation_percent[start:end+1]
+        segment_deviations = deviation_percent[start : end + 1]
         max_dev = np.max(segment_deviations)
         mean_dev = np.mean(segment_deviations)
 
         # Classify severity
         if max_dev > 30:
-            severity = 'high'
+            severity = "high"
         elif max_dev > 15:
-            severity = 'medium'
+            severity = "medium"
         else:
-            severity = 'low'
+            severity = "low"
 
-        violations.append({
-            'frame_start': start,
-            'frame_end': end,
-            'type': 'stretch',
-            'max_deviation_percent': max_dev,
-            'mean_deviation_percent': mean_dev,
-            'severity': severity
-        })
+        violations.append(
+            {
+                "frame_start": start,
+                "frame_end": end,
+                "type": "stretch",
+                "max_deviation_percent": max_dev,
+                "mean_deviation_percent": mean_dev,
+                "severity": severity,
+            }
+        )
 
     # Process squash violations
     for start, end in find_segments(squash_mask):
-        segment_deviations = np.abs(deviation_percent[start:end+1])
+        segment_deviations = np.abs(deviation_percent[start : end + 1])
         max_dev = np.max(segment_deviations)
         mean_dev = np.mean(segment_deviations)
 
         # Classify severity
         if max_dev > 30:
-            severity = 'high'
+            severity = "high"
         elif max_dev > 15:
-            severity = 'medium'
+            severity = "medium"
         else:
-            severity = 'low'
+            severity = "low"
 
-        violations.append({
-            'frame_start': start,
-            'frame_end': end,
-            'type': 'squash',
-            'max_deviation_percent': max_dev,
-            'mean_deviation_percent': mean_dev,
-            'severity': severity
-        })
+        violations.append(
+            {
+                "frame_start": start,
+                "frame_end": end,
+                "type": "squash",
+                "max_deviation_percent": max_dev,
+                "mean_deviation_percent": mean_dev,
+                "severity": severity,
+            }
+        )
 
     return violations
 
 
 def validate_joint_angle_limits(
-    angles: np.ndarray,
-    joint_type: str,
-    min_angle: float = 0.0,
-    max_angle: float = 180.0
+    angles: np.ndarray, joint_type: str, min_angle: float = 0.0, max_angle: float = 180.0
 ) -> List[Dict[str, Any]]:
     """
     Validate joint angles against anatomical limits.
@@ -220,53 +223,57 @@ def validate_joint_angle_limits(
 
     # Process maximum exceeded violations
     for start, end in find_segments(max_exceeded_mask):
-        segment_angles = angles[start:end+1]
+        segment_angles = angles[start : end + 1]
         violations_deg = segment_angles - max_angle
         max_violation = np.max(violations_deg)
         mean_violation = np.mean(violations_deg)
 
         # Classify severity
         if max_violation > 30:
-            severity = 'high'
+            severity = "high"
         elif max_violation > 15:
-            severity = 'medium'
+            severity = "medium"
         else:
-            severity = 'low'
+            severity = "low"
 
-        violations.append({
-            'frame_start': start,
-            'frame_end': end,
-            'type': 'max_exceeded',
-            'max_violation_degrees': max_violation,
-            'mean_violation_degrees': mean_violation,
-            'severity': severity,
-            'joint_type': joint_type
-        })
+        violations.append(
+            {
+                "frame_start": start,
+                "frame_end": end,
+                "type": "max_exceeded",
+                "max_violation_degrees": max_violation,
+                "mean_violation_degrees": mean_violation,
+                "severity": severity,
+                "joint_type": joint_type,
+            }
+        )
 
     # Process minimum exceeded violations
     for start, end in find_segments(min_exceeded_mask):
-        segment_angles = angles[start:end+1]
+        segment_angles = angles[start : end + 1]
         violations_deg = min_angle - segment_angles
         max_violation = np.max(violations_deg)
         mean_violation = np.mean(violations_deg)
 
         # Classify severity
         if max_violation > 30:
-            severity = 'high'
+            severity = "high"
         elif max_violation > 15:
-            severity = 'medium'
+            severity = "medium"
         else:
-            severity = 'low'
+            severity = "low"
 
-        violations.append({
-            'frame_start': start,
-            'frame_end': end,
-            'type': 'min_exceeded',
-            'max_violation_degrees': max_violation,
-            'mean_violation_degrees': mean_violation,
-            'severity': severity,
-            'joint_type': joint_type
-        })
+        violations.append(
+            {
+                "frame_start": start,
+                "frame_end": end,
+                "type": "min_exceeded",
+                "max_violation_degrees": max_violation,
+                "mean_violation_degrees": mean_violation,
+                "severity": severity,
+                "joint_type": joint_type,
+            }
+        )
 
     return violations
 
@@ -276,7 +283,7 @@ def detect_self_intersections(
     bone1_end: np.ndarray,
     bone2_start: np.ndarray,
     bone2_end: np.ndarray,
-    distance_threshold: float = 0.5
+    distance_threshold: float = 0.5,
 ) -> List[Dict[str, Any]]:
     """
     Detect self-intersections between two bones.
@@ -312,23 +319,18 @@ def detect_self_intersections(
         if min_dist < distance_threshold:
             # Classify severity based on distance
             if min_dist < distance_threshold * 0.3:
-                severity = 'high'
+                severity = "high"
             elif min_dist < distance_threshold * 0.6:
-                severity = 'medium'
+                severity = "medium"
             else:
-                severity = 'low'
+                severity = "low"
 
-            intersections.append({
-                'frame': frame,
-                'distance': min_dist,
-                'severity': severity
-            })
+            intersections.append({"frame": frame, "distance": min_dist, "severity": severity})
 
     return intersections
 
 
-def compute_line_segment_distance(p1: np.ndarray, p2: np.ndarray,
-                                   p3: np.ndarray, p4: np.ndarray) -> float:
+def compute_line_segment_distance(p1: np.ndarray, p2: np.ndarray, p3: np.ndarray, p4: np.ndarray) -> float:
     """
     Compute minimum distance between two line segments.
 
@@ -376,11 +378,7 @@ def compute_line_segment_distance(p1: np.ndarray, p2: np.ndarray,
     return np.linalg.norm(closest1 - closest2)
 
 
-def compute_symmetry_score(
-    left_data: np.ndarray,
-    right_data: np.ndarray,
-    compare_rotations: bool = False
-) -> float:
+def compute_symmetry_score(left_data: np.ndarray, right_data: np.ndarray, compare_rotations: bool = False) -> float:
     """
     Compute bilateral symmetry score.
 
@@ -402,7 +400,7 @@ def compute_symmetry_score(
 
         # Compute RMSE between left and mirrored right
         differences = left_data - right_mirrored
-        rmse = np.sqrt(np.mean(differences ** 2))
+        rmse = np.sqrt(np.mean(differences**2))
 
         # Normalize to 0-1 score (lower RMSE = higher score)
         # Assume RMSE > 20 units = completely asymmetric
@@ -438,11 +436,11 @@ def detect_pose_type(bone_rotations: Dict[str, np.ndarray]) -> Tuple[str, float]
         confidence: 0-1 confidence score
     """
     # Extract shoulder rotations
-    left_shoulder = bone_rotations.get('left_shoulder')
-    right_shoulder = bone_rotations.get('right_shoulder')
+    left_shoulder = bone_rotations.get("left_shoulder")
+    right_shoulder = bone_rotations.get("right_shoulder")
 
     if left_shoulder is None or right_shoulder is None:
-        return 'animated', 0.0
+        return "animated", 0.0
 
     # Compute mean rotations across frames
     left_mean = np.mean(left_shoulder, axis=0)
@@ -461,17 +459,17 @@ def detect_pose_type(bone_rotations: Dict[str, np.ndarray]) -> Tuple[str, float]
     # T-pose detection
     if 75 < left_z < 105 and -105 < right_z < -75:
         confidence = 1.0 - (abs(left_z - 90) + abs(right_z + 90)) / 30
-        return 'T-pose', max(0.0, min(1.0, confidence))
+        return "T-pose", max(0.0, min(1.0, confidence))
 
     # A-pose detection (arms at ~45°)
     if 35 < left_z < 55 and -55 < right_z < -35:
         confidence = 1.0 - (abs(left_z - 45) + abs(right_z + 45)) / 20
-        return 'A-pose', max(0.0, min(1.0, confidence))
+        return "A-pose", max(0.0, min(1.0, confidence))
 
     # Bind pose detection (arms down ~0°) - require low variance
     if -10 < left_z < 10 and -10 < right_z < 10 and total_variance < 100:
         confidence = 1.0 - (abs(left_z) + abs(right_z)) / 20
-        return 'bind', max(0.0, min(1.0, confidence))
+        return "bind", max(0.0, min(1.0, confidence))
 
     # Otherwise, it's animated (not a reference pose)
     # Animated confidence is based on how much it deviates from reference poses
@@ -486,7 +484,7 @@ def detect_pose_type(bone_rotations: Dict[str, np.ndarray]) -> Tuple[str, float]
     else:
         animated_confidence = 0.5  # Moderate variance
 
-    return 'animated', animated_confidence
+    return "animated", animated_confidence
 
 
 def analyze_pose_validity(scene, output_dir: str = ".") -> Dict[str, Any]:
@@ -512,17 +510,17 @@ def analyze_pose_validity(scene, output_dir: str = ".") -> Dict[str, Any]:
 
     # Initialize results
     results = {
-        'total_bones': 0,
-        'bones_with_length_violations': 0,
-        'bones_with_angle_violations': 0,
-        'self_intersections_detected': 0,
-        'overall_validity_score': 1.0,
-        'pose_type': 'unknown',
-        'pose_type_confidence': 0.0
+        "total_bones": 0,
+        "bones_with_length_violations": 0,
+        "bones_with_angle_violations": 0,
+        "self_intersections_detected": 0,
+        "overall_validity_score": 1.0,
+        "pose_type": "unknown",
+        "pose_type_confidence": 0.0,
     }
 
     # For mock scene (testing), return default results
-    if hasattr(scene, 'GetRootNode'):
+    if hasattr(scene, "GetRootNode"):
         root = scene.GetRootNode()
         if root.GetChildCount() == 0:
             # Mock scene with no bones
@@ -531,7 +529,7 @@ def analyze_pose_validity(scene, output_dir: str = ".") -> Dict[str, Any]:
 
     # Get all bones from scene
     bones = _get_all_bones(scene)
-    results['total_bones'] = len(bones)
+    results["total_bones"] = len(bones)
 
     if len(bones) == 0:
         _write_empty_csv_files(output_path)
@@ -543,24 +541,19 @@ def analyze_pose_validity(scene, output_dir: str = ".") -> Dict[str, Any]:
     # Analyze bone lengths
     length_violations = []
     for bone_name, data in bone_data.items():
-        if data['parent_positions'] is not None:
-            bone_lengths = compute_bone_lengths(
-                data['parent_positions'],
-                data['positions']
-            )
+        if data["parent_positions"] is not None:
+            bone_lengths = compute_bone_lengths(data["parent_positions"], data["positions"])
 
             # Use median as reference length
             reference_length = np.median(bone_lengths)
 
-            violations = detect_bone_length_violations(
-                bone_lengths, reference_length, tolerance=0.05
-            )
+            violations = detect_bone_length_violations(bone_lengths, reference_length, tolerance=0.05)
 
             for v in violations:
-                v['bone_name'] = bone_name
+                v["bone_name"] = bone_name
                 length_violations.append(v)
 
-    results['bones_with_length_violations'] = len(set(v['bone_name'] for v in length_violations))
+    results["bones_with_length_violations"] = len(set(v["bone_name"] for v in length_violations))
 
     # Analyze joint angles (simplified - would need proper joint hierarchy)
     angle_violations = []
@@ -570,7 +563,7 @@ def analyze_pose_validity(scene, output_dir: str = ".") -> Dict[str, Any]:
     intersection_count = 0
     # TODO: Implement pairwise bone intersection checking
 
-    results['self_intersections_detected'] = intersection_count
+    results["self_intersections_detected"] = intersection_count
 
     # Compute overall validity score
     validity_score = 1.0
@@ -582,13 +575,13 @@ def analyze_pose_validity(scene, output_dir: str = ".") -> Dict[str, Any]:
 
         validity_score = max(0.0, 1.0 - length_penalty - angle_penalty - intersection_penalty)
 
-    results['overall_validity_score'] = validity_score
+    results["overall_validity_score"] = validity_score
 
     # Write output files
-    _write_bone_length_violations_csv(output_path / 'bone_length_violations.csv', length_violations)
-    _write_joint_angle_violations_csv(output_path / 'joint_angle_violations.csv', angle_violations)
-    _write_symmetry_analysis_csv(output_path / 'symmetry_analysis.csv', {})
-    _write_pose_validity_summary_csv(output_path / 'pose_validity_summary.csv', results)
+    _write_bone_length_violations_csv(output_path / "bone_length_violations.csv", length_violations)
+    _write_joint_angle_violations_csv(output_path / "joint_angle_violations.csv", angle_violations)
+    _write_symmetry_analysis_csv(output_path / "symmetry_analysis.csv", {})
+    _write_pose_validity_summary_csv(output_path / "pose_validity_summary.csv", results)
 
     return results
 
@@ -623,9 +616,9 @@ def _extract_bone_animation_data(scene, bones) -> Dict[str, Dict]:
     for bone in bones:
         bone_name = bone.GetName()
         bone_data[bone_name] = {
-            'positions': np.zeros((10, 3)),  # Placeholder
-            'rotations': np.zeros((10, 3)),
-            'parent_positions': None
+            "positions": np.zeros((10, 3)),  # Placeholder
+            "rotations": np.zeros((10, 3)),
+            "parent_positions": None,
         }
 
     return bone_data
@@ -634,82 +627,132 @@ def _extract_bone_animation_data(scene, bones) -> Dict[str, Dict]:
 def _write_empty_csv_files(output_path: Path):
     """Write empty CSV files for cases with no data."""
     # Bone length violations
-    with open(output_path / 'bone_length_violations.csv', 'w', newline='') as f:
+    with open(output_path / "bone_length_violations.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['bone_name', 'frame_start', 'frame_end', 'type',
-                        'max_deviation_percent', 'mean_deviation_percent', 'severity'])
+        writer.writerow(
+            [
+                "bone_name",
+                "frame_start",
+                "frame_end",
+                "type",
+                "max_deviation_percent",
+                "mean_deviation_percent",
+                "severity",
+            ]
+        )
 
     # Joint angle violations
-    with open(output_path / 'joint_angle_violations.csv', 'w', newline='') as f:
+    with open(output_path / "joint_angle_violations.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['bone_name', 'frame_start', 'frame_end', 'type',
-                        'max_violation_degrees', 'mean_violation_degrees', 'severity'])
+        writer.writerow(
+            [
+                "bone_name",
+                "frame_start",
+                "frame_end",
+                "type",
+                "max_violation_degrees",
+                "mean_violation_degrees",
+                "severity",
+            ]
+        )
 
     # Symmetry analysis
-    with open(output_path / 'symmetry_analysis.csv', 'w', newline='') as f:
+    with open(output_path / "symmetry_analysis.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['limb_pair', 'symmetry_score', 'quality'])
+        writer.writerow(["limb_pair", "symmetry_score", "quality"])
 
     # Summary
-    with open(output_path / 'pose_validity_summary.csv', 'w', newline='') as f:
+    with open(output_path / "pose_validity_summary.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['metric', 'value'])
+        writer.writerow(["metric", "value"])
 
 
 def _write_bone_length_violations_csv(filepath: Path, violations: List[Dict]):
     """Write bone length violations to CSV."""
-    with open(filepath, 'w', newline='') as f:
+    with open(filepath, "w", newline="") as f:
         if violations:
-            fieldnames = ['bone_name', 'frame_start', 'frame_end', 'type',
-                         'max_deviation_percent', 'mean_deviation_percent', 'severity']
+            fieldnames = [
+                "bone_name",
+                "frame_start",
+                "frame_end",
+                "type",
+                "max_deviation_percent",
+                "mean_deviation_percent",
+                "severity",
+            ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(violations)
         else:
             writer = csv.writer(f)
-            writer.writerow(['bone_name', 'frame_start', 'frame_end', 'type',
-                           'max_deviation_percent', 'mean_deviation_percent', 'severity'])
+            writer.writerow(
+                [
+                    "bone_name",
+                    "frame_start",
+                    "frame_end",
+                    "type",
+                    "max_deviation_percent",
+                    "mean_deviation_percent",
+                    "severity",
+                ]
+            )
 
 
 def _write_joint_angle_violations_csv(filepath: Path, violations: List[Dict]):
     """Write joint angle violations to CSV."""
-    with open(filepath, 'w', newline='') as f:
+    with open(filepath, "w", newline="") as f:
         if violations:
-            fieldnames = ['bone_name', 'frame_start', 'frame_end', 'type',
-                         'max_violation_degrees', 'mean_violation_degrees', 'severity']
+            fieldnames = [
+                "bone_name",
+                "frame_start",
+                "frame_end",
+                "type",
+                "max_violation_degrees",
+                "mean_violation_degrees",
+                "severity",
+            ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(violations)
         else:
             writer = csv.writer(f)
-            writer.writerow(['bone_name', 'frame_start', 'frame_end', 'type',
-                           'max_violation_degrees', 'mean_violation_degrees', 'severity'])
+            writer.writerow(
+                [
+                    "bone_name",
+                    "frame_start",
+                    "frame_end",
+                    "type",
+                    "max_violation_degrees",
+                    "mean_violation_degrees",
+                    "severity",
+                ]
+            )
 
 
 def _write_symmetry_analysis_csv(filepath: Path, symmetry_data: Dict):
     """Write symmetry analysis to CSV."""
-    with open(filepath, 'w', newline='') as f:
+    with open(filepath, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['limb_pair', 'symmetry_score', 'quality'])
+        writer.writerow(["limb_pair", "symmetry_score", "quality"])
 
         for limb_pair, score in symmetry_data.items():
             if score >= 0.9:
-                quality = 'excellent'
+                quality = "excellent"
             elif score >= 0.7:
-                quality = 'good'
+                quality = "good"
             elif score >= 0.5:
-                quality = 'fair'
+                quality = "fair"
             else:
-                quality = 'poor'
+                quality = "poor"
 
             writer.writerow([limb_pair, f"{score:.3f}", quality])
 
 
 def _write_pose_validity_summary_csv(filepath: Path, results: Dict):
     """Write pose validity summary to CSV."""
-    with open(filepath, 'w', newline='') as f:
+    with open(filepath, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['metric', 'value'])
+        writer.writerow(["metric", "value"])
 
         for key, value in results.items():
             writer.writerow([key, value])

@@ -1,6 +1,7 @@
 """Test animation data extraction."""
-import fbx
 import sys
+
+import fbx
 import numpy as np
 
 if len(sys.argv) < 2:

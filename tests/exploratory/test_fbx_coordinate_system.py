@@ -1,6 +1,7 @@
 """Test script to check FBX file coordinate system and animation data."""
-import fbx
 import sys
+
+import fbx
 
 if len(sys.argv) < 2:
     print("Usage: python test_fbx_coordinate_system.py <fbx_file>")
@@ -62,6 +63,7 @@ else:
 root = scene.GetRootNode()
 bone_count = 0
 
+
 def count_bones(node):
     global bone_count
     if node.GetNodeAttribute():
@@ -71,6 +73,7 @@ def count_bones(node):
 
     for i in range(node.GetChildCount()):
         count_bones(node.GetChild(i))
+
 
 count_bones(root)
 

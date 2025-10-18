@@ -1,5 +1,6 @@
 """Test animation from stack 1 (mixamo.com)."""
 import sys
+
 import fbx
 import numpy as np
 
@@ -77,7 +78,9 @@ for stack_idx in range(stack_count):
 
     print(f"\nVariance Analysis:")
     print(f"  Position: X={pos_variance[0]:.6f}, Y={pos_variance[1]:.6f}, Z={pos_variance[2]:.6f}")
-    print(f"  Rotation: X={rot_variance[0]:.6f}, Y={rot_variance[1]:.6f}, Z={rot_variance[2]:.6f}, W={rot_variance[3]:.6f}")
+    print(
+        f"  Rotation: X={rot_variance[0]:.6f}, Y={rot_variance[1]:.6f}, Z={rot_variance[2]:.6f}, W={rot_variance[3]:.6f}"
+    )
 
     if np.any(pos_variance > 0.01) or np.any(rot_variance > 0.0001):
         print("  STATUS: ANIMATED!\n")

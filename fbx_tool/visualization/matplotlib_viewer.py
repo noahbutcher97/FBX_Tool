@@ -5,11 +5,12 @@ Provides 3D visualization of FBX skeleton animations.
 Renders bones as lines, joints as spheres, and supports animation playback.
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.animation import FuncAnimation
 import fbx
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.animation import FuncAnimation
+from mpl_toolkits.mplot3d import Axes3D
+
 from fbx_tool.analysis.fbx_loader import get_scene_metadata
 from fbx_tool.analysis.utils import build_bone_hierarchy
 
@@ -37,17 +38,17 @@ class SkeletonVisualizer:
         self.anim_info = get_scene_metadata(scene)
         self.hierarchy = build_bone_hierarchy(scene)
 
-        self.start = self.anim_info['start_time']
-        self.stop = self.anim_info['stop_time']
-        self.rate = self.anim_info['frame_rate']
+        self.start = self.anim_info["start_time"]
+        self.stop = self.anim_info["stop_time"]
+        self.rate = self.anim_info["frame_rate"]
         self.frame_time = 1.0 / self.rate
 
         # Cache all bone transforms
         self.bone_transforms = self._extract_transforms()
 
         # Visualization settings
-        self.bone_color = 'cyan'
-        self.joint_color = 'red'
+        self.bone_color = "cyan"
+        self.joint_color = "red"
         self.joint_size = 50
         self.bone_width = 2
 
@@ -127,7 +128,7 @@ class SkeletonVisualizer:
             save_path: Optional path to save image
         """
         fig = plt.figure(figsize=(12, 9))
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111, projection="3d")
 
         joint_positions, bone_connections = self.get_frame_data(frame_idx)
 
@@ -138,32 +139,27 @@ class SkeletonVisualizer:
                 [parent_pos[1], child_pos[1]],
                 [parent_pos[2], child_pos[2]],
                 color=self.bone_color,
-                linewidth=self.bone_width
+                linewidth=self.bone_width,
             )
 
         # Draw joints
         if joint_positions:
             positions = np.array(list(joint_positions.values()))
             ax.scatter(
-                positions[:, 0],
-                positions[:, 1],
-                positions[:, 2],
-                color=self.joint_color,
-                s=self.joint_size,
-                alpha=0.8
+                positions[:, 0], positions[:, 1], positions[:, 2], color=self.joint_color, s=self.joint_size, alpha=0.8
             )
 
         # Set labels and title
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-        ax.set_title(f'Skeleton - Frame {frame_idx}')
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
+        ax.set_title(f"Skeleton - Frame {frame_idx}")
 
         # Set equal aspect ratio
         self._set_axes_equal(ax, joint_positions)
 
         if save_path:
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
+            plt.savefig(save_path, dpi=150, bbox_inches="tight")
             print(f"✓ Saved visualization: {save_path}")
         else:
             plt.show()
@@ -184,7 +180,7 @@ class SkeletonVisualizer:
             end_frame = len(next(iter(self.bone_transforms.values())))
 
         fig = plt.figure(figsize=(12, 9))
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111, projection="3d")
 
         # Initialize plot elements
         bone_lines = []
@@ -192,9 +188,9 @@ class SkeletonVisualizer:
 
         def init():
             """Initialize animation."""
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
-            ax.set_zlabel('Z')
+            ax.set_xlabel("X")
+            ax.set_ylabel("Y")
+            ax.set_zlabel("Z")
             return []
 
         def update(frame):
@@ -219,7 +215,7 @@ class SkeletonVisualizer:
                     [parent_pos[1], child_pos[1]],
                     [parent_pos[2], child_pos[2]],
                     color=self.bone_color,
-                    linewidth=self.bone_width
+                    linewidth=self.bone_width,
                 )[0]
                 bone_lines.append(line)
 
@@ -232,10 +228,10 @@ class SkeletonVisualizer:
                     positions[:, 2],
                     color=self.joint_color,
                     s=self.joint_size,
-                    alpha=0.8
+                    alpha=0.8,
                 )
 
-            ax.set_title(f'Skeleton Animation - Frame {frame}')
+            ax.set_title(f"Skeleton Animation - Frame {frame}")
 
             # Set axes limits (keep constant for smooth animation)
             if frame == start_frame:
@@ -244,19 +240,14 @@ class SkeletonVisualizer:
             return bone_lines + [joint_scatter] if joint_scatter else bone_lines
 
         anim = FuncAnimation(
-            fig,
-            update,
-            frames=range(start_frame, end_frame),
-            init_func=init,
-            interval=interval,
-            blit=False
+            fig, update, frames=range(start_frame, end_frame), init_func=init, interval=interval, blit=False
         )
 
         if save_path:
-            if save_path.endswith('.gif'):
-                anim.save(save_path, writer='pillow', fps=1000//interval)
+            if save_path.endswith(".gif"):
+                anim.save(save_path, writer="pillow", fps=1000 // interval)
             else:
-                anim.save(save_path, writer='ffmpeg', fps=1000//interval)
+                anim.save(save_path, writer="ffmpeg", fps=1000 // interval)
             print(f"✓ Saved animation: {save_path}")
         else:
             plt.show()
@@ -277,11 +268,16 @@ class SkeletonVisualizer:
         positions = np.array(list(joint_positions.values()))
 
         # Get bounds
-        max_range = np.array([
-            positions[:, 0].max() - positions[:, 0].min(),
-            positions[:, 1].max() - positions[:, 1].min(),
-            positions[:, 2].max() - positions[:, 2].min()
-        ]).max() / 2.0
+        max_range = (
+            np.array(
+                [
+                    positions[:, 0].max() - positions[:, 0].min(),
+                    positions[:, 1].max() - positions[:, 1].min(),
+                    positions[:, 2].max() - positions[:, 2].min(),
+                ]
+            ).max()
+            / 2.0
+        )
 
         mid_x = (positions[:, 0].max() + positions[:, 0].min()) * 0.5
         mid_y = (positions[:, 1].max() + positions[:, 1].min()) * 0.5
@@ -305,8 +301,7 @@ def visualize_skeleton_frame(scene, frame_idx=0, save_path=None):
     visualizer.visualize_frame(frame_idx, save_path)
 
 
-def create_skeleton_animation(scene, output_path="skeleton_animation.mp4", 
-                              start_frame=0, end_frame=None, fps=30):
+def create_skeleton_animation(scene, output_path="skeleton_animation.mp4", start_frame=0, end_frame=None, fps=30):
     """
     Quick function to create animation.
 

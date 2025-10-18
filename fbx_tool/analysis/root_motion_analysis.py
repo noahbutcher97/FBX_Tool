@@ -26,11 +26,7 @@ import fbx
 import numpy as np
 
 from fbx_tool.analysis.fbx_loader import get_scene_metadata
-from fbx_tool.analysis.utils import (
-    ensure_output_dir,
-    export_procedural_metadata,
-    extract_root_trajectory,
-)
+from fbx_tool.analysis.utils import ensure_output_dir, export_procedural_metadata, extract_root_trajectory
 
 # ==============================================================================
 # MAIN ANALYSIS FUNCTION

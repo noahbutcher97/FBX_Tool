@@ -1,15 +1,15 @@
 """Quick test script for motion state detection debug logging"""
-import sys
-import os
 import io
+import os
+import sys
 
 # Redirect stdout/stderr to handle Unicode properly
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-from fbx_tool.analysis.scene_manager import FBXSceneManager
-from fbx_tool.analysis.root_motion_analysis import analyze_root_motion
 from fbx_tool.analysis.motion_transition_detection import analyze_motion_transitions
+from fbx_tool.analysis.root_motion_analysis import analyze_root_motion
+from fbx_tool.analysis.scene_manager import FBXSceneManager
 
 fbx_path = r"C:\Users\posne\Downloads\Mixamo\Mixamo\Running\Run Forward Arc Left.fbx"
 output_dir = r"output\Run Forward Arc Left"

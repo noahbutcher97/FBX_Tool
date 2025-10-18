@@ -13,18 +13,19 @@ Tests cover:
 - Smoothing parameter recommendations
 """
 
-import pytest
 import numpy as np
+import pytest
+
 from fbx_tool.analysis.velocity_analysis import (
-    compute_derivatives,
     compute_angular_derivatives,
-    compute_magnitudes,
-    detect_spikes,
+    compute_derivatives,
+    compute_directional_jitter,
     compute_jitter_score,
+    compute_magnitudes,
+    compute_smoothing_parameters,
     compute_smoothness_score,
     detect_frozen_frames,
-    compute_directional_jitter,
-    compute_smoothing_parameters
+    detect_spikes,
 )
 
 
@@ -76,9 +77,7 @@ class TestComputeDerivatives:
 
     def test_compute_angular_derivatives_basic(self, sample_rotations, sample_frame_rate):
         """Test angular derivative computation."""
-        angular_vel, angular_acc, angular_jerk = compute_angular_derivatives(
-            sample_rotations, sample_frame_rate
-        )
+        angular_vel, angular_acc, angular_jerk = compute_angular_derivatives(sample_rotations, sample_frame_rate)
 
         # Check shapes
         assert angular_vel.shape == sample_rotations.shape
@@ -87,13 +86,7 @@ class TestComputeDerivatives:
 
     def test_compute_angular_derivatives_wrapping(self, sample_frame_rate):
         """Test angle unwrapping (359° -> 1° = +2°, not -358°)."""
-        rotations = np.array([
-            [0, 0, 0],
-            [350, 0, 0],
-            [359, 0, 0],
-            [1, 0, 0],  # Wrapped from 359° to 1°
-            [10, 0, 0]
-        ])
+        rotations = np.array([[0, 0, 0], [350, 0, 0], [359, 0, 0], [1, 0, 0], [10, 0, 0]])  # Wrapped from 359° to 1°
 
         angular_vel, _, _ = compute_angular_derivatives(rotations, sample_frame_rate)
 
@@ -108,11 +101,13 @@ class TestMagnitudeCalculations:
 
     def test_compute_magnitudes_basic(self):
         """Test basic magnitude computation."""
-        vectors = np.array([
-            [3, 4, 0],    # Magnitude = 5
-            [1, 0, 0],    # Magnitude = 1
-            [0, 0, 0],    # Magnitude = 0
-        ])
+        vectors = np.array(
+            [
+                [3, 4, 0],  # Magnitude = 5
+                [1, 0, 0],  # Magnitude = 1
+                [0, 0, 0],  # Magnitude = 0
+            ]
+        )
 
         magnitudes = compute_magnitudes(vectors)
 
@@ -121,14 +116,16 @@ class TestMagnitudeCalculations:
 
     def test_compute_magnitudes_3d(self):
         """Test magnitude with 3D vectors."""
-        vectors = np.array([
-            [1, 1, 1],    # sqrt(3)
-            [2, 2, 2],    # 2*sqrt(3)
-        ])
+        vectors = np.array(
+            [
+                [1, 1, 1],  # sqrt(3)
+                [2, 2, 2],  # 2*sqrt(3)
+            ]
+        )
 
         magnitudes = compute_magnitudes(vectors)
 
-        expected = np.array([np.sqrt(3), 2*np.sqrt(3)])
+        expected = np.array([np.sqrt(3), 2 * np.sqrt(3)])
         assert np.allclose(magnitudes, expected)
 
 
@@ -198,10 +195,10 @@ class TestJitterScoring:
         jitter_scores = compute_directional_jitter(sample_velocities, window_size=5)
 
         # Should have jitter for x, y, z, and magnitude
-        assert 'x' in jitter_scores
-        assert 'y' in jitter_scores
-        assert 'z' in jitter_scores
-        assert 'magnitude' in jitter_scores
+        assert "x" in jitter_scores
+        assert "y" in jitter_scores
+        assert "z" in jitter_scores
+        assert "magnitude" in jitter_scores
 
         # All should be non-negative
         assert all(score >= 0 for score in jitter_scores.values())
@@ -293,9 +290,9 @@ class TestSmoothingParameters:
 
         params = compute_smoothing_parameters(jitter_score, smoothness_score, sample_frame_rate)
 
-        assert params['intensity'] == 'high'
-        assert params['kernel_size'] >= 7
-        assert params['gaussian_sigma'] >= 2.0
+        assert params["intensity"] == "high"
+        assert params["kernel_size"] >= 7
+        assert params["gaussian_sigma"] >= 2.0
 
     def test_compute_smoothing_parameters_medium_jitter(self, sample_frame_rate):
         """Test smoothing recommendations for medium jitter."""
@@ -304,9 +301,9 @@ class TestSmoothingParameters:
 
         params = compute_smoothing_parameters(jitter_score, smoothness_score, sample_frame_rate)
 
-        assert params['intensity'] == 'medium'
-        assert params['kernel_size'] == 5
-        assert params['gaussian_sigma'] == 1.0
+        assert params["intensity"] == "medium"
+        assert params["kernel_size"] == 5
+        assert params["gaussian_sigma"] == 1.0
 
     def test_compute_smoothing_parameters_low_jitter(self, sample_frame_rate):
         """Test smoothing recommendations for low jitter."""
@@ -315,17 +312,21 @@ class TestSmoothingParameters:
 
         params = compute_smoothing_parameters(jitter_score, smoothness_score, sample_frame_rate)
 
-        assert params['intensity'] == 'none'
-        assert params['kernel_size'] == 3
+        assert params["intensity"] == "none"
+        assert params["kernel_size"] == 3
 
     def test_compute_smoothing_parameters_includes_all_fields(self, sample_frame_rate):
         """Test that all expected fields are present."""
         params = compute_smoothing_parameters(1.0, 0.5, sample_frame_rate)
 
         required_fields = [
-            'intensity', 'kernel_size', 'gaussian_sigma',
-            'cutoff_frequency_hz', 'butterworth_order',
-            'savgol_window', 'savgol_polyorder'
+            "intensity",
+            "kernel_size",
+            "gaussian_sigma",
+            "cutoff_frequency_hz",
+            "butterworth_order",
+            "savgol_window",
+            "savgol_polyorder",
         ]
 
         for field in required_fields:
@@ -346,10 +347,7 @@ class TestEdgeCases:
 
     def test_derivatives_two_frames(self, sample_frame_rate):
         """Test derivatives with two frames."""
-        positions = np.array([
-            [0.0, 0.0, 0.0],
-            [1.0, 1.0, 1.0]
-        ])
+        positions = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
         velocity, acceleration, jerk = compute_derivatives(positions, sample_frame_rate)
 
         assert velocity.shape == (2, 3)

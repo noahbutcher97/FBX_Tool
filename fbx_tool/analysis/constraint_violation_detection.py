@@ -11,17 +11,15 @@ Detects violations of animation constraints including:
 Author: FBX Tool
 """
 
-import numpy as np
 import csv
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 
 def validate_ik_chain_length(
-    bone_positions: Dict[str, np.ndarray],
-    chain: List[str],
-    tolerance: float = 0.05,
-    check_orientation: bool = False
+    bone_positions: Dict[str, np.ndarray], chain: List[str], tolerance: float = 0.05, check_orientation: bool = False
 ) -> List[Dict[str, Any]]:
     """
     Validate IK chain length consistency across frames.
@@ -90,60 +88,62 @@ def validate_ik_chain_length(
         return segments
 
     # Process stretching violations
-    for start, end, vtype in find_segments(stretch_mask, 'stretch'):
-        segment_deviations = deviation_percent[start:end+1]
+    for start, end, vtype in find_segments(stretch_mask, "stretch"):
+        segment_deviations = deviation_percent[start : end + 1]
         max_dev = np.max(segment_deviations)
         mean_dev = np.mean(segment_deviations)
 
         # Classify severity
         if max_dev > 30:
-            severity = 'high'
+            severity = "high"
         elif max_dev > 15:
-            severity = 'medium'
+            severity = "medium"
         else:
-            severity = 'low'
+            severity = "low"
 
-        violations.append({
-            'frame_start': start,
-            'frame_end': end,
-            'type': 'stretch',
-            'max_deviation_percent': max_dev,
-            'mean_deviation_percent': mean_dev,
-            'severity': severity,
-            'chain': ' -> '.join(chain)
-        })
+        violations.append(
+            {
+                "frame_start": start,
+                "frame_end": end,
+                "type": "stretch",
+                "max_deviation_percent": max_dev,
+                "mean_deviation_percent": mean_dev,
+                "severity": severity,
+                "chain": " -> ".join(chain),
+            }
+        )
 
     # Process compression violations
-    for start, end, vtype in find_segments(compress_mask, 'compression'):
-        segment_deviations = np.abs(deviation_percent[start:end+1])
+    for start, end, vtype in find_segments(compress_mask, "compression"):
+        segment_deviations = np.abs(deviation_percent[start : end + 1])
         max_dev = np.max(segment_deviations)
         mean_dev = np.mean(segment_deviations)
 
         # Classify severity
         if max_dev > 30:
-            severity = 'high'
+            severity = "high"
         elif max_dev > 15:
-            severity = 'medium'
+            severity = "medium"
         else:
-            severity = 'low'
+            severity = "low"
 
-        violations.append({
-            'frame_start': start,
-            'frame_end': end,
-            'type': 'compression',
-            'max_deviation_percent': max_dev,
-            'mean_deviation_percent': mean_dev,
-            'severity': severity,
-            'chain': ' -> '.join(chain)
-        })
+        violations.append(
+            {
+                "frame_start": start,
+                "frame_end": end,
+                "type": "compression",
+                "max_deviation_percent": max_dev,
+                "mean_deviation_percent": mean_dev,
+                "severity": severity,
+                "chain": " -> ".join(chain),
+            }
+        )
 
     return violations
 
 
 def detect_chain_breaks(
-    bone_positions: Dict[str, np.ndarray],
-    chain: List[str],
-    max_distance: float = 0.1
+    bone_positions: Dict[str, np.ndarray], chain: List[str], max_distance: float = 0.1
 ) -> List[Dict[str, Any]]:
     """
     Detect breaks/discontinuities in bone chains.
@@ -190,12 +190,14 @@ def detect_chain_breaks(
             if change > max_distance and not in_break:
                 # Start of a new break (sudden change in velocity)
                 # The actual break occurs at frame i+1 (between frames i and i+1)
-                breaks.append({
-                    'frame': i + 1,
-                    'bone': bone_name,
-                    'displacement': displacements[i+1],  # Displacement after the break
-                    'severity': 'high' if change > max_distance * 5 else 'medium'
-                })
+                breaks.append(
+                    {
+                        "frame": i + 1,
+                        "bone": bone_name,
+                        "displacement": displacements[i + 1],  # Displacement after the break
+                        "severity": "high" if change > max_distance * 5 else "medium",
+                    }
+                )
                 in_break = True
             elif change <= max_distance:
                 # Back to smooth movement
@@ -205,10 +207,7 @@ def detect_chain_breaks(
 
 
 def validate_parent_child_consistency(
-    parent_pos: np.ndarray,
-    child_pos: np.ndarray,
-    expected_distance: float,
-    tolerance: float = 0.1
+    parent_pos: np.ndarray, child_pos: np.ndarray, expected_distance: float, tolerance: float = 0.1
 ) -> List[Dict[str, Any]]:
     """
     Validate parent-child bone relationship consistency.
@@ -249,19 +248,21 @@ def validate_parent_child_consistency(
 
             # Classify severity
             if max_dev > 50:
-                severity = 'high'
+                severity = "high"
             elif max_dev > 25:
-                severity = 'medium'
+                severity = "medium"
             else:
-                severity = 'low'
+                severity = "low"
 
-            violations.append({
-                'frame_start': start_frame,
-                'frame_end': i - 1,
-                'type': 'distance_violation',
-                'max_deviation_percent': max_dev,
-                'severity': severity
-            })
+            violations.append(
+                {
+                    "frame_start": start_frame,
+                    "frame_end": i - 1,
+                    "type": "distance_violation",
+                    "max_deviation_percent": max_dev,
+                    "severity": severity,
+                }
+            )
             in_segment = False
 
     if in_segment:
@@ -270,27 +271,27 @@ def validate_parent_child_consistency(
         max_dev = np.max(segment_deviations) * 100
 
         if max_dev > 50:
-            severity = 'high'
+            severity = "high"
         elif max_dev > 25:
-            severity = 'medium'
+            severity = "medium"
         else:
-            severity = 'low'
+            severity = "low"
 
-        violations.append({
-            'frame_start': start_frame,
-            'frame_end': len(violation_mask) - 1,
-            'type': 'distance_violation',
-            'max_deviation_percent': max_dev,
-            'severity': severity
-        })
+        violations.append(
+            {
+                "frame_start": start_frame,
+                "frame_end": len(violation_mask) - 1,
+                "type": "distance_violation",
+                "max_deviation_percent": max_dev,
+                "severity": severity,
+            }
+        )
 
     return violations
 
 
 def detect_curve_discontinuities(
-    curve_data: np.ndarray,
-    threshold: float = 5.0,
-    use_derivative: bool = False
+    curve_data: np.ndarray, threshold: float = 5.0, use_derivative: bool = False
 ) -> List[Dict[str, Any]]:
     """
     Detect discontinuities in animation curves.
@@ -320,11 +321,7 @@ def detect_curve_discontinuities(
         # Find large changes in derivative
         for i, diff in enumerate(diffs):
             if not np.isnan(diff) and abs(diff) > threshold:
-                discontinuities.append({
-                    'frame': i + 1,
-                    'magnitude': abs(diff),
-                    'type': 'derivative_spike'
-                })
+                discontinuities.append({"frame": i + 1, "magnitude": abs(diff), "type": "derivative_spike"})
     else:
         # Direct value comparison
         diffs = np.abs(np.diff(curve_data))
@@ -332,19 +329,13 @@ def detect_curve_discontinuities(
         # Find discontinuities
         for i, diff in enumerate(diffs):
             if not np.isnan(diff) and diff > threshold:
-                discontinuities.append({
-                    'frame': i + 1,
-                    'magnitude': diff,
-                    'type': 'value_jump'
-                })
+                discontinuities.append({"frame": i + 1, "magnitude": diff, "type": "value_jump"})
 
     return discontinuities
 
 
 def validate_keyframe_timing(
-    keyframes: np.ndarray,
-    expected_interval: int = 1,
-    tolerance: int = 0
+    keyframes: np.ndarray, expected_interval: int = 1, tolerance: int = 0
 ) -> List[Dict[str, Any]]:
     """
     Validate keyframe timing and spacing.
@@ -367,11 +358,7 @@ def validate_keyframe_timing(
     duplicates = unique_keyframes[counts > 1]
 
     for frame in duplicates:
-        violations.append({
-            'frame': int(frame),
-            'type': 'duplicate_keyframe',
-            'severity': 'medium'
-        })
+        violations.append({"frame": int(frame), "type": "duplicate_keyframe", "severity": "medium"})
 
     # Check spacing
     intervals = np.diff(keyframes)
@@ -382,27 +369,25 @@ def validate_keyframe_timing(
         if deviation > tolerance:
             # Check if it's a missing keyframe (double interval)
             if abs(interval - expected_interval * 2) <= tolerance:
-                violations.append({
-                    'frame': int(keyframes[i] + expected_interval),
-                    'type': 'missing_keyframe',
-                    'severity': 'low'
-                })
+                violations.append(
+                    {"frame": int(keyframes[i] + expected_interval), "type": "missing_keyframe", "severity": "low"}
+                )
             else:
-                violations.append({
-                    'frame': int(keyframes[i]),
-                    'type': 'irregular_spacing',
-                    'expected_interval': expected_interval,
-                    'actual_interval': int(interval),
-                    'severity': 'low' if deviation <= expected_interval else 'medium'
-                })
+                violations.append(
+                    {
+                        "frame": int(keyframes[i]),
+                        "type": "irregular_spacing",
+                        "expected_interval": expected_interval,
+                        "actual_interval": int(interval),
+                        "severity": "low" if deviation <= expected_interval else "medium",
+                    }
+                )
 
     return violations
 
 
 def check_end_effector_reachability(
-    chain_lengths: List[float],
-    target_distance: float,
-    check_min: bool = False
+    chain_lengths: List[float], target_distance: float, check_min: bool = False
 ) -> bool:
     """
     Check if end effector can reach target distance.
@@ -467,31 +452,18 @@ def detect_hierarchy_violations(hierarchy: Dict[str, Optional[str]]) -> List[Dic
 
     for bone in hierarchy:
         if has_circular_dependency(bone, set()):
-            violations.append({
-                'bone': bone,
-                'type': 'circular_dependency',
-                'severity': 'high'
-            })
+            violations.append({"bone": bone, "type": "circular_dependency", "severity": "high"})
 
     # Check for orphaned bones
     all_bones = set(hierarchy.keys())
     for bone, parent in hierarchy.items():
         if parent is not None and parent not in all_bones:
-            violations.append({
-                'bone': bone,
-                'parent': parent,
-                'type': 'orphaned_bone',
-                'severity': 'high'
-            })
+            violations.append({"bone": bone, "parent": parent, "type": "orphaned_bone", "severity": "high"})
 
     # Check for multiple roots
     roots = [bone for bone, parent in hierarchy.items() if parent is None]
     if len(roots) > 1:
-        violations.append({
-            'roots': roots,
-            'type': 'multiple_roots',
-            'severity': 'medium'
-        })
+        violations.append({"roots": roots, "type": "multiple_roots", "severity": "medium"})
 
     return violations
 
@@ -518,15 +490,15 @@ def analyze_constraint_violations(scene, output_dir: str = ".") -> Dict[str, Any
 
     # Initialize results
     results = {
-        'total_chains': 0,
-        'ik_violations': 0,
-        'hierarchy_violations': 0,
-        'curve_discontinuities': 0,
-        'overall_constraint_score': 1.0
+        "total_chains": 0,
+        "ik_violations": 0,
+        "hierarchy_violations": 0,
+        "curve_discontinuities": 0,
+        "overall_constraint_score": 1.0,
     }
 
     # For mock scene (testing), return default results
-    if hasattr(scene, 'GetRootNode'):
+    if hasattr(scene, "GetRootNode"):
         root = scene.GetRootNode()
         if root.GetChildCount() == 0:
             # Mock scene with no bones
@@ -547,34 +519,30 @@ def analyze_constraint_violations(scene, output_dir: str = ".") -> Dict[str, Any
     # Analyze hierarchy
     hierarchy = _extract_hierarchy(bones)
     hierarchy_violations_list = detect_hierarchy_violations(hierarchy)
-    results['hierarchy_violations'] = len(hierarchy_violations_list)
+    results["hierarchy_violations"] = len(hierarchy_violations_list)
 
     # Analyze curve discontinuities (simplified)
     curve_discontinuities_list = []
     # TODO: Implement full curve analysis
 
-    results['ik_violations'] = len(ik_violations_list)
-    results['curve_discontinuities'] = len(curve_discontinuities_list)
+    results["ik_violations"] = len(ik_violations_list)
+    results["curve_discontinuities"] = len(curve_discontinuities_list)
 
     # Compute overall score
-    total_violations = (
-        len(ik_violations_list) +
-        len(hierarchy_violations_list) +
-        len(curve_discontinuities_list)
-    )
+    total_violations = len(ik_violations_list) + len(hierarchy_violations_list) + len(curve_discontinuities_list)
 
     if total_violations == 0:
-        results['overall_constraint_score'] = 1.0
+        results["overall_constraint_score"] = 1.0
     else:
         # Penalize based on violations
         penalty = min(total_violations * 0.1, 0.8)
-        results['overall_constraint_score'] = max(0.2, 1.0 - penalty)
+        results["overall_constraint_score"] = max(0.2, 1.0 - penalty)
 
     # Write output files
-    _write_ik_violations_csv(output_path / 'ik_chain_violations.csv', ik_violations_list)
-    _write_hierarchy_violations_csv(output_path / 'hierarchy_violations.csv', hierarchy_violations_list)
-    _write_curve_discontinuities_csv(output_path / 'curve_discontinuities.csv', curve_discontinuities_list)
-    _write_constraint_summary_csv(output_path / 'constraint_summary.csv', results)
+    _write_ik_violations_csv(output_path / "ik_chain_violations.csv", ik_violations_list)
+    _write_hierarchy_violations_csv(output_path / "hierarchy_violations.csv", hierarchy_violations_list)
+    _write_curve_discontinuities_csv(output_path / "curve_discontinuities.csv", curve_discontinuities_list)
+    _write_constraint_summary_csv(output_path / "constraint_summary.csv", results)
 
     return results
 
@@ -588,7 +556,7 @@ def _get_all_bones(scene) -> List:
         attr = node.GetNodeAttribute()
         if attr:
             attr_type = attr.GetAttributeType()
-            if hasattr(scene, 'FbxSkeleton') and attr_type == scene.FbxSkeleton.eAttributeType:
+            if hasattr(scene, "FbxSkeleton") and attr_type == scene.FbxSkeleton.eAttributeType:
                 bones.append(node)
 
         for i in range(node.GetChildCount()):
@@ -606,7 +574,7 @@ def _extract_hierarchy(bones) -> Dict[str, Optional[str]]:
         bone_name = bone.GetName()
         parent = bone.GetParent()
 
-        if parent and hasattr(parent, 'GetNodeAttribute') and parent.GetNodeAttribute():
+        if parent and hasattr(parent, "GetNodeAttribute") and parent.GetNodeAttribute():
             parent_name = parent.GetName()
             hierarchy[bone_name] = parent_name
         else:
@@ -618,69 +586,69 @@ def _extract_hierarchy(bones) -> Dict[str, Optional[str]]:
 def _write_empty_csv_files(output_path: Path):
     """Write empty CSV files."""
     # IK violations
-    with open(output_path / 'ik_chain_violations.csv', 'w', newline='') as f:
+    with open(output_path / "ik_chain_violations.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['chain', 'frame_start', 'frame_end', 'type', 'severity'])
+        writer.writerow(["chain", "frame_start", "frame_end", "type", "severity"])
 
     # Hierarchy violations
-    with open(output_path / 'hierarchy_violations.csv', 'w', newline='') as f:
+    with open(output_path / "hierarchy_violations.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['bone', 'type', 'severity', 'details'])
+        writer.writerow(["bone", "type", "severity", "details"])
 
     # Curve discontinuities
-    with open(output_path / 'curve_discontinuities.csv', 'w', newline='') as f:
+    with open(output_path / "curve_discontinuities.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['frame', 'bone', 'type', 'magnitude'])
+        writer.writerow(["frame", "bone", "type", "magnitude"])
 
     # Summary
-    with open(output_path / 'constraint_summary.csv', 'w', newline='') as f:
+    with open(output_path / "constraint_summary.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['metric', 'value'])
+        writer.writerow(["metric", "value"])
 
 
 def _write_ik_violations_csv(filepath: Path, violations: List[Dict]):
     """Write IK violations to CSV."""
-    with open(filepath, 'w', newline='') as f:
+    with open(filepath, "w", newline="") as f:
         if violations:
-            fieldnames = ['chain', 'frame_start', 'frame_end', 'type', 'severity']
+            fieldnames = ["chain", "frame_start", "frame_end", "type", "severity"]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(violations)
         else:
             writer = csv.writer(f)
-            writer.writerow(['chain', 'frame_start', 'frame_end', 'type', 'severity'])
+            writer.writerow(["chain", "frame_start", "frame_end", "type", "severity"])
 
 
 def _write_hierarchy_violations_csv(filepath: Path, violations: List[Dict]):
     """Write hierarchy violations to CSV."""
-    with open(filepath, 'w', newline='') as f:
+    with open(filepath, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['bone', 'type', 'severity', 'details'])
+        writer.writerow(["bone", "type", "severity", "details"])
 
         for v in violations:
-            bone = v.get('bone', v.get('roots', ''))
-            details = v.get('parent', '')
-            writer.writerow([bone, v['type'], v['severity'], details])
+            bone = v.get("bone", v.get("roots", ""))
+            details = v.get("parent", "")
+            writer.writerow([bone, v["type"], v["severity"], details])
 
 
 def _write_curve_discontinuities_csv(filepath: Path, discontinuities: List[Dict]):
     """Write curve discontinuities to CSV."""
-    with open(filepath, 'w', newline='') as f:
+    with open(filepath, "w", newline="") as f:
         if discontinuities:
-            fieldnames = ['frame', 'bone', 'type', 'magnitude']
+            fieldnames = ["frame", "bone", "type", "magnitude"]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(discontinuities)
         else:
             writer = csv.writer(f)
-            writer.writerow(['frame', 'bone', 'type', 'magnitude'])
+            writer.writerow(["frame", "bone", "type", "magnitude"])
 
 
 def _write_constraint_summary_csv(filepath: Path, results: Dict):
     """Write constraint summary to CSV."""
-    with open(filepath, 'w', newline='') as f:
+    with open(filepath, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(['metric', 'value'])
+        writer.writerow(["metric", "value"])
 
         for key, value in results.items():
             writer.writerow([key, value])

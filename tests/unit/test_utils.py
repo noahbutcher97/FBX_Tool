@@ -8,25 +8,27 @@ Tests cover:
 - Math utilities
 """
 
-import pytest
-import numpy as np
 import os
-import tempfile
 import shutil
+import tempfile
+
+import numpy as np
+import pytest
+
 from fbx_tool.analysis.utils import (
-    ensure_output_dir,
-    safe_overwrite,
-    prepare_output_file,
-    write_csv,
+    _generate_chain_name,
+    compute_acceleration,
+    compute_velocity,
     convert_numpy_to_native,
+    detect_chains_from_hierarchy,
+    detect_inversions,
+    ensure_output_dir,
     format_float,
     get_standard_chains,
-    detect_chains_from_hierarchy,
+    prepare_output_file,
+    safe_overwrite,
     validate_chain,
-    compute_velocity,
-    compute_acceleration,
-    detect_inversions,
-    _generate_chain_name
+    write_csv,
 )
 
 
@@ -64,7 +66,7 @@ class TestFileIOUtilities:
         test_file = os.path.join(temp_dir, "test.txt")
 
         # Create a file
-        with open(test_file, 'w') as f:
+        with open(test_file, "w") as f:
             f.write("old content")
 
         assert os.path.exists(test_file)
@@ -88,7 +90,7 @@ class TestFileIOUtilities:
 
         # Create old file
         os.makedirs(os.path.dirname(test_path))
-        with open(test_path, 'w') as f:
+        with open(test_path, "w") as f:
             f.write("old data")
 
         # Prepare for new output
@@ -102,10 +104,7 @@ class TestFileIOUtilities:
         """Test that write_csv creates valid CSV files."""
         test_path = os.path.join(temp_dir, "test.csv")
         header = ["Name", "Age", "Score"]
-        rows = [
-            ["Alice", "25", "95.5"],
-            ["Bob", "30", "87.3"]
-        ]
+        rows = [["Alice", "25", "95.5"], ["Bob", "30", "87.3"]]
 
         write_csv(test_path, header, rows)
 
@@ -113,8 +112,9 @@ class TestFileIOUtilities:
         assert os.path.exists(test_path)
 
         # Verify content
-        with open(test_path, 'r') as f:
+        with open(test_path, "r") as f:
             import csv
+
             reader = csv.reader(f)
             lines = list(reader)
 
@@ -154,20 +154,18 @@ class TestDataProcessingUtilities:
     def test_convert_numpy_to_native_handles_nested_dicts(self):
         """Test converting nested dictionaries with numpy types."""
         data = {
-            'count': np.int32(10),
-            'score': np.float64(95.5),
-            'values': np.array([1.0, 2.0, 3.0]),
-            'nested': {
-                'inner': np.int64(42)
-            }
+            "count": np.int32(10),
+            "score": np.float64(95.5),
+            "values": np.array([1.0, 2.0, 3.0]),
+            "nested": {"inner": np.int64(42)},
         }
 
         result = convert_numpy_to_native(data)
 
-        assert isinstance(result['count'], int)
-        assert isinstance(result['score'], float)
-        assert isinstance(result['values'], list)
-        assert isinstance(result['nested']['inner'], int)
+        assert isinstance(result["count"], int)
+        assert isinstance(result["score"], float)
+        assert isinstance(result["values"], list)
+        assert isinstance(result["nested"]["inner"], int)
 
     def test_convert_numpy_to_native_handles_lists(self):
         """Test converting lists containing numpy types."""
@@ -214,12 +212,7 @@ class TestChainDefinitionUtilities:
 
     def test_detect_chains_from_hierarchy_finds_simple_chain(self):
         """Test detecting a simple linear chain."""
-        hierarchy = {
-            'bone1': None,
-            'bone2': 'bone1',
-            'bone3': 'bone2',
-            'bone4': 'bone3'
-        }
+        hierarchy = {"bone1": None, "bone2": "bone1", "bone3": "bone2", "bone4": "bone3"}
 
         chains = detect_chains_from_hierarchy(hierarchy, min_chain_length=3)
 
@@ -227,7 +220,7 @@ class TestChainDefinitionUtilities:
         # Should find one chain containing these bones
         found_chain = None
         for chain in chains.values():
-            if 'bone1' in chain and 'bone4' in chain:
+            if "bone1" in chain and "bone4" in chain:
                 found_chain = chain
                 break
 
@@ -238,14 +231,14 @@ class TestChainDefinitionUtilities:
         """Test detecting multiple independent chains."""
         hierarchy = {
             # Chain 1
-            'a1': None,
-            'a2': 'a1',
-            'a3': 'a2',
-            'a4': 'a3',
+            "a1": None,
+            "a2": "a1",
+            "a3": "a2",
+            "a4": "a3",
             # Chain 2 (branching from a1)
-            'b1': 'a1',
-            'b2': 'b1',
-            'b3': 'b2',
+            "b1": "a1",
+            "b2": "b1",
+            "b3": "b2",
         }
 
         chains = detect_chains_from_hierarchy(hierarchy, min_chain_length=3)
@@ -256,8 +249,8 @@ class TestChainDefinitionUtilities:
     def test_detect_chains_from_hierarchy_respects_min_length(self):
         """Test that chains shorter than min_chain_length are ignored."""
         hierarchy = {
-            'bone1': None,
-            'bone2': 'bone1',  # Only 2 bones - too short
+            "bone1": None,
+            "bone2": "bone1",  # Only 2 bones - too short
         }
 
         chains = detect_chains_from_hierarchy(hierarchy, min_chain_length=3)
@@ -268,12 +261,12 @@ class TestChainDefinitionUtilities:
     def test_detect_chains_from_hierarchy_handles_branches(self):
         """Test handling of branching (non-linear) hierarchies."""
         hierarchy = {
-            'root': None,
-            'child1': 'root',
-            'child2': 'root',  # Branch here
-            'grandchild1': 'child1',
-            'grandchild2a': 'child2',
-            'grandchild2b': 'child2',  # Another branch
+            "root": None,
+            "child1": "root",
+            "child2": "root",  # Branch here
+            "grandchild1": "child1",
+            "grandchild2a": "child2",
+            "grandchild2b": "child2",  # Another branch
         }
 
         chains = detect_chains_from_hierarchy(hierarchy, min_chain_length=2)
@@ -283,46 +276,46 @@ class TestChainDefinitionUtilities:
 
     def test_generate_chain_name_identifies_left_leg(self):
         """Test chain name generation for left leg."""
-        chain = ['thigh_l', 'calf_l', 'foot_l']
+        chain = ["thigh_l", "calf_l", "foot_l"]
         name = _generate_chain_name(chain)
 
         assert name == "LeftLeg"
 
     def test_generate_chain_name_identifies_right_arm(self):
         """Test chain name generation for right arm."""
-        chain = ['upperarm_r', 'lowerarm_r', 'hand_r']
+        chain = ["upperarm_r", "lowerarm_r", "hand_r"]
         name = _generate_chain_name(chain)
 
         assert name == "RightArm"
 
     def test_generate_chain_name_identifies_spine(self):
         """Test chain name generation for spine."""
-        chain = ['pelvis', 'spine_01', 'spine_02']
+        chain = ["pelvis", "spine_01", "spine_02"]
         name = _generate_chain_name(chain)
 
         assert name == "Spine"
 
     def test_generate_chain_name_falls_back_to_first_bone(self):
         """Test chain name falls back to first bone name for unknown chains."""
-        chain = ['unknown_bone', 'another_bone']
+        chain = ["unknown_bone", "another_bone"]
         name = _generate_chain_name(chain)
 
         assert name == "unknown_bone"
 
     def test_validate_chain_filters_valid_bones(self):
         """Test that validate_chain filters bones to those in skeleton."""
-        chain = ['bone1', 'bone2', 'bone3', 'missing_bone']
-        bone_names = ['bone1', 'bone2', 'bone3', 'other_bone']
+        chain = ["bone1", "bone2", "bone3", "missing_bone"]
+        bone_names = ["bone1", "bone2", "bone3", "other_bone"]
 
         valid = validate_chain(chain, bone_names)
 
-        assert valid == ['bone1', 'bone2', 'bone3']
-        assert 'missing_bone' not in valid
+        assert valid == ["bone1", "bone2", "bone3"]
+        assert "missing_bone" not in valid
 
     def test_validate_chain_handles_empty_chain(self):
         """Test validate_chain with empty chain."""
         chain = []
-        bone_names = ['bone1', 'bone2']
+        bone_names = ["bone1", "bone2"]
 
         valid = validate_chain(chain, bone_names)
 
@@ -330,8 +323,8 @@ class TestChainDefinitionUtilities:
 
     def test_validate_chain_handles_all_invalid(self):
         """Test validate_chain when all bones are invalid."""
-        chain = ['missing1', 'missing2']
-        bone_names = ['bone1', 'bone2']
+        chain = ["missing1", "missing2"]
+        bone_names = ["bone1", "bone2"]
 
         valid = validate_chain(chain, bone_names)
 
@@ -388,7 +381,9 @@ class TestMathUtilities:
         # Should detect inversion when direction changes
         # Going up: 0->1->2, then down: 2->1.5->1, then up again: 1->2->3
         assert isinstance(inversions, np.ndarray)
-        assert len(inversions) == len(values) - 1  # detect_inversions returns len-1 array (comparing adjacent velocities)
+        assert (
+            len(inversions) == len(values) - 1
+        )  # detect_inversions returns len-1 array (comparing adjacent velocities)
 
     def test_detect_inversions_monotonic_sequence(self):
         """Test that detect_inversions finds no inversions in monotonic sequence."""
@@ -449,10 +444,10 @@ class TestEdgeCases:
 
     def test_validate_chain_preserves_order(self):
         """Test that validate_chain preserves chain order."""
-        chain = ['bone3', 'bone1', 'bone2']
-        bone_names = ['bone1', 'bone2', 'bone3', 'bone4']
+        chain = ["bone3", "bone1", "bone2"]
+        bone_names = ["bone1", "bone2", "bone3", "bone4"]
 
         valid = validate_chain(chain, bone_names)
 
         # Order should be preserved from original chain
-        assert valid == ['bone3', 'bone1', 'bone2']
+        assert valid == ["bone3", "bone1", "bone2"]
