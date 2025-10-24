@@ -139,18 +139,102 @@ def _compute_adaptive_thresholds(velocity_mags, angular_velocities):
     }
 
 
-def _detect_coordinate_system(positions, velocities):
+def detect_full_coordinate_system(scene, positions, velocities):
     """
-    Auto-detect the coordinate system's forward axis by analyzing motion data.
+    Detect COMPLETE coordinate system from FBX metadata and empirical motion data.
 
-    This procedural approach eliminates hardcoded axis assumptions by observing
-    which axis has the most consistent motion (likely forward movement).
+    Combines two sources of truth:
+    1. FBX SDK's declared axis system (from file metadata)
+    2. Empirical motion analysis (from actual animation data)
 
-    Strategy:
-    1. For each axis (+X, -X, +Y, -Y, +Z, -Z), compute motion consistency
-    2. Motion consistency = variance in that axis / total variance
-    3. The axis with highest consistency is likely the forward direction
-    4. Returns the best axis configuration
+    This procedural approach eliminates ALL hardcoded axis assumptions.
+
+    Args:
+        scene: FBX scene object
+        positions: np.array (Nx3) of positions per frame
+        velocities: np.array (Nx3) of velocity vectors per frame
+
+    Returns:
+        dict: Complete coordinate system configuration
+            {
+                'up_axis': int (0=X, 1=Y, 2=Z),
+                'up_sign': int (1 or -1),
+                'forward_axis': int (0=X, 1=Y, 2=Z),
+                'forward_sign': int (1 or -1),
+                'right_axis': int (0=X, 1=Y, 2=Z),
+                'right_sign': int (1 or -1),
+                'is_right_handed': bool,
+                'yaw_axis': int (rotation axis for turning, matches up_axis),
+                'yaw_positive_is_left': bool (sign convention for left turn),
+                'confidence': float (0-1, how certain we are)
+            }
+    """
+    import fbx as fbx_module
+
+    # STEP 1: Get declared axis system from FBX metadata
+    axis_system = scene.GetGlobalSettings().GetAxisSystem()
+    up_vector, up_sign_declared = axis_system.GetUpVector()
+    front_vector, front_parity = axis_system.GetFrontVector()
+    coord_system = axis_system.GetCoorSystem()
+
+    # Map FBX enum to axis index
+    up_axis_map = {
+        fbx_module.FbxAxisSystem.EUpVector.eXAxis: 0,
+        fbx_module.FbxAxisSystem.EUpVector.eYAxis: 1,
+        fbx_module.FbxAxisSystem.EUpVector.eZAxis: 2,
+    }
+    up_axis = up_axis_map.get(up_vector, 1)  # Default to Y if unknown
+
+    is_right_handed = coord_system == fbx_module.FbxAxisSystem.ECoordSystem.eRightHanded
+
+    # STEP 2: Detect forward axis empirically from motion data
+    forward_axis, forward_sign, empirical_confidence = _detect_forward_axis_empirical(positions, velocities)
+
+    # STEP 3: Compute right axis using cross product rule
+    # In a right-handed system: right = forward × up
+    # In a left-handed system: right = up × forward
+    axes = [0, 1, 2]
+    right_axis = [ax for ax in axes if ax != up_axis and ax != forward_axis][0]
+
+    # Determine right sign using handedness
+    # This ensures: up × forward = right (right-handed) or forward × up = right (left-handed)
+    axis_order = [up_axis, forward_axis, right_axis]
+    perm = sum(1 for i in range(3) for j in range(i + 1, 3) if axis_order[i] > axis_order[j])
+    is_even_perm = perm % 2 == 0
+
+    if is_right_handed:
+        right_sign = forward_sign * up_sign_declared * (1 if is_even_perm else -1)
+    else:
+        right_sign = -forward_sign * up_sign_declared * (1 if is_even_perm else -1)
+
+    # STEP 4: Determine turning conventions
+    # Yaw rotation is around the UP axis
+    yaw_axis = up_axis
+
+    # In right-handed Y-up: positive Y rotation = counterclockwise from above = LEFT
+    # In left-handed Y-up: positive Y rotation = clockwise from above = RIGHT
+    # Generalize: in right-handed systems, positive rotation around up = LEFT
+    yaw_positive_is_left = is_right_handed
+
+    return {
+        "up_axis": up_axis,
+        "up_sign": up_sign_declared,
+        "forward_axis": forward_axis,
+        "forward_sign": forward_sign,
+        "right_axis": right_axis,
+        "right_sign": right_sign,
+        "is_right_handed": is_right_handed,
+        "yaw_axis": yaw_axis,
+        "yaw_positive_is_left": yaw_positive_is_left,
+        "confidence": empirical_confidence,
+    }
+
+
+def _detect_forward_axis_empirical(positions, velocities):
+    """
+    Empirically detect forward axis by analyzing motion data.
+
+    This is the motion-based component of coordinate system detection.
 
     Args:
         positions: np.array (Nx3) of positions per frame
@@ -228,6 +312,17 @@ def _detect_coordinate_system(positions, velocities):
     return best_config + (confidence,)
 
 
+# Legacy function for backward compatibility
+def _detect_coordinate_system(positions, velocities):
+    """
+    DEPRECATED: Use detect_full_coordinate_system() instead.
+
+    This function only detects forward axis, not the complete coordinate frame.
+    Maintained for backward compatibility with existing code.
+    """
+    return _detect_forward_axis_empirical(positions, velocities)
+
+
 def extract_root_trajectory(scene, force_refresh=False):
     """
     Extract root bone trajectory data from FBX scene (with caching).
@@ -268,8 +363,8 @@ def extract_root_trajectory(scene, force_refresh=False):
             'rotations': np.array (Nx3),
             'forward_directions': np.array (Nx3),
             'velocity_mags': np.array (N,),
-            'angular_velocity_y': np.array (N,),
-            'coordinate_system': dict with 'forward_axis', 'forward_sign', 'detection_confidence',
+            'angular_velocity_yaw': np.array (N,),  # PROCEDURAL: Uses detected yaw axis (not hardcoded Y)
+            'coordinate_system': dict with detected coordinate system info,
             'adaptive_thresholds': dict with threshold values and confidence
         }
 
@@ -347,15 +442,24 @@ def extract_root_trajectory(scene, force_refresh=False):
     # Compute translational derivatives (needed for coordinate system detection)
     velocities, accelerations, jerks = compute_derivatives(positions, frame_rate)
 
-    # Auto-detect coordinate system from motion data
-    axis_index, sign, coord_confidence = _detect_coordinate_system(positions, velocities)
+    # Auto-detect FULL coordinate system (up, forward, right axes + turning conventions)
+    coord_system = detect_full_coordinate_system(scene, positions, velocities)
+
+    # Extract for backward compatibility and logging
+    axis_index = coord_system["forward_axis"]
+    sign = coord_system["forward_sign"]
     axis_config = (axis_index, sign)
+    coord_confidence = coord_system["confidence"]
 
     # Convert axis config to human-readable format for logging
     axis_names = ["X", "Y", "Z"]
     sign_str = "+" if sign > 0 else "-"
+    up_sign_str = "+" if coord_system["up_sign"] > 0 else "-"
+    handedness = "right-handed" if coord_system["is_right_handed"] else "left-handed"
+
     print(
-        f"  Detected coordinate system: {sign_str}{axis_names[axis_index]} forward (confidence: {coord_confidence:.2f})"
+        f"  Detected coordinate system: {sign_str}{axis_names[axis_index]} forward, "
+        f"{up_sign_str}{axis_names[coord_system['up_axis']]} up ({handedness}, confidence: {coord_confidence:.2f})"
     )
 
     # Now extract forward directions using the detected coordinate system
@@ -368,19 +472,21 @@ def extract_root_trajectory(scene, force_refresh=False):
 
     velocity_mags = np.linalg.norm(velocities, axis=1)
 
-    # Compute angular velocity (Y-axis rotation = turning)
+    # Compute angular velocity around the UP axis (yaw/turning)
+    # PROCEDURAL: Use detected yaw axis instead of hardcoded Y-axis
     dt = 1.0 / frame_rate
-    rotations_y = rotations[:, 1]  # Extract Y-axis rotation (yaw)
+    yaw_axis_idx = coord_system["yaw_axis"]
+    rotations_yaw = rotations[:, yaw_axis_idx]  # Extract yaw rotation (around UP axis)
 
     # Unwrap angles to handle 360° wrapping
-    rotations_y_unwrapped = np.unwrap(np.radians(rotations_y))
-    rotations_y_unwrapped = np.degrees(rotations_y_unwrapped)
+    rotations_yaw_unwrapped = np.unwrap(np.radians(rotations_yaw))
+    rotations_yaw_unwrapped = np.degrees(rotations_yaw_unwrapped)
 
     # Angular velocity in degrees/second
-    angular_velocity_y = np.gradient(rotations_y_unwrapped, dt)
+    angular_velocity_yaw = np.gradient(rotations_yaw_unwrapped, dt)
 
     # Compute adaptive thresholds from motion data
-    adaptive_thresholds = _compute_adaptive_thresholds(velocity_mags, angular_velocity_y)
+    adaptive_thresholds = _compute_adaptive_thresholds(velocity_mags, angular_velocity_yaw)
     print(
         f"  Adaptive thresholds: stationary={adaptive_thresholds['stationary_velocity_threshold']:.2f}, "
         f"turn_slow={adaptive_thresholds['turning_slow_threshold']:.1f}° (confidence: {adaptive_thresholds['confidence']:.2f})"
@@ -395,9 +501,14 @@ def extract_root_trajectory(scene, force_refresh=False):
             velocities[frame], forward_directions[frame], velocity_mags[frame]
         )
 
-        # Classify turning behavior
-        turning_classification = _classify_turning_speed(angular_velocity_y[frame])
-        turning_direction = "left" if angular_velocity_y[frame] > 0 else "right"
+        # Classify turning behavior using PROCEDURAL turning convention
+        turning_classification = _classify_turning_speed(angular_velocity_yaw[frame])
+
+        # PROCEDURAL: Determine left/right using detected coordinate system
+        if coord_system["yaw_positive_is_left"]:
+            turning_direction = "left" if angular_velocity_yaw[frame] > 0 else "right"
+        else:
+            turning_direction = "right" if angular_velocity_yaw[frame] > 0 else "left"
 
         trajectory_data.append(
             {
@@ -413,7 +524,7 @@ def extract_root_trajectory(scene, force_refresh=False):
                 "velocity_x": velocities[frame, 0],
                 "velocity_y": velocities[frame, 1],
                 "velocity_z": velocities[frame, 2],
-                "angular_velocity_y": angular_velocity_y[frame],
+                "angular_velocity_yaw": angular_velocity_yaw[frame],
                 "direction": direction,
                 "turning_speed": turning_classification,
                 "turning_direction": turning_direction,
@@ -434,7 +545,7 @@ def extract_root_trajectory(scene, force_refresh=False):
         "accelerations": accelerations,  # NEW: Cached for optimization
         "jerks": jerks,  # NEW: Cached for optimization
         "velocity_mags": velocity_mags,
-        "angular_velocity_y": angular_velocity_y,
+        "angular_velocity_yaw": angular_velocity_yaw,  # FIXED: Now procedural (uses detected yaw axis)
         # Direction vectors
         "forward_directions": forward_directions,
         # PROCEDURAL METADATA BRAIN: Auto-discovered properties

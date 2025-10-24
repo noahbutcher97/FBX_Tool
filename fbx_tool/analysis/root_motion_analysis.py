@@ -72,8 +72,9 @@ def analyze_root_motion(scene, output_dir="output/"):
     positions = trajectory["positions"]
     velocities = trajectory["velocities"]
     rotations = trajectory["rotations"]
-    angular_velocity_y = trajectory["angular_velocity_y"]
+    angular_velocity_yaw = trajectory["angular_velocity_yaw"]  # FIXED: Use new procedural field name
     velocity_mags = trajectory["velocity_mags"]
+    coord_system = trajectory["coordinate_system"]
 
     # Get scene metadata for duration
     metadata = get_scene_metadata(scene)
@@ -82,13 +83,14 @@ def analyze_root_motion(scene, output_dir="output/"):
     # Extract direction classifications from trajectory data
     direction_classifications = [frame_data["direction"] for frame_data in trajectory_data]
 
-    # Compute rotations_y for unwrapping (needed for total_rotation_y)
-    rotations_y = rotations[:, 1]  # Extract Y-axis rotation (yaw)
+    # PROCEDURAL: Use detected yaw axis instead of hardcoded Y-axis
+    yaw_axis_idx = coord_system.get("yaw_axis", 1)  # Fallback to Y if not present
+    rotations_yaw = rotations[:, yaw_axis_idx]  # Extract yaw rotation (around UP axis)
     dt = 1.0 / frame_rate
 
     # Unwrap angles to handle 360° wrapping
-    rotations_y_unwrapped = np.unwrap(np.radians(rotations_y))
-    rotations_y_unwrapped = np.degrees(rotations_y_unwrapped)
+    rotations_yaw_unwrapped = np.unwrap(np.radians(rotations_yaw))
+    rotations_yaw_unwrapped = np.degrees(rotations_yaw_unwrapped)
 
     # Compute overall summary metrics
     total_distance = np.sum(np.linalg.norm(np.diff(positions, axis=0), axis=1))
@@ -97,10 +99,10 @@ def analyze_root_motion(scene, output_dir="output/"):
     mean_velocity = np.mean(velocity_mags)
     max_velocity = np.max(velocity_mags)
 
-    mean_angular_velocity = np.mean(np.abs(angular_velocity_y))
-    max_angular_velocity = np.max(np.abs(angular_velocity_y))
+    mean_angular_velocity = np.mean(np.abs(angular_velocity_yaw))
+    max_angular_velocity = np.max(np.abs(angular_velocity_yaw))
 
-    total_rotation_y = abs(rotations_y_unwrapped[-1] - rotations_y_unwrapped[0])
+    total_rotation_yaw = abs(rotations_yaw_unwrapped[-1] - rotations_yaw_unwrapped[0])
 
     # Direction distribution
     direction_counts = {}
@@ -141,9 +143,9 @@ def analyze_root_motion(scene, output_dir="output/"):
             "displacement": displacement,
             "mean_velocity": mean_velocity,
             "max_velocity": max_velocity,
-            "mean_angular_velocity_y": mean_angular_velocity,
-            "max_angular_velocity_y": max_angular_velocity,
-            "total_rotation_y": total_rotation_y,
+            "mean_angular_velocity_yaw": mean_angular_velocity,  # FIXED: Renamed from _y to _yaw
+            "max_angular_velocity_yaw": max_angular_velocity,  # FIXED: Renamed from _y to _yaw
+            "total_rotation_yaw": total_rotation_yaw,  # FIXED: Renamed from _y to _yaw
             "dominant_direction": dominant_direction,
             "start_position": f"({positions[0, 0]:.2f}, {positions[0, 1]:.2f}, {positions[0, 2]:.2f})",
             "end_position": f"({positions[-1, 0]:.2f}, {positions[-1, 1]:.2f}, {positions[-1, 2]:.2f})",
@@ -160,7 +162,7 @@ def analyze_root_motion(scene, output_dir="output/"):
     print(f"  - Total distance traveled: {total_distance:.2f} units")
     print(f"  - Displacement: {displacement:.2f} units")
     print(f"  - Mean velocity: {mean_velocity:.2f} units/s")
-    print(f"  - Total rotation: {total_rotation_y:.2f}°")
+    print(f"  - Total rotation (yaw): {total_rotation_yaw:.2f}°")  # FIXED: Updated variable name
     print(f"  - Dominant direction: {dominant_direction}")
 
     # Return summary and trajectory data
@@ -170,7 +172,7 @@ def analyze_root_motion(scene, output_dir="output/"):
         "displacement": displacement,
         "mean_velocity": mean_velocity,
         "max_velocity": max_velocity,
-        "total_rotation_y": total_rotation_y,
+        "total_rotation_yaw": total_rotation_yaw,  # FIXED: Renamed from _y to _yaw
         "dominant_direction": dominant_direction,
         "direction_distribution": direction_counts,
         "trajectory_frames": len(trajectory_data),

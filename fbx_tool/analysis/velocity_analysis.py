@@ -107,6 +107,7 @@ SAVGOL_POLYORDER_LOW = 2  # Use quadratic polynomial for small windows
 # CONSTANTS - Quality Thresholds
 # ==============================================================================
 
+# ⚠️ DEPRECATED: Use compute_adaptive_coherence_thresholds() instead
 # Chain coherence thresholds (correlation coefficient)
 COHERENCE_GOOD_THRESHOLD = 0.7  # High correlation = coordinated motion
 COHERENCE_FAIR_THRESHOLD = 0.4  # Medium correlation = acceptable motion
@@ -115,6 +116,110 @@ COHERENCE_FAIR_THRESHOLD = 0.4  # Medium correlation = acceptable motion
 SMOOTHNESS_EXCELLENT_THRESHOLD = 0.8  # Very smooth motion
 SMOOTHNESS_GOOD_THRESHOLD = 0.6  # Acceptable smoothness
 SMOOTHNESS_FAIR_THRESHOLD = 0.4  # Marginal smoothness
+
+
+# ==============================================================================
+# ADAPTIVE THRESHOLD COMPUTATION (Proceduralization)
+# ==============================================================================
+
+
+def compute_adaptive_jitter_thresholds(jitter_scores):
+    """
+    Compute adaptive jitter classification thresholds from data distribution.
+
+    PROCEDURAL DESIGN: Uses percentile-based classification instead of hardcoded
+    thresholds (JITTER_HIGH_THRESHOLD = 1.0, JITTER_MEDIUM_THRESHOLD = 0.1).
+
+    Strategy:
+    - Low jitter: < 33rd percentile
+    - Medium jitter: 33rd to 67th percentile
+    - High jitter: > 67th percentile
+
+    This adapts to the animation's overall noise level, making classification
+    relative to the data rather than absolute.
+
+    Args:
+        jitter_scores: np.array of jitter scores from all bones
+
+    Returns:
+        dict: {
+            'jitter_medium_threshold': float (33rd percentile),
+            'jitter_high_threshold': float (67th percentile)
+        }
+    """
+    if len(jitter_scores) == 0:
+        # Fallback for empty data
+        return {"jitter_medium_threshold": 0.1, "jitter_high_threshold": 1.0}  # Fallback to old constant
+
+    if len(jitter_scores) == 1:
+        # Single bone: use value itself as medium, scale up for high
+        single_value = jitter_scores[0]
+        return {
+            "jitter_medium_threshold": single_value,
+            "jitter_high_threshold": single_value * 2.0,  # 2x for high threshold
+        }
+
+    # Use percentiles for classification
+    jitter_medium_threshold = np.percentile(jitter_scores, 33)
+    jitter_high_threshold = np.percentile(jitter_scores, 67)
+
+    # Ensure high > medium (can fail if data is constant)
+    if jitter_high_threshold <= jitter_medium_threshold:
+        # Add small offset to maintain ordering
+        jitter_high_threshold = jitter_medium_threshold + 0.01
+
+    return {"jitter_medium_threshold": jitter_medium_threshold, "jitter_high_threshold": jitter_high_threshold}
+
+
+def compute_adaptive_coherence_thresholds(coherence_scores):
+    """
+    Compute adaptive coherence classification thresholds from data distribution.
+
+    PROCEDURAL DESIGN: Uses percentile-based classification instead of hardcoded
+    thresholds (COHERENCE_GOOD_THRESHOLD = 0.7, COHERENCE_FAIR_THRESHOLD = 0.4).
+
+    Strategy:
+    - Poor coherence: < 33rd percentile
+    - Fair coherence: 33rd to 67th percentile
+    - Good coherence: > 67th percentile
+
+    This adapts to the animation's overall coordination level, making classification
+    relative to the data rather than absolute.
+
+    Args:
+        coherence_scores: np.array of coherence scores (correlation coefficients) from all chains
+
+    Returns:
+        dict: {
+            'coherence_fair_threshold': float (33rd percentile),
+            'coherence_good_threshold': float (67th percentile)
+        }
+    """
+    if len(coherence_scores) == 0:
+        # Fallback for empty data
+        return {"coherence_fair_threshold": 0.4, "coherence_good_threshold": 0.7}  # Fallback to old constant
+
+    if len(coherence_scores) == 1:
+        # Single chain: use value itself as fair, scale up for good
+        single_value = coherence_scores[0]
+        # Ensure we stay within valid correlation range [-1, 1]
+        good_threshold = min(single_value + 0.2, 1.0)
+        return {"coherence_fair_threshold": single_value, "coherence_good_threshold": good_threshold}
+
+    # Use percentiles for classification
+    coherence_fair_threshold = np.percentile(coherence_scores, 33)
+    coherence_good_threshold = np.percentile(coherence_scores, 67)
+
+    # Ensure good > fair (can fail if data is constant)
+    if coherence_good_threshold <= coherence_fair_threshold:
+        # Add small offset to maintain ordering
+        coherence_good_threshold = min(coherence_fair_threshold + 0.1, 1.0)
+
+    # Clamp to valid correlation range [-1, 1]
+    coherence_fair_threshold = max(-1.0, min(1.0, coherence_fair_threshold))
+    coherence_good_threshold = max(-1.0, min(1.0, coherence_good_threshold))
+
+    return {"coherence_fair_threshold": coherence_fair_threshold, "coherence_good_threshold": coherence_good_threshold}
 
 
 def compute_derivatives(positions, frame_rate):
@@ -344,7 +449,7 @@ def detect_frozen_frames(velocity_magnitude, threshold=FROZEN_FRAME_VELOCITY_THR
     return frozen_segments
 
 
-def compute_smoothing_parameters(jitter_score, smoothness_score, frame_rate):
+def compute_smoothing_parameters(jitter_score, smoothness_score, frame_rate, jitter_thresholds=None):
     """
     Compute recommended smoothing filter parameters based on jitter and smoothness.
 
@@ -354,26 +459,36 @@ def compute_smoothing_parameters(jitter_score, smoothness_score, frame_rate):
     - Savitzky-Golay filter (savgol_window, savgol_polyorder)
 
     Recommendations are tiered based on jitter severity:
-    - HIGH (jitter > 1.0): Aggressive smoothing
-    - MEDIUM (jitter > 0.1): Moderate smoothing
-    - LOW/NONE (jitter ≤ 0.1): Minimal smoothing
+    - HIGH (jitter > adaptive threshold): Aggressive smoothing
+    - MEDIUM (jitter > adaptive threshold): Moderate smoothing
+    - LOW/NONE: Minimal smoothing
 
     Args:
         jitter_score: Jitter score from compute_jitter_score
         smoothness_score: Smoothness score from compute_smoothness_score (currently unused)
         frame_rate: Animation frame rate
+        jitter_thresholds: Optional dict from compute_adaptive_jitter_thresholds()
+                           If None, uses deprecated constants
 
     Returns:
         dict: Smoothing recommendations with filter parameters
     """
+    # Use adaptive thresholds if provided, otherwise fall back to constants
+    if jitter_thresholds is not None:
+        jitter_high_threshold = jitter_thresholds["jitter_high_threshold"]
+        jitter_medium_threshold = jitter_thresholds["jitter_medium_threshold"]
+    else:
+        jitter_high_threshold = JITTER_HIGH_THRESHOLD
+        jitter_medium_threshold = JITTER_MEDIUM_THRESHOLD
+
     # Determine smoothing intensity based on jitter thresholds
-    if jitter_score > JITTER_HIGH_THRESHOLD:
+    if jitter_score > jitter_high_threshold:
         intensity = "high"
         kernel_size = SMOOTHING_KERNEL_HIGH
         gaussian_sigma = GAUSSIAN_SIGMA_HIGH
         cutoff_fraction = CUTOFF_FRACTION_HIGH_JITTER
         filter_order = BUTTERWORTH_ORDER_HIGH
-    elif jitter_score > JITTER_MEDIUM_THRESHOLD:
+    elif jitter_score > jitter_medium_threshold:
         intensity = "medium"
         kernel_size = SMOOTHING_KERNEL_MEDIUM
         gaussian_sigma = GAUSSIAN_SIGMA_MEDIUM
@@ -480,6 +595,37 @@ def analyze_velocity(scene, output_dir="output/"):
     frame_duration = fbx_module.FbxTime()
     frame_duration.SetSecondDouble(1.0 / frame_rate)
 
+    # ===== PASS 1: Collect jitter scores for adaptive threshold computation =====
+    print("Pass 1: Computing jitter scores for adaptive thresholds...")
+    all_jitter_scores = []
+
+    for bone in bones:
+        # Extract positions
+        positions = []
+        for frame in range(total_frames):
+            current_time = start_time + frame_duration * frame
+            translation = bone.EvaluateGlobalTransform(current_time).GetT()
+            positions.append([translation[0], translation[1], translation[2]])
+
+        positions = np.array(positions)
+
+        # Compute velocity
+        velocity, _, _ = compute_derivatives(positions, frame_rate)
+        velocity_mag = compute_magnitudes(velocity)
+
+        # Compute jitter score
+        jitter_score = compute_jitter_score(velocity_mag)
+        all_jitter_scores.append(jitter_score)
+
+    # Compute adaptive jitter thresholds from all bones
+    jitter_thresholds = compute_adaptive_jitter_thresholds(np.array(all_jitter_scores))
+    print(
+        f"  Adaptive jitter thresholds: medium={jitter_thresholds['jitter_medium_threshold']:.4f}, high={jitter_thresholds['jitter_high_threshold']:.4f}"
+    )
+
+    # ===== PASS 2: Full analysis with adaptive thresholds =====
+    print("Pass 2: Performing full velocity analysis...")
+
     # Process each bone
     for bone_idx, bone in enumerate(bones):
         bone_name = bone.GetName()
@@ -536,8 +682,8 @@ def analyze_velocity(scene, output_dir="output/"):
         frozen_frame_count = sum(end - start + 1 for start, end in frozen_segments)
         frozen_percentage = (frozen_frame_count / total_frames) * 100 if total_frames > 0 else 0
 
-        # ENHANCEMENT D: Smoothing parameter recommendations
-        smoothing_params = compute_smoothing_parameters(jitter_score, smoothness_score, frame_rate)
+        # ENHANCEMENT D: Smoothing parameter recommendations (with adaptive thresholds)
+        smoothing_params = compute_smoothing_parameters(jitter_score, smoothness_score, frame_rate, jitter_thresholds)
 
         # ===== ROTATIONAL MOTION ANALYSIS =====
         # Compute angular derivatives
@@ -839,6 +985,10 @@ def analyze_chain_velocity(scene, bones, frame_rate, total_frames, output_dir):
     frame_duration = fbx_module.FbxTime()
     frame_duration.SetSecondDouble(1.0 / frame_rate)
 
+    # ===== PASS 1: Collect coherence scores for adaptive threshold computation =====
+    all_mean_coherence_scores = []
+    chain_data_cache = {}  # Store computed data for reuse in pass 2
+
     for chain_name, chain_bones in chains.items():
         if len(chain_bones) < 2:
             continue  # Need at least 2 bones for chain analysis
@@ -888,16 +1038,49 @@ def analyze_chain_velocity(scene, bones, frame_rate, total_frames, output_dir):
         chain_jitter_scores = [compute_jitter_score(vel) for vel in chain_velocities]
         mean_chain_jitter = np.mean(chain_jitter_scores)
 
+        # Cache data for pass 2
+        chain_data_cache[chain_name] = {
+            "bone_count": len(chain_bones),
+            "coherence_score": mean_coherence,
+            "propagation_delay_frames": mean_delay,
+            "chain_jitter_score": mean_chain_jitter,
+        }
+
+        # Collect coherence score
+        all_mean_coherence_scores.append(mean_coherence)
+
+    # ===== Compute adaptive coherence thresholds =====
+    if all_mean_coherence_scores:
+        coherence_thresholds = compute_adaptive_coherence_thresholds(np.array(all_mean_coherence_scores))
+        coherence_good_threshold = coherence_thresholds["coherence_good_threshold"]
+        coherence_fair_threshold = coherence_thresholds["coherence_fair_threshold"]
+        print(
+            f"  Adaptive coherence thresholds: fair={coherence_fair_threshold:.4f}, good={coherence_good_threshold:.4f}"
+        )
+    else:
+        # No chains - use deprecated constants
+        coherence_good_threshold = COHERENCE_GOOD_THRESHOLD
+        coherence_fair_threshold = COHERENCE_FAIR_THRESHOLD
+
+    # ===== PASS 2: Build results with adaptive classification =====
+    for chain_name, chain_data in chain_data_cache.items():
+        mean_coherence = chain_data["coherence_score"]
+
+        # Use adaptive thresholds for classification
+        coordination_quality = (
+            "good"
+            if mean_coherence > coherence_good_threshold
+            else ("fair" if mean_coherence > coherence_fair_threshold else "poor")
+        )
+
         chain_results.append(
             {
                 "chain_name": chain_name,
-                "bone_count": len(chain_bones),
+                "bone_count": chain_data["bone_count"],
                 "coherence_score": mean_coherence,
-                "propagation_delay_frames": mean_delay,
-                "chain_jitter_score": mean_chain_jitter,
-                "coordination_quality": "good"
-                if mean_coherence > COHERENCE_GOOD_THRESHOLD
-                else ("fair" if mean_coherence > COHERENCE_FAIR_THRESHOLD else "poor"),
+                "propagation_delay_frames": chain_data["propagation_delay_frames"],
+                "chain_jitter_score": chain_data["chain_jitter_score"],
+                "coordination_quality": coordination_quality,
             }
         )
 
@@ -986,12 +1169,14 @@ def analyze_holistic_motion(bones, frame_rate, total_frames, output_dir, scene, 
             "mean_kinetic_energy": mean_kinetic_energy,
             "max_kinetic_energy": max_kinetic_energy,
             "energy_variation": energy_variation,
-            "overall_quality": "excellent"
-            if global_smoothness > SMOOTHNESS_EXCELLENT_THRESHOLD
-            else (
-                "good"
-                if global_smoothness > SMOOTHNESS_GOOD_THRESHOLD
-                else ("fair" if global_smoothness > SMOOTHNESS_FAIR_THRESHOLD else "poor")
+            "overall_quality": (
+                "excellent"
+                if global_smoothness > SMOOTHNESS_EXCELLENT_THRESHOLD
+                else (
+                    "good"
+                    if global_smoothness > SMOOTHNESS_GOOD_THRESHOLD
+                    else ("fair" if global_smoothness > SMOOTHNESS_FAIR_THRESHOLD else "poor")
+                )
             ),
         }
     ]

@@ -18,6 +18,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from fbx_tool.analysis.utils import build_bone_hierarchy
+
 
 @dataclass
 class BoneLengthViolation:
@@ -283,7 +285,8 @@ def detect_self_intersections(
     bone1_end: np.ndarray,
     bone2_start: np.ndarray,
     bone2_end: np.ndarray,
-    distance_threshold: float = 0.5,
+    distance_threshold: Optional[float] = None,
+    median_bone_length: Optional[float] = None,
 ) -> List[Dict[str, Any]]:
     """
     Detect self-intersections between two bones.
@@ -293,11 +296,24 @@ def detect_self_intersections(
         bone1_end: End positions of bone 1 (frames, 3)
         bone2_start: Start positions of bone 2 (frames, 3)
         bone2_end: End positions of bone 2 (frames, 3)
-        distance_threshold: Maximum distance to consider as intersection
+        distance_threshold: Maximum distance to consider as intersection (optional)
+        median_bone_length: Median bone length for adaptive threshold calculation (optional)
 
     Returns:
         List of intersection events
+
+    Note:
+        If distance_threshold is not provided, it will be computed adaptively as
+        5% of median_bone_length. This scales the intersection detection to skeleton size.
     """
+    # PROCEDURAL: Compute adaptive distance threshold if not provided
+    if distance_threshold is None:
+        if median_bone_length is not None and median_bone_length > 0:
+            # 5% of median bone length is reasonable for intersection detection
+            distance_threshold = median_bone_length * 0.05
+        else:
+            # Fallback to hardcoded value
+            distance_threshold = 0.5
     intersections = []
 
     # Check if bones are identical (filter out self-comparison)
@@ -535,19 +551,45 @@ def analyze_pose_validity(scene, output_dir: str = ".") -> Dict[str, Any]:
         _write_empty_csv_files(output_path)
         return results
 
-    # Extract animation data
-    bone_data = _extract_bone_animation_data(scene, bones)
+    # OPTIMIZATION: Build bone hierarchy once (shared utility)
+    hierarchy = build_bone_hierarchy(scene)
 
-    # Analyze bone lengths
+    # Extract animation data (using pre-built hierarchy)
+    bone_data = _extract_bone_animation_data(scene, bones, hierarchy=hierarchy)
+
+    # STEP 1: Collect all bone lengths to compute adaptive tolerance
+    all_bone_lengths = []
+    bone_reference_lengths = {}
+    for bone_name, data in bone_data.items():
+        if data["parent_positions"] is not None:
+            bone_lengths = compute_bone_lengths(data["parent_positions"], data["positions"])
+            reference_length = np.median(bone_lengths)
+            bone_reference_lengths[bone_name] = reference_length
+            all_bone_lengths.append(reference_length)
+
+    # STEP 2: Compute adaptive tolerance based on skeleton bone length distribution
+    # PROCEDURAL: Use coefficient of variation to determine appropriate tolerance
+    if len(all_bone_lengths) > 0:
+        median_bone_length = np.median(all_bone_lengths)
+        std_bone_length = np.std(all_bone_lengths)
+        cv_bone_lengths = std_bone_length / median_bone_length if median_bone_length > 0 else 0
+
+        # Adaptive tolerance: tighter for uniform skeletons, looser for varied skeletons
+        # Base tolerance 5%, adjusted by CV
+        adaptive_tolerance = 0.05 * (1.0 + cv_bone_lengths)
+        # Clamp to reasonable range [3%, 15%]
+        adaptive_tolerance = np.clip(adaptive_tolerance, 0.03, 0.15)
+    else:
+        adaptive_tolerance = 0.05  # Fallback
+
+    # STEP 3: Detect violations using adaptive tolerance
     length_violations = []
     for bone_name, data in bone_data.items():
         if data["parent_positions"] is not None:
             bone_lengths = compute_bone_lengths(data["parent_positions"], data["positions"])
+            reference_length = bone_reference_lengths[bone_name]
 
-            # Use median as reference length
-            reference_length = np.median(bone_lengths)
-
-            violations = detect_bone_length_violations(bone_lengths, reference_length, tolerance=0.05)
+            violations = detect_bone_length_violations(bone_lengths, reference_length, tolerance=adaptive_tolerance)
 
             for v in violations:
                 v["bone_name"] = bone_name
@@ -608,17 +650,105 @@ def _get_all_bones(scene) -> List:
     return bones
 
 
-def _extract_bone_animation_data(scene, bones) -> Dict[str, Dict]:
-    """Extract position and rotation data for all bones."""
-    # This is a simplified version for testing
+def _extract_bone_animation_data(scene, bones, hierarchy: Optional[Dict[str, Optional[str]]] = None) -> Dict[str, Dict]:
+    """
+    Extract position and rotation data for all bones.
+
+    Args:
+        scene: FBX scene object
+        bones: List of bone nodes
+        hierarchy: Optional pre-built bone hierarchy map {child_name: parent_name}
+                   If None, will use GetParent() for each bone (slower)
+
+    Returns:
+        Dict mapping bone names to their animation data
+    """
+    import fbx as fbx_module
+
     bone_data = {}
 
+    # OPTIMIZATION: Create bone node lookup if using hierarchy
+    bone_lookup = {}
+    if hierarchy is not None:
+        for bone in bones:
+            bone_lookup[bone.GetName()] = bone
+
+    # Get animation timespan
+    anim_stack_count = scene.GetSrcObjectCount(fbx_module.FbxCriteria.ObjectType(fbx_module.FbxAnimStack.ClassId))
+    if anim_stack_count == 0:
+        # No animation, return empty data
+        for bone in bones:
+            bone_name = bone.GetName()
+            bone_data[bone_name] = {
+                "positions": np.array([]),
+                "rotations": np.array([]),
+                "parent_positions": None,
+            }
+        return bone_data
+
+    # Get first animation stack
+    anim_stack = scene.GetSrcObject(fbx_module.FbxCriteria.ObjectType(fbx_module.FbxAnimStack.ClassId), 0)
+    time_span = anim_stack.GetLocalTimeSpan()
+    start_time = time_span.GetStart()
+    stop_time = time_span.GetStop()
+
+    # Calculate frame rate and total frames
+    frame_rate = fbx_module.FbxTime.GetFrameRate(scene.GetGlobalSettings().GetTimeMode())
+    duration_seconds = stop_time.GetSecondDouble() - start_time.GetSecondDouble()
+    total_frames = int(duration_seconds * frame_rate) + 1
+
+    # Create frame duration object
+    frame_duration = fbx_module.FbxTime()
+    frame_duration.SetSecondDouble(1.0 / frame_rate)
+
+    # Extract data for each bone
     for bone in bones:
         bone_name = bone.GetName()
+        positions = []
+        rotations = []
+
+        # Extract transforms for each frame
+        for frame in range(total_frames):
+            current_time = start_time + frame_duration * frame
+
+            # Get global transform
+            global_transform = bone.EvaluateGlobalTransform(current_time)
+
+            # Extract translation and rotation
+            translation = global_transform.GetT()
+            rotation = global_transform.GetR()
+
+            positions.append([translation[0], translation[1], translation[2]])
+            rotations.append([rotation[0], rotation[1], rotation[2]])
+
+        positions = np.array(positions)
+        rotations = np.array(rotations)
+
+        # Get parent positions if bone has a parent
+        # OPTIMIZATION: Use pre-built hierarchy if available, otherwise fallback to GetParent()
+        parent_node = None
+        if hierarchy is not None:
+            parent_name = hierarchy.get(bone_name)
+            if parent_name is not None:
+                parent_node = bone_lookup.get(parent_name)
+        else:
+            # Fallback: direct GetParent() call
+            parent_node = bone.GetParent()
+
+        parent_positions = None
+        if parent_node:
+            parent_positions = []
+            for frame in range(total_frames):
+                current_time = start_time + frame_duration * frame
+                parent_transform = parent_node.EvaluateGlobalTransform(current_time)
+                parent_translation = parent_transform.GetT()
+                parent_positions.append([parent_translation[0], parent_translation[1], parent_translation[2]])
+            parent_positions = np.array(parent_positions)
+
         bone_data[bone_name] = {
-            "positions": np.zeros((10, 3)),  # Placeholder
-            "rotations": np.zeros((10, 3)),
-            "parent_positions": None,
+            "positions": positions,
+            "rotations": rotations,
+            "parent_positions": parent_positions,
         }
 
     return bone_data

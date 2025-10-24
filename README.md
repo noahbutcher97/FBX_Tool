@@ -286,7 +286,7 @@ Partial results saved to: output/animation/
 
 - [x] ~~Real-time 3D animation preview~~ ✅ **Completed in v1.1.0**
 - [x] ~~Dynamic skeleton support~~ ✅ **Completed in v1.1.0**
-- [ ] Batch processing GUI
+- [x] ~~Batch processing GUI~~ ✅ **Functional as of Session 2025-10-19c** (Add to Batch buttons work correctly)
 - [ ] Matplotlib visualization charts (joint angles over time)
 - [ ] Export to Excel/PDF
 - [ ] Animation quality scoring

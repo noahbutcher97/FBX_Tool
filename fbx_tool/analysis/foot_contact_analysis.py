@@ -42,7 +42,7 @@ import fbx
 import numpy as np
 
 from fbx_tool.analysis.fbx_loader import get_scene_metadata
-from fbx_tool.analysis.utils import ensure_output_dir
+from fbx_tool.analysis.utils import ensure_output_dir, extract_root_trajectory
 from fbx_tool.analysis.velocity_analysis import compute_derivatives
 
 # ==============================================================================
@@ -338,7 +338,7 @@ def compute_ground_height_percentile(y_positions, percentile=None):
     return float(ground_height)
 
 
-def detect_contact_events_adaptive(positions, velocities, ground_height):
+def detect_contact_events_adaptive(positions, velocities, ground_height, up_axis=1):
     """
     Detect contact events with adaptive thresholds calculated from data.
 
@@ -350,6 +350,7 @@ def detect_contact_events_adaptive(positions, velocities, ground_height):
         positions: Array of foot positions (n_frames, 3)
         velocities: Array of foot velocities (n_frames, 3)
         ground_height: Estimated ground level
+        up_axis: Index of up axis (0=X, 1=Y, 2=Z) - default Y
 
     Returns:
         list: Contact segments as (start_frame, end_frame) tuples
@@ -357,8 +358,8 @@ def detect_contact_events_adaptive(positions, velocities, ground_height):
     if len(positions) == 0:
         return []
 
-    # Calculate heights above ground
-    heights = positions[:, 1] - ground_height
+    # Calculate heights above ground (PROCEDURAL: uses detected up axis)
+    heights = positions[:, up_axis] - ground_height
 
     # Calculate velocity magnitudes
     velocity_mags = np.linalg.norm(velocities, axis=1)
@@ -369,7 +370,12 @@ def detect_contact_events_adaptive(positions, velocities, ground_height):
 
     # Use the adaptive thresholds for detection
     return detect_contact_events(
-        positions, velocities, ground_height, height_threshold=height_threshold, velocity_threshold=velocity_threshold
+        positions,
+        velocities,
+        ground_height,
+        height_threshold=height_threshold,
+        velocity_threshold=velocity_threshold,
+        up_axis=up_axis,
     )
 
 
@@ -449,12 +455,14 @@ def compute_ground_height(bones, scene, start_time, frame_duration, total_frames
     return ground_height
 
 
-def detect_contact_events(positions, velocities, ground_height, height_threshold=5.0, velocity_threshold=10.0):
+def detect_contact_events(
+    positions, velocities, ground_height, height_threshold=5.0, velocity_threshold=10.0, up_axis=1
+):
     """
     Detect ground contact events (touchdown and liftoff).
 
     Contact criteria:
-    - Height: Foot Y position is close to ground (within threshold)
+    - Height: Foot position along up axis is close to ground (within threshold)
     - Velocity: Foot vertical velocity is low (nearly stationary)
 
     Args:
@@ -463,18 +471,20 @@ def detect_contact_events(positions, velocities, ground_height, height_threshold
         ground_height: Estimated ground level
         height_threshold: Maximum height above ground for contact (units)
         velocity_threshold: Maximum velocity magnitude for contact (units/s)
+        up_axis: Index of up axis (0=X, 1=Y, 2=Z) - default Y
 
     Returns:
         list: Contact segments as (start_frame, end_frame) tuples
     """
     n_frames = len(positions)
 
-    # Compute height above ground
-    heights = positions[:, 1] - ground_height  # Y is up
+    # Compute height above ground (PROCEDURAL: uses detected up axis)
+    heights = positions[:, up_axis] - ground_height
 
     # Compute velocity magnitudes
     velocity_mags = np.linalg.norm(velocities, axis=1)
 
+    # NOTE: velocities and heights are same length (both computed with np.gradient)
     # Contact mask: both height and velocity criteria
     contact_mask = (heights < height_threshold) & (velocity_mags < velocity_threshold)
 
@@ -483,7 +493,8 @@ def detect_contact_events(positions, velocities, ground_height, height_threshold
     in_contact = False
     start_frame = 0
 
-    for frame in range(n_frames):
+    # Iterate through all frames
+    for frame in range(len(contact_mask)):
         if contact_mask[frame] and not in_contact:
             # Touchdown
             start_frame = frame
@@ -495,12 +506,14 @@ def detect_contact_events(positions, velocities, ground_height, height_threshold
 
     # Handle case where animation ends in contact
     if in_contact:
-        contact_segments.append((start_frame, n_frames - 1))
+        contact_segments.append((start_frame, len(contact_mask) - 1))
 
     return contact_segments
 
 
-def detect_foot_sliding(positions, velocities, contact_segments, sliding_threshold=5.0):
+def detect_foot_sliding(
+    positions, velocities, contact_segments, sliding_threshold=5.0, up_axis=1, forward_axis=2, right_axis=0
+):
     """
     Detect foot sliding during ground contact.
 
@@ -511,6 +524,9 @@ def detect_foot_sliding(positions, velocities, contact_segments, sliding_thresho
         velocities: Array of foot velocities (n_frames, 3)
         contact_segments: List of (start_frame, end_frame) contact tuples
         sliding_threshold: Minimum horizontal velocity for sliding (units/s)
+        up_axis: Index of up axis (0=X, 1=Y, 2=Z) - default Y
+        forward_axis: Index of forward axis (0=X, 1=Y, 2=Z) - default Z
+        right_axis: Index of right axis (0=X, 1=Y, 2=Z) - default X
 
     Returns:
         list: Sliding events with metrics
@@ -525,9 +541,9 @@ def detect_foot_sliding(positions, velocities, contact_segments, sliding_thresho
         segment_positions = positions[start_frame : end_frame + 1]
         segment_velocities = velocities[start_frame : end_frame + 1]
 
-        # Horizontal velocity (XZ plane)
+        # Horizontal velocity (zero out up component)
         horizontal_velocities = segment_velocities.copy()
-        horizontal_velocities[:, 1] = 0  # Zero out Y component
+        horizontal_velocities[:, up_axis] = 0  # PROCEDURAL: Zero out up component
         horizontal_speeds = np.linalg.norm(horizontal_velocities, axis=1)
 
         # Detect sliding frames
@@ -536,11 +552,13 @@ def detect_foot_sliding(positions, velocities, contact_segments, sliding_thresho
         if np.any(sliding_mask):
             # Calculate sliding distance
             sliding_distance = 0.0
+            # Get horizontal plane axes (not up axis)
+            horizontal_axes = [ax for ax in [0, 1, 2] if ax != up_axis]
             for i in range(len(segment_positions) - 1):
                 if sliding_mask[i]:
-                    # XZ distance between consecutive frames
-                    pos1 = segment_positions[i][[0, 2]]  # X, Z
-                    pos2 = segment_positions[i + 1][[0, 2]]
+                    # Horizontal distance between consecutive frames (PROCEDURAL: uses detected axes)
+                    pos1 = segment_positions[i][horizontal_axes]
+                    pos2 = segment_positions[i + 1][horizontal_axes]
                     sliding_distance += np.linalg.norm(pos2 - pos1)
 
             # Peak sliding speed
@@ -567,7 +585,7 @@ def detect_foot_sliding(positions, velocities, contact_segments, sliding_thresho
     return sliding_events
 
 
-def measure_ground_penetration(positions, ground_height, contact_segments):
+def measure_ground_penetration(positions, ground_height, contact_segments, up_axis=1):
     """
     Measure ground penetration depth during contact.
 
@@ -577,6 +595,7 @@ def measure_ground_penetration(positions, ground_height, contact_segments):
         positions: Array of foot positions (n_frames, 3)
         ground_height: Estimated ground level
         contact_segments: List of (start_frame, end_frame) contact tuples
+        up_axis: Index of up axis (0=X, 1=Y, 2=Z) - default Y
 
     Returns:
         list: Penetration events with depth metrics
@@ -585,7 +604,7 @@ def measure_ground_penetration(positions, ground_height, contact_segments):
 
     for start_frame, end_frame in contact_segments:
         segment_positions = positions[start_frame : end_frame + 1]
-        segment_heights = segment_positions[:, 1] - ground_height
+        segment_heights = segment_positions[:, up_axis] - ground_height  # PROCEDURAL: uses detected up axis
 
         # Find frames with penetration (negative height)
         penetration_mask = segment_heights < 0
@@ -696,6 +715,22 @@ def analyze_foot_contacts(scene, output_dir="output/"):
     """
     ensure_output_dir(output_dir)
 
+    # STEP 1: Extract root trajectory to get coordinate system detection
+    print("Detecting coordinate system...")
+    trajectory = extract_root_trajectory(scene)
+
+    # Detect full coordinate system using positions and velocities (provides up_axis, forward_axis, right_axis as integers)
+    from fbx_tool.analysis.utils import detect_full_coordinate_system
+
+    coord_system = detect_full_coordinate_system(scene, trajectory["positions"], trajectory["velocities"])
+    up_axis = coord_system["up_axis"]
+    forward_axis = coord_system["forward_axis"]
+    right_axis = coord_system["right_axis"]
+
+    print(
+        f"  ✓ Coordinate system detected: up={['X','Y','Z'][up_axis]}, forward={['X','Y','Z'][forward_axis]}, right={['X','Y','Z'][right_axis]}"
+    )
+
     # Get scene metadata
     metadata = get_scene_metadata(scene)
 
@@ -756,17 +791,17 @@ def analyze_foot_contacts(scene, output_dir="output/"):
 
     # Estimate ground height using percentile method (robust to glitches)
     print("Computing ground height...")
-    # Collect all foot Y positions
-    all_y_positions = []
+    # Collect all foot positions along up axis (PROCEDURAL: uses detected up axis)
+    all_up_positions = []
     for side, foot_bone in foot_bones.items():
         if foot_bone is None:
             continue
         for frame in range(total_frames):
             current_time = start_time + frame_duration * frame
             translation = foot_bone.EvaluateGlobalTransform(current_time).GetT()
-            all_y_positions.append(translation[1])
+            all_up_positions.append(translation[up_axis])
 
-    ground_height = compute_ground_height_percentile(all_y_positions, percentile=GROUND_HEIGHT_PERCENTILE)
+    ground_height = compute_ground_height_percentile(all_up_positions, percentile=GROUND_HEIGHT_PERCENTILE)
     print(f"  ✓ Ground height: {ground_height:.2f} units (using {GROUND_HEIGHT_PERCENTILE}th percentile)")
 
     # Results storage
@@ -794,21 +829,27 @@ def analyze_foot_contacts(scene, output_dir="output/"):
         # Compute derivatives
         velocities, accelerations, _ = compute_derivatives(positions, frame_rate)
 
-        # Detect contact events using adaptive thresholds
-        contact_segments = detect_contact_events_adaptive(positions, velocities, ground_height)
+        # Detect contact events using adaptive thresholds (PROCEDURAL: uses detected up_axis)
+        contact_segments = detect_contact_events_adaptive(positions, velocities, ground_height, up_axis=up_axis)
 
         print(f"  ✓ {len(contact_segments)} contact events detected (adaptive thresholds)")
 
-        # Detect foot sliding
+        # Detect foot sliding (PROCEDURAL: uses detected axes)
         sliding_events = detect_foot_sliding(
-            positions, velocities, contact_segments, sliding_threshold=SLIDING_THRESHOLD
+            positions,
+            velocities,
+            contact_segments,
+            sliding_threshold=SLIDING_THRESHOLD,
+            up_axis=up_axis,
+            forward_axis=forward_axis,
+            right_axis=right_axis,
         )
 
         if sliding_events:
             print(f"  ⚠ {len(sliding_events)} sliding events detected")
 
-        # Measure ground penetration
-        penetration_events = measure_ground_penetration(positions, ground_height, contact_segments)
+        # Measure ground penetration (PROCEDURAL: uses detected up_axis)
+        penetration_events = measure_ground_penetration(positions, ground_height, contact_segments, up_axis=up_axis)
 
         if penetration_events:
             print(f"  ⚠ {len(penetration_events)} penetration events detected")

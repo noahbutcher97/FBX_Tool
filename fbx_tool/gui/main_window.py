@@ -1272,6 +1272,13 @@ class FBXAnalyzerApp(QWidget):
         self.load_files_btn.setEnabled(True)
         self.recent_files_btn.setEnabled(True)
         self.cancel_btn.setEnabled(False)
+        # Re-enable clear button if files are still loaded
+        if self.fbx_files:
+            self.clear_btn.setEnabled(True)
+        # Re-enable Add buttons if files are loaded
+        if self.fbx_files:
+            self.add_files_btn.setEnabled(True)
+            self.add_recent_btn.setEnabled(True)
         # Update Add button visibility based on current batch state
         self._update_add_buttons_visibility()
 

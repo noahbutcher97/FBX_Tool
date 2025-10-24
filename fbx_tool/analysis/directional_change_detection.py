@@ -360,7 +360,9 @@ def analyze_directional_changes_from_trajectory(trajectory_data, frame_rate, out
 
     # Extract direction sequence and angular velocity
     direction_sequence = [frame_data["direction"] for frame_data in trajectory_data]
-    angular_velocity_y = np.array([frame_data["angular_velocity_y"] for frame_data in trajectory_data])
+    angular_velocity_y = np.array(
+        [frame_data["angular_velocity_yaw"] for frame_data in trajectory_data]
+    )  # FIXED: Use procedural yaw axis
     rotations_y = np.array([frame_data["rotation_y"] for frame_data in trajectory_data])
 
     # Unwrap rotations to handle 360° wrapping for cumulative angle calculation

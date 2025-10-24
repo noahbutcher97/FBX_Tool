@@ -28,7 +28,11 @@ from PyQt6.QtWidgets import (
 )
 
 from fbx_tool.analysis.fbx_loader import get_scene_metadata
-from fbx_tool.analysis.utils import build_bone_hierarchy
+from fbx_tool.analysis.foot_contact_analysis import (
+    calculate_adaptive_height_threshold,
+    calculate_adaptive_velocity_threshold,
+)
+from fbx_tool.analysis.utils import build_bone_hierarchy, detect_full_coordinate_system
 
 
 class SkeletonGLWidget(QOpenGLWidget):
@@ -36,22 +40,27 @@ class SkeletonGLWidget(QOpenGLWidget):
     OpenGL widget for rendering 3D skeleton.
     """
 
-    def __init__(self, scene, parent=None):
+    def __init__(self, scene, parent=None, contact_data=None):
         super().__init__(parent)
         self.scene = scene
         self.anim_info = get_scene_metadata(scene)
         self.hierarchy = build_bone_hierarchy(scene)
 
-        # Detect coordinate system
+        # Detect coordinate system using FBX SDK (simple check)
+        # We'll use procedural detection after extracting some sample data
         axis_system = scene.GetGlobalSettings().GetAxisSystem()
         up_vector, _ = axis_system.GetUpVector()
         self.is_y_up = up_vector == fbx.FbxAxisSystem.EUpVector.eYAxis
-        print(f"FBX Coordinate System: {'Y-up' if self.is_y_up else 'Z-up (converting to Y-up)'}")
+        print(f"FBX Coordinate System (preliminary): {'Y-up' if self.is_y_up else 'Z-up (converting to Y-up)'}")
 
         # Animation data
         self.current_frame = 0
         self.total_frames = 0
         self.bone_transforms = {}
+
+        # Coordinate system info (will be populated after transform extraction)
+        self.coord_system = None  # Full coordinate system from procedural detection
+        self.up_axis = 1  # Default to Y-up (index 1) until procedurally detected
 
         # Camera settings
         self.camera_distance = 400.0  # Start further back
@@ -76,9 +85,15 @@ class SkeletonGLWidget(QOpenGLWidget):
         self.show_axes = True
         self.show_bone_names = False
         self.wireframe_mode = False
+        self.show_foot_contacts = False  # Foot contact visualization toggle
 
-        # Callback for frame changes (set by parent widget)
+        # Foot contact data from analysis
+        # Format: {"bone_name": {"contact_segments": [(start, end), ...], "ground_height": float}}
+        self.contact_data = contact_data or {}
+
+        # Callbacks for parent widget communication
         self.on_frame_changed = None
+        self.on_display_option_changed = None
 
         # Extract animation data
         self._extract_transforms()
@@ -141,6 +156,31 @@ class SkeletonGLWidget(QOpenGLWidget):
                 all_positions = np.array(all_positions)
                 self.camera_target = np.mean(all_positions, axis=0)
 
+        # PROCEDURAL COORDINATE SYSTEM DETECTION
+        # Use root bone motion to detect coordinate system empirically
+        # This replaces hardcoded Y-axis assumptions with data-driven detection
+        if transforms:
+            # Find root bone (bone with no parent)
+            root_bone = None
+            for child, parent in self.hierarchy.items():
+                if not parent:
+                    root_bone = child
+                    break
+
+            if root_bone and root_bone in transforms:
+                # Extract positions and velocities for root bone
+                root_positions = np.array([frame_data["position"] for frame_data in transforms[root_bone]])
+                root_velocities = np.diff(root_positions, axis=0)
+
+                # Detect full coordinate system from scene metadata + empirical data
+                self.coord_system = detect_full_coordinate_system(self.scene, root_positions, root_velocities)
+                self.up_axis = self.coord_system["up_axis"]
+
+                print(
+                    f"  [PROCEDURAL] Coordinate system detected: up_axis={self.up_axis} "
+                    f"(0=X, 1=Y, 2=Z), confidence={self.coord_system['confidence']:.2f}"
+                )
+
     def initializeGL(self):
         """Initialize OpenGL settings."""
         glEnable(GL_DEPTH_TEST)
@@ -197,6 +237,10 @@ class SkeletonGLWidget(QOpenGLWidget):
         self._draw_skeleton()
         if self.wireframe_mode:
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+
+        # Draw foot contacts
+        if self.show_foot_contacts:
+            self._draw_foot_contacts()
 
     def _draw_grid(self):
         """Draw ground grid."""
@@ -347,6 +391,408 @@ class SkeletonGLWidget(QOpenGLWidget):
 
             glPopMatrix()
 
+    def _get_bone_descendants(self, bone_name):
+        """
+        Get all descendant bones (children, grandchildren, etc.) of a given bone.
+
+        Args:
+            bone_name: Name of the parent bone
+
+        Returns:
+            list: List of descendant bone names (including the bone itself)
+        """
+        descendants = [bone_name]
+
+        # Recursively collect all children
+        def collect_children(parent):
+            for child, child_parent in self.hierarchy.items():
+                if child_parent == parent:
+                    descendants.append(child)
+                    collect_children(child)  # Recurse for grandchildren
+
+        collect_children(bone_name)
+        return descendants
+
+    def _draw_foot_contacts(self):
+        """
+        Draw foot contact visualization with hierarchical lighting and ground contact lines.
+
+        Features:
+        - Uses actual contact analysis data when available (from contact_data parameter)
+        - Falls back to adaptive height-based detection if no data provided
+        - Lights up entire foot hierarchy (root + all children) during contact
+        - Draws ground contact line indicator beneath foot showing contact footprint
+        - Green bones = contact, Red bones = airborne
+        """
+        if self.current_frame >= self.total_frames:
+            return
+
+        # Get current frame joint transforms
+        joint_transforms = {}
+        for bone_name, transforms in self.bone_transforms.items():
+            if self.current_frame < len(transforms):
+                joint_transforms[bone_name] = transforms[self.current_frame]
+
+        # Identify foot bones with priority (prefer "foot" over "ankle" over "toe")
+        # This prevents showing multiple bones per foot
+        foot_candidates = {"left": [], "right": []}
+
+        for bone_name in joint_transforms.keys():
+            name_lower = bone_name.lower()
+
+            # Determine side
+            side = None
+            if any(kw in name_lower for kw in ["left", "l_", "_l", "l."]):
+                side = "left"
+            elif any(kw in name_lower for kw in ["right", "r_", "_r", "r."]):
+                side = "right"
+
+            # Check if it's a foot-related bone
+            if "foot" in name_lower and "ball" not in name_lower:
+                priority = 0  # Highest priority
+            elif "ankle" in name_lower:
+                priority = 1
+            elif "toe" in name_lower and "tip" not in name_lower:
+                priority = 2
+            else:
+                continue  # Not a foot bone
+
+            if side:
+                foot_candidates[side].append((priority, bone_name))
+
+        # Select best bone for each side (lowest priority number = highest priority)
+        foot_root_bones = []
+        for side, candidates in foot_candidates.items():
+            if candidates:
+                candidates.sort()  # Sort by priority
+                foot_root_bones.append(candidates[0][1])  # Take bone name with highest priority
+
+        if not foot_root_bones:
+            return  # No foot bones detected
+
+        # Determine ground height ONCE (use contact_data if available, otherwise adaptive)
+        # Cache it to avoid recalculation every frame
+        if not hasattr(self, "_cached_ground_height"):
+            if self.contact_data and any(bone in self.contact_data for bone in foot_root_bones):
+                # Use ground height from contact analysis data
+                ground_height = next(
+                    (self.contact_data[bone]["ground_height"] for bone in foot_root_bones if bone in self.contact_data),
+                    None,
+                )
+                if ground_height is None:
+                    # Fall back to adaptive if data incomplete
+                    ground_height = self._compute_adaptive_ground_height(foot_root_bones)
+            else:
+                # Adaptive ground height from animation data
+                ground_height = self._compute_adaptive_ground_height(foot_root_bones)
+
+            self._cached_ground_height = ground_height
+            print(f"  [CACHE] Ground height calculated once: {ground_height:.2f}")
+        else:
+            ground_height = self._cached_ground_height
+
+        # For each foot, calculate PROCEDURAL contact thresholds from actual data
+        for foot_root in foot_root_bones:
+            # Get all descendant bones (foot + toes + toe tips)
+            foot_hierarchy = self._get_bone_descendants(foot_root)
+
+            # Collect all height data for the ROOT FOOT BONE ONLY across the animation
+            # This is used to calculate an adaptive threshold
+            # NOTE: We use ONLY the root bone (heel) because child bones (toes) may have
+            # invalid/stuck transforms (Y=0.00) that pollute the dataset
+            # NOTE: Positions are already converted to Y-up in _extract_transforms()
+            foot_heights_above_ground = []
+            foot_velocity_magnitudes = []
+
+            if foot_root in self.bone_transforms:
+                for i, frame_data in enumerate(self.bone_transforms[foot_root]):
+                    height_above_ground = frame_data["position"][1] - ground_height  # Y=1 (always up after conversion)
+                    foot_heights_above_ground.append(height_above_ground)
+
+                    # Calculate velocity magnitude (need at least 2 frames)
+                    if i > 0:
+                        prev_pos = self.bone_transforms[foot_root][i - 1]["position"]
+                        curr_pos = frame_data["position"]
+                        displacement = curr_pos - prev_pos
+                        velocity = np.linalg.norm(displacement) * self.anim_info["frame_rate"]  # Convert to units/sec
+                        foot_velocity_magnitudes.append(velocity)
+
+            if not foot_heights_above_ground:
+                continue  # No data for this foot
+
+            # Calculate adaptive height threshold using foot_contact_analysis module
+            # This automatically finds the separation between stance and aerial phases
+            adaptive_height_threshold = calculate_adaptive_height_threshold(foot_heights_above_ground)
+            contact_height_threshold = ground_height + adaptive_height_threshold
+
+            # Calculate adaptive velocity threshold
+            # This separates low-velocity stance from high-velocity aerial movement
+            if len(foot_velocity_magnitudes) > 0:
+                adaptive_velocity_threshold = calculate_adaptive_velocity_threshold(foot_velocity_magnitudes)
+            else:
+                adaptive_velocity_threshold = 10.0  # Fallback if only 1 frame
+
+            # Debug: Print height and velocity distribution on frame 0 for ALL feet
+            if self.current_frame == 0:
+                sorted_heights = sorted(foot_heights_above_ground)
+                sorted_velocities = sorted(foot_velocity_magnitudes) if foot_velocity_magnitudes else []
+                print(f"  [DEBUG] Contact thresholds for {foot_root}:")
+                print(f"    Height range: {sorted_heights[0]:.2f} to {sorted_heights[-1]:.2f}")
+                print(f"    Height adaptive threshold: {adaptive_height_threshold:.2f}")
+                print(f"    Height contact threshold: {contact_height_threshold:.2f}")
+                if sorted_velocities:
+                    print(f"    Velocity range: {sorted_velocities[0]:.2f} to {sorted_velocities[-1]:.2f} units/sec")
+                    print(f"    Velocity adaptive threshold: {adaptive_velocity_threshold:.2f} units/sec")
+                    print(f"    Velocity 50th percentile: {np.percentile(sorted_velocities, 50):.2f} units/sec")
+
+            # Identify bones with stuck/invalid transforms
+            # These are bones that never move significantly above ground level
+            # Common in FBX files with partial animations or IK issues
+            stuck_bones = set()
+            for bone_name in foot_hierarchy:
+                if bone_name in self.bone_transforms:
+                    all_y_values = [frame_data["position"][1] for frame_data in self.bone_transforms[bone_name]]
+
+                    # Debug: Print Y value stats for all feet
+                    if self.current_frame == 0:
+                        y_min, y_max, y_mean = min(all_y_values), max(all_y_values), np.mean(all_y_values)
+                        y_range = y_max - y_min
+                        always_below_ground = all(y <= ground_height + 1.0 for y in all_y_values)
+                        print(
+                            f"    [STUCK CHECK] {bone_name}: min={y_min:.4f}, max={y_max:.4f}, "
+                            f"range={y_range:.4f}, always_below={always_below_ground}"
+                        )
+
+                    # A bone is "stuck" if it NEVER rises significantly above ground
+                    # This catches bones stuck at/near ground level (Y=0-2) across all frames
+                    if all(y <= ground_height + 1.0 for y in all_y_values):
+                        stuck_bones.add(bone_name)
+
+            # Find the LOWEST bone for CONTACT DETECTION (excluding stuck bones)
+            # This determines WHEN contact occurs
+            lowest_valid_bone = None
+            lowest_valid_height = float("inf")
+
+            for bone_name in foot_hierarchy:
+                if bone_name in joint_transforms and bone_name not in stuck_bones:
+                    bone_height = joint_transforms[bone_name]["position"][1]
+                    if bone_height < lowest_valid_height:
+                        lowest_valid_height = bone_height
+                        lowest_valid_bone = bone_name
+
+            # Calculate current frame velocity for the lowest valid bone
+            current_velocity = 0.0
+            if lowest_valid_bone and self.current_frame > 0 and lowest_valid_bone in self.bone_transforms:
+                if self.current_frame < len(self.bone_transforms[lowest_valid_bone]):
+                    prev_pos = self.bone_transforms[lowest_valid_bone][self.current_frame - 1]["position"]
+                    curr_pos = joint_transforms[lowest_valid_bone]["position"]
+                    displacement = curr_pos - prev_pos
+                    current_velocity = np.linalg.norm(displacement) * self.anim_info["frame_rate"]  # units/sec
+
+            # Contact requires BOTH height AND velocity criteria
+            # This prevents false positives when foot is passing quickly through ground level
+            height_criterion = lowest_valid_height <= contact_height_threshold
+            velocity_criterion = current_velocity <= adaptive_velocity_threshold
+            is_foot_in_contact = (height_criterion and velocity_criterion) if lowest_valid_bone else False
+
+            # Find the LOWEST bone for SENSOR LINE POSITION (including stuck bones)
+            # This determines WHERE to draw the line (actual ground level)
+            lowest_bone_for_line = None
+            lowest_height_for_line = float("inf")
+
+            for bone_name in foot_hierarchy:
+                if bone_name in joint_transforms:
+                    bone_height = joint_transforms[bone_name]["position"][1]
+                    if bone_height < lowest_height_for_line:
+                        lowest_height_for_line = bone_height
+                        lowest_bone_for_line = bone_name
+
+            # Debug output for all feet on frame 0
+            if self.current_frame == 0:
+                print(f"\n  ═══ Contact Detection Debug ({foot_root}) ═══")
+                print(f"    Ground height: {ground_height:.2f}")
+                print(f"    Height threshold: {adaptive_height_threshold:.2f}")
+                print(f"    Contact height threshold: {contact_height_threshold:.2f}")
+                print(f"    Velocity threshold: {adaptive_velocity_threshold:.2f} units/sec")
+                print(f"    Foot hierarchy: {foot_hierarchy}")
+                print(f"    Stuck bones (excluded): {stuck_bones}")
+                print(f"    Current frame {self.current_frame}:")
+                for bone_name in foot_hierarchy:
+                    if bone_name in joint_transforms:
+                        pos = joint_transforms[bone_name]["position"]
+                        is_lowest_valid = bone_name == lowest_valid_bone
+                        is_lowest_line = bone_name == lowest_bone_for_line
+                        markers = []
+                        if is_lowest_valid:
+                            markers.append("CONTACT CHECK")
+                        if is_lowest_line:
+                            markers.append("LINE POS")
+                        marker_str = f" [{', '.join(markers)}]" if markers else ""
+                        print(f"      {bone_name}: Y={pos[1]:.2f}{marker_str}")
+                print(f"    Lowest valid bone: {lowest_valid_bone} at Y={lowest_valid_height:.2f}")
+                print(f"    Current velocity: {current_velocity:.2f} units/sec")
+                print(
+                    f"    Height criterion: {height_criterion} (Y={lowest_valid_height:.2f} <= {contact_height_threshold:.2f})"
+                )
+                print(
+                    f"    Velocity criterion: {velocity_criterion} (vel={current_velocity:.2f} <= {adaptive_velocity_threshold:.2f})"
+                )
+                print(f"    CONTACT: {'✓ YES (both criteria met)' if is_foot_in_contact else '✗ NO'}")
+                if not is_foot_in_contact:
+                    if not height_criterion:
+                        print(f"      → Reason: Foot too high (height criterion failed)")
+                    elif not velocity_criterion:
+                        print(f"      → Reason: Moving too fast (velocity criterion failed)")
+                print(f"  ═══════════════════════════════════════════\n")
+
+            # Determine which bones to light up based on contact state
+            # Only light up bones when the lowest bone is touching ground
+            bones_to_light = foot_hierarchy if is_foot_in_contact else []
+
+            # Draw spheres on all foot bones with individual contact states
+            glEnable(GL_LIGHTING)
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+            for bone_name in foot_hierarchy:
+                if bone_name in joint_transforms:
+                    position = joint_transforms[bone_name]["position"]
+
+                    # Determine color based on foot contact state
+                    if bone_name in bones_to_light:
+                        # Green for contact
+                        glMaterialfv(GL_FRONT, GL_DIFFUSE, [0.0, 1.0, 0.0, 0.8])  # Bright green
+                        glMaterialfv(GL_FRONT, GL_AMBIENT, [0.0, 0.4, 0.0, 0.8])
+                    else:
+                        # Red for airborne
+                        glMaterialfv(GL_FRONT, GL_DIFFUSE, [1.0, 0.0, 0.0, 0.6])  # Red
+                        glMaterialfv(GL_FRONT, GL_AMBIENT, [0.4, 0.0, 0.0, 0.6])
+
+                    glPushMatrix()
+                    glTranslatef(position[0], position[1], position[2])
+
+                    quadric = gluNewQuadric()
+                    gluSphere(quadric, 3.5, 16, 16)  # Slightly larger for visibility
+                    gluDeleteQuadric(quadric)
+
+                    glPopMatrix()
+
+            # Draw ground contact line ONLY if foot is touching ground
+            # Line is drawn at the LOWEST bone's height (actual contact point from stuck/valid bones)
+            if is_foot_in_contact and lowest_bone_for_line:
+                self._draw_ground_contact_line(foot_root, foot_hierarchy, joint_transforms, lowest_height_for_line)
+
+        glDisable(GL_BLEND)
+
+    def _compute_adaptive_ground_height(self, foot_bones):
+        """
+        Compute ground height adaptively from foot bone positions.
+
+        Args:
+            foot_bones: List of foot bone names
+
+        Returns:
+            float: Estimated ground height (5th percentile of foot Y positions)
+        """
+        all_foot_heights = []
+        for bone_name in foot_bones:
+            if bone_name in self.bone_transforms:
+                for i in range(0, len(self.bone_transforms[bone_name]), 10):
+                    pos = self.bone_transforms[bone_name][i]["position"]
+                    all_foot_heights.append(pos[1])  # Y is typically up
+
+        if not all_foot_heights:
+            return 0.0
+
+        # Ground height = 5th percentile (robust to noise)
+        return np.percentile(all_foot_heights, 5)
+
+    def _draw_ground_contact_line(self, foot_root, foot_hierarchy, joint_transforms, ground_height):
+        """
+        Draw a line on the ground beneath the foot showing contact footprint.
+
+        The line is drawn at ground height and positioned to appear beneath the foot,
+        extending from the heel to the toe tip to show the contact "footprint".
+
+        Args:
+            foot_root: Name of the root foot bone
+            foot_hierarchy: List of all bones in foot (including root and descendants)
+            joint_transforms: Dictionary of current frame transforms
+            ground_height: Height of the ground plane
+        """
+        # Find the heel (most backward bone) and toe (most forward bone) in the foot hierarchy
+        # This gives us the contact line endpoints regardless of foot orientation
+
+        foot_bone_positions = []
+        for bone_name in foot_hierarchy:
+            if bone_name in joint_transforms:
+                pos = joint_transforms[bone_name]["position"]
+                foot_bone_positions.append((bone_name, pos))
+
+        if len(foot_bone_positions) < 2:
+            # Not enough bones to draw a meaningful line
+            return
+
+        # Find heel (backward-most) and toe (forward-most) based on Z-axis
+        # For feet, the heel is typically negative Z, toe is positive Z (in local space)
+        # We'll use the actual 3D distance from foot root to find extremes
+
+        foot_root_pos = joint_transforms[foot_root]["position"]
+
+        # Find the bone closest to heel (minimum distance from root in backward direction)
+        # and farthest from heel (toe tip - maximum distance from root)
+        min_bone = foot_root
+        max_bone = foot_root
+        min_dist = 0.0
+        max_dist = 0.0
+
+        for bone_name, pos in foot_bone_positions:
+            # Calculate horizontal distance (XZ plane only, ignore Y)
+            horizontal_dist = np.sqrt((pos[0] - foot_root_pos[0]) ** 2 + (pos[2] - foot_root_pos[2]) ** 2)
+
+            # Find direction vector in XZ plane
+            if horizontal_dist > 1e-6:  # Avoid division by zero
+                # Calculate signed distance along the foot's forward direction
+                # Use Z-axis as primary forward direction
+                signed_dist = pos[2] - foot_root_pos[2]
+
+                if signed_dist < min_dist:
+                    min_dist = signed_dist
+                    min_bone = bone_name
+                if signed_dist > max_dist or horizontal_dist > max_dist:
+                    max_dist = max(signed_dist, horizontal_dist)
+                    max_bone = bone_name
+
+        # Get positions for heel and toe
+        heel_pos = joint_transforms[min_bone]["position"] if min_bone in joint_transforms else foot_root_pos
+        toe_pos = joint_transforms[max_bone]["position"] if max_bone in joint_transforms else foot_root_pos
+
+        # If we didn't find distinct heel/toe, fall back to root and farthest bone
+        if min_bone == max_bone:
+            # Find farthest bone by pure distance
+            max_horizontal_dist = 0.0
+            for bone_name, pos in foot_bone_positions:
+                horizontal_dist = np.sqrt((pos[0] - foot_root_pos[0]) ** 2 + (pos[2] - foot_root_pos[2]) ** 2)
+                if horizontal_dist > max_horizontal_dist:
+                    max_horizontal_dist = horizontal_dist
+                    max_bone = bone_name
+
+            heel_pos = foot_root_pos
+            toe_pos = joint_transforms[max_bone]["position"]
+
+        # Draw line FLUSH with ground plane (at ground_height + slight offset for visibility)
+        glDisable(GL_LIGHTING)
+        glLineWidth(5.0)  # Thicker line for better visibility
+        glColor3f(0.0, 1.0, 0.0)  # Bright green
+
+        glBegin(GL_LINES)
+        # Draw at ground height (slightly above to prevent z-fighting with grid)
+        glVertex3f(heel_pos[0], ground_height + 0.1, heel_pos[2])  # Heel position (XZ), ground height (Y)
+        glVertex3f(toe_pos[0], ground_height + 0.1, toe_pos[2])  # Toe position (XZ), ground height (Y)
+        glEnd()
+
+        glEnable(GL_LIGHTING)
+
     def set_frame(self, frame):
         """Set current animation frame."""
         self.current_frame = max(0, min(frame, self.total_frames - 1))
@@ -435,6 +881,12 @@ class SkeletonGLWidget(QOpenGLWidget):
         elif key == Qt.Key.Key_W:
             self.wireframe_mode = not self.wireframe_mode
             self.update()
+        elif key == Qt.Key.Key_C:
+            self.show_foot_contacts = not self.show_foot_contacts
+            self.update()
+            # Notify parent to sync checkbox state
+            if self.on_display_option_changed:
+                self.on_display_option_changed("foot_contacts", self.show_foot_contacts)
 
     def reset_camera(self):
         """Reset camera to default position."""
@@ -513,8 +965,17 @@ class SkeletonViewerWidget(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self._advance_frame)
 
-        # Connect GL widget frame change callback
+        # Visualization preferences (persistent across file switches)
+        self.viz_prefs = {
+            "grid": True,
+            "axes": True,
+            "wireframe": False,
+            "foot_contacts": False,
+        }
+
+        # Connect GL widget callbacks
         self.gl_widget.on_frame_changed = self._on_gl_frame_changed
+        self.gl_widget.on_display_option_changed = self._on_display_option_changed
 
         self._init_ui()
 
@@ -612,6 +1073,11 @@ class SkeletonViewerWidget(QWidget):
         self.wireframe_checkbox.stateChanged.connect(lambda: self._toggle_display("wireframe"))
         display_layout.addWidget(self.wireframe_checkbox, 1, 0)
 
+        self.foot_contacts_checkbox = QCheckBox("Foot Contacts (C)")
+        self.foot_contacts_checkbox.setChecked(False)
+        self.foot_contacts_checkbox.stateChanged.connect(lambda: self._toggle_display("foot_contacts"))
+        display_layout.addWidget(self.foot_contacts_checkbox, 1, 1)
+
         display_group.setLayout(display_layout)
         options_layout.addWidget(display_group)
 
@@ -694,14 +1160,31 @@ class SkeletonViewerWidget(QWidget):
             self.timer.setInterval(int(1000 / fps))
 
     def _toggle_display(self, option):
-        """Toggle display options."""
+        """Toggle display options and persist preference."""
         if option == "grid":
             self.gl_widget.show_grid = self.grid_checkbox.isChecked()
+            self.viz_prefs["grid"] = self.grid_checkbox.isChecked()
         elif option == "axes":
             self.gl_widget.show_axes = self.axes_checkbox.isChecked()
+            self.viz_prefs["axes"] = self.axes_checkbox.isChecked()
         elif option == "wireframe":
             self.gl_widget.wireframe_mode = self.wireframe_checkbox.isChecked()
+            self.viz_prefs["wireframe"] = self.wireframe_checkbox.isChecked()
+        elif option == "foot_contacts":
+            self.gl_widget.show_foot_contacts = self.foot_contacts_checkbox.isChecked()
+            self.viz_prefs["foot_contacts"] = self.foot_contacts_checkbox.isChecked()
         self.gl_widget.update()
+
+    def _on_display_option_changed(self, option, value):
+        """Handle display option changes from GL widget (e.g., keyboard shortcuts)."""
+        # Update checkbox to match GL widget state
+        if option == "foot_contacts":
+            # Block signals to prevent circular updates
+            self.foot_contacts_checkbox.blockSignals(True)
+            self.foot_contacts_checkbox.setChecked(value)
+            self.foot_contacts_checkbox.blockSignals(False)
+            # Update preference
+            self.viz_prefs["foot_contacts"] = value
 
     def keyPressEvent(self, event):
         """Forward keyboard events to GL widget."""
@@ -833,6 +1316,19 @@ class SkeletonViewerWidget(QWidget):
         old_widget = self.gl_widget
         self.gl_widget = SkeletonGLWidget(self.scene)
         self.gl_widget.on_frame_changed = self._on_gl_frame_changed
+        self.gl_widget.on_display_option_changed = self._on_display_option_changed
+
+        # Apply persistent visualization preferences
+        self.gl_widget.show_grid = self.viz_prefs["grid"]
+        self.gl_widget.show_axes = self.viz_prefs["axes"]
+        self.gl_widget.wireframe_mode = self.viz_prefs["wireframe"]
+        self.gl_widget.show_foot_contacts = self.viz_prefs["foot_contacts"]
+
+        # Update UI checkboxes to match preferences
+        self.grid_checkbox.setChecked(self.viz_prefs["grid"])
+        self.axes_checkbox.setChecked(self.viz_prefs["axes"])
+        self.wireframe_checkbox.setChecked(self.viz_prefs["wireframe"])
+        self.foot_contacts_checkbox.setChecked(self.viz_prefs["foot_contacts"])
 
         # Replace widget in layout
         layout = self.layout()

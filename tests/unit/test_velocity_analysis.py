@@ -334,6 +334,202 @@ class TestSmoothingParameters:
 
 
 @pytest.mark.unit
+class TestAdaptiveThresholds:
+    """Test adaptive threshold computation for proceduralization.
+
+    These tests ensure thresholds are data-driven, not hardcoded.
+    Following TDD: tests demand robust implementations.
+    """
+
+    def test_compute_adaptive_jitter_thresholds_diverse_data(self):
+        """Test adaptive jitter thresholds with diverse bone jitter scores.
+
+        Should classify jitter levels based on data distribution, not hardcoded values.
+        """
+        from fbx_tool.analysis.velocity_analysis import compute_adaptive_jitter_thresholds
+
+        # Simulate jitter scores from multiple bones
+        # Some smooth (low jitter), some moderate, some high
+        jitter_scores = np.array(
+            [
+                0.01,
+                0.02,
+                0.03,
+                0.05,
+                0.08,  # Low jitter (5 bones)
+                0.5,
+                0.6,
+                0.7,
+                0.8,
+                0.9,  # Medium jitter (5 bones)
+                2.0,
+                3.0,
+                4.0,
+                5.0,
+                6.0,  # High jitter (5 bones)
+            ]
+        )
+
+        thresholds = compute_adaptive_jitter_thresholds(jitter_scores)
+
+        # Should return two thresholds
+        assert "jitter_high_threshold" in thresholds
+        assert "jitter_medium_threshold" in thresholds
+
+        # Thresholds should be data-driven (percentile-based)
+        # Medium threshold should be around 33rd percentile
+        # High threshold should be around 67th percentile
+        expected_medium = np.percentile(jitter_scores, 33)
+        expected_high = np.percentile(jitter_scores, 67)
+
+        assert abs(thresholds["jitter_medium_threshold"] - expected_medium) < 0.1
+        assert abs(thresholds["jitter_high_threshold"] - expected_high) < 0.1
+
+        # High threshold must be greater than medium
+        assert thresholds["jitter_high_threshold"] > thresholds["jitter_medium_threshold"]
+
+        # Both must be positive
+        assert thresholds["jitter_high_threshold"] > 0
+        assert thresholds["jitter_medium_threshold"] > 0
+
+    def test_compute_adaptive_jitter_thresholds_all_smooth(self):
+        """Test adaptive jitter thresholds when all bones are smooth (edge case).
+
+        Should handle uniform low jitter gracefully.
+        """
+        from fbx_tool.analysis.velocity_analysis import compute_adaptive_jitter_thresholds
+
+        # All bones very smooth
+        jitter_scores = np.array([0.01, 0.02, 0.015, 0.018, 0.012, 0.020, 0.013])
+
+        thresholds = compute_adaptive_jitter_thresholds(jitter_scores)
+
+        # Should still return thresholds
+        assert "jitter_high_threshold" in thresholds
+        assert "jitter_medium_threshold" in thresholds
+
+        # Thresholds should be based on data (even if all low)
+        assert thresholds["jitter_high_threshold"] > 0
+        assert thresholds["jitter_medium_threshold"] > 0
+        assert thresholds["jitter_high_threshold"] > thresholds["jitter_medium_threshold"]
+
+    def test_compute_adaptive_jitter_thresholds_all_high(self):
+        """Test adaptive jitter thresholds when all bones are noisy (edge case).
+
+        Should handle uniform high jitter gracefully.
+        """
+        from fbx_tool.analysis.velocity_analysis import compute_adaptive_jitter_thresholds
+
+        # All bones very noisy
+        jitter_scores = np.array([5.0, 6.0, 7.0, 8.0, 9.0, 10.0])
+
+        thresholds = compute_adaptive_jitter_thresholds(jitter_scores)
+
+        # Should still return reasonable thresholds
+        assert thresholds["jitter_high_threshold"] > thresholds["jitter_medium_threshold"]
+        assert thresholds["jitter_medium_threshold"] > 0
+
+    def test_compute_adaptive_jitter_thresholds_single_bone(self):
+        """Test adaptive jitter thresholds with only one bone (minimum data).
+
+        Should return sensible fallback thresholds.
+        """
+        from fbx_tool.analysis.velocity_analysis import compute_adaptive_jitter_thresholds
+
+        jitter_scores = np.array([0.5])
+
+        thresholds = compute_adaptive_jitter_thresholds(jitter_scores)
+
+        # Should have fallback behavior
+        assert "jitter_high_threshold" in thresholds
+        assert "jitter_medium_threshold" in thresholds
+        assert thresholds["jitter_high_threshold"] > 0
+        assert thresholds["jitter_medium_threshold"] > 0
+
+    def test_compute_adaptive_coherence_thresholds_diverse_data(self):
+        """Test adaptive coherence thresholds with diverse chain coherence scores.
+
+        Should classify coherence levels based on data distribution.
+        """
+        from fbx_tool.analysis.velocity_analysis import compute_adaptive_coherence_thresholds
+
+        # Simulate coherence scores from multiple chains
+        # Range from poor (0.1) to excellent (0.95)
+        coherence_scores = np.array(
+            [
+                0.1,
+                0.15,
+                0.2,
+                0.25,  # Poor coordination (4 chains)
+                0.4,
+                0.45,
+                0.5,
+                0.55,
+                0.6,  # Fair coordination (5 chains)
+                0.75,
+                0.8,
+                0.85,
+                0.9,
+                0.95,  # Good coordination (5 chains)
+            ]
+        )
+
+        thresholds = compute_adaptive_coherence_thresholds(coherence_scores)
+
+        # Should return two thresholds
+        assert "coherence_good_threshold" in thresholds
+        assert "coherence_fair_threshold" in thresholds
+
+        # Should be percentile-based
+        expected_fair = np.percentile(coherence_scores, 33)
+        expected_good = np.percentile(coherence_scores, 67)
+
+        assert abs(thresholds["coherence_fair_threshold"] - expected_fair) < 0.1
+        assert abs(thresholds["coherence_good_threshold"] - expected_good) < 0.1
+
+        # Good threshold must be greater than fair
+        assert thresholds["coherence_good_threshold"] > thresholds["coherence_fair_threshold"]
+
+        # Both must be in valid correlation range [-1, 1]
+        assert -1 <= thresholds["coherence_fair_threshold"] <= 1
+        assert -1 <= thresholds["coherence_good_threshold"] <= 1
+
+    def test_compute_adaptive_coherence_thresholds_all_good(self):
+        """Test adaptive coherence thresholds when all chains are well-coordinated.
+
+        Should handle uniform high coherence gracefully.
+        """
+        from fbx_tool.analysis.velocity_analysis import compute_adaptive_coherence_thresholds
+
+        # All chains highly coherent
+        coherence_scores = np.array([0.85, 0.88, 0.90, 0.92, 0.95, 0.87])
+
+        thresholds = compute_adaptive_coherence_thresholds(coherence_scores)
+
+        # Should still return thresholds
+        assert thresholds["coherence_good_threshold"] > thresholds["coherence_fair_threshold"]
+        assert -1 <= thresholds["coherence_fair_threshold"] <= 1
+        assert -1 <= thresholds["coherence_good_threshold"] <= 1
+
+    def test_compute_adaptive_coherence_thresholds_negative_correlations(self):
+        """Test adaptive coherence thresholds with negative correlations (anti-coordinated motion).
+
+        Should handle negative coherence scores correctly.
+        """
+        from fbx_tool.analysis.velocity_analysis import compute_adaptive_coherence_thresholds
+
+        # Mix of positive, zero, and negative coherence
+        coherence_scores = np.array([-0.5, -0.2, 0.0, 0.1, 0.3, 0.5, 0.7])
+
+        thresholds = compute_adaptive_coherence_thresholds(coherence_scores)
+
+        # Should handle negative values correctly
+        assert "coherence_good_threshold" in thresholds
+        assert "coherence_fair_threshold" in thresholds
+        assert thresholds["coherence_good_threshold"] > thresholds["coherence_fair_threshold"]
+
+
+@pytest.mark.unit
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 

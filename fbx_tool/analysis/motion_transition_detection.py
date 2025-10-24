@@ -59,16 +59,39 @@ VERTICAL_VELOCITY_AIRBORNE_THRESHOLD = 10.0  # Positive Y velocity = jumping/fal
 # CONSTANTS - Transition Detection
 # ==============================================================================
 
-# State stability requirements
-STATE_STABLE_FRAMES = 5  # Frames required to confirm state change
+# NOTE: These constants are intended as TIME-BASED values, not frame counts.
+# They should be converted to frames based on actual frame rate.
+
+# State stability requirements (in seconds)
+STATE_STABLE_DURATION_SECONDS = 0.15  # 150ms required to confirm state change
+
+# Minimum duration for valid motion state segment (in seconds)
+STATE_MIN_DURATION_SECONDS = 0.3  # 300ms minimum duration
 
 # Transition smoothness classification (based on jerk magnitude)
+# These are scale-invariant and will be computed adaptively
 TRANSITION_JERK_SMOOTH = 50.0  # Below this = smooth transition
 TRANSITION_JERK_MODERATE = 150.0  # Below this = moderate transition
 # Above this = abrupt transition
 
-# Minimum duration for valid motion state segment
-STATE_MIN_DURATION_FRAMES = 10
+
+def compute_frame_aware_constants(frame_rate: float) -> dict:
+    """
+    Compute frame-rate aware constants for temporal thresholds.
+
+    PROCEDURAL: Converts time-based constants to frame counts based on actual frame rate.
+    This ensures consistent behavior across animations with different frame rates.
+
+    Args:
+        frame_rate: Animation frame rate (frames per second)
+
+    Returns:
+        dict: Frame-aware constants
+    """
+    return {
+        "state_stable_frames": max(1, int(STATE_STABLE_DURATION_SECONDS * frame_rate)),
+        "state_min_duration_frames": max(1, int(STATE_MIN_DURATION_SECONDS * frame_rate)),
+    }
 
 
 # ==============================================================================
@@ -146,17 +169,33 @@ def calculate_adaptive_velocity_thresholds(velocity_magnitudes):
             "run": median_vel * 1.2,  # 120% of median (above current speed)
         }
 
-    # Idle threshold: Find gap between stationary and moving
-    # Use 10th percentile as idle threshold (lowest 10% are stationary)
-    idle_threshold = np.percentile(sorted_velocities, 10)
+    # PROCEDURAL: Use gap detection to find natural boundaries in velocity distribution
+    # Calculate gaps between consecutive sorted velocities
+    gaps = np.diff(sorted_velocities)
 
-    # Walk threshold: Use median or 40th percentile
-    # This separates slow locomotion from fast locomotion
-    walk_threshold = np.percentile(sorted_velocities, 40)
+    # Find large gaps (potential state boundaries)
+    # Large gap = above 90th percentile of all gaps
+    gap_threshold = np.percentile(gaps, 90)
+    large_gap_indices = np.where(gaps > gap_threshold)[0]
 
-    # Run threshold: Use 75th percentile
-    # This separates running from sprinting
-    run_threshold = np.percentile(sorted_velocities, 75)
+    # If we found at least 2 large gaps, use them as state boundaries
+    if len(large_gap_indices) >= 2:
+        # Use first two large gaps as idle/walk and walk/run boundaries
+        idle_threshold = sorted_velocities[large_gap_indices[0]]
+        walk_threshold = sorted_velocities[large_gap_indices[1]]
+
+        # If there's a third gap, use it for run/sprint boundary
+        if len(large_gap_indices) >= 3:
+            run_threshold = sorted_velocities[large_gap_indices[2]]
+        else:
+            # Otherwise use 75th percentile for run threshold
+            run_threshold = np.percentile(sorted_velocities, 75)
+    else:
+        # Fallback to percentile-based if gap detection doesn't find clear boundaries
+        # Use 10th, 40th, 75th percentiles as in original implementation
+        idle_threshold = np.percentile(sorted_velocities, 10)
+        walk_threshold = np.percentile(sorted_velocities, 40)
+        run_threshold = np.percentile(sorted_velocities, 75)
 
     # Ensure thresholds are strictly increasing with meaningful gaps
     # ADAPTIVE: Require larger gaps (15% of range) to avoid flickering states
@@ -390,7 +429,7 @@ def detect_state_transitions(motion_state_sequence, frame_rate):
     Detect transitions between motion states.
 
     Filters out transient noise by requiring state to be stable
-    for STATE_STABLE_FRAMES before confirming a transition.
+    for a frame-rate-aware duration before confirming a transition.
 
     Args:
         motion_state_sequence: List of motion state classifications per frame
@@ -399,7 +438,11 @@ def detect_state_transitions(motion_state_sequence, frame_rate):
     Returns:
         list: State transition events with timing
     """
-    if len(motion_state_sequence) < STATE_STABLE_FRAMES:
+    # PROCEDURAL: Compute frame-aware constants based on frame rate
+    frame_constants = compute_frame_aware_constants(frame_rate)
+    state_stable_frames = frame_constants["state_stable_frames"]
+
+    if len(motion_state_sequence) < state_stable_frames:
         return []
 
     transitions = []
@@ -415,7 +458,7 @@ def detect_state_transitions(motion_state_sequence, frame_rate):
         elif state == current_state:
             # Same as candidate state
             stable_count += 1
-            if stable_count >= STATE_STABLE_FRAMES:
+            if stable_count >= state_stable_frames:
                 # Confirm state change
                 if confirmed_state != current_state:
                     duration = (frame - current_start_frame) / frame_rate
@@ -423,15 +466,15 @@ def detect_state_transitions(motion_state_sequence, frame_rate):
                         {
                             "from_state": confirmed_state,
                             "to_state": current_state,
-                            "transition_frame": frame - STATE_STABLE_FRAMES,
+                            "transition_frame": frame - state_stable_frames,
                             "from_state_start_frame": current_start_frame,
-                            "from_state_end_frame": frame - STATE_STABLE_FRAMES - 1,
+                            "from_state_end_frame": frame - state_stable_frames - 1,
                             "from_state_duration_seconds": duration,
                             "transition_type": classify_transition_type(confirmed_state, current_state),
                         }
                     )
                     confirmed_state = current_state
-                    current_start_frame = frame - STATE_STABLE_FRAMES
+                    current_start_frame = frame - state_stable_frames
         else:
             # New candidate state
             current_state = state

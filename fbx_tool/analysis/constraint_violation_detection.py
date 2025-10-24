@@ -15,7 +15,12 @@ import csv
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import diffs
+import fbx
 import numpy as np
+
+from fbx_tool.analysis.pose_validity_analysis import _extract_bone_animation_data
+from fbx_tool.analysis.utils import build_bone_hierarchy, detect_chains_from_hierarchy
 
 
 def validate_ik_chain_length(
@@ -512,18 +517,177 @@ def analyze_constraint_violations(scene, output_dir: str = ".") -> Dict[str, Any
         _write_empty_csv_files(output_path)
         return results
 
-    # Analyze IK chains (simplified for now)
+    # Analyze IK chains
     ik_violations_list = []
-    # TODO: Implement full IK chain analysis
 
-    # Analyze hierarchy
-    hierarchy = _extract_hierarchy(bones)
+    # Step 1: Extract bone animation data (positions and rotations over time)
+    # This returns: {bone_name: {"positions": np.array, "rotations": np.array}}
+    bone_data = _extract_bone_animation_data(scene, bones)
+
+    # Step 2: Get hierarchy (parent-child relationships) using shared utility
+    # Uses build_bone_hierarchy() from utils.py for consistency across modules
+    hierarchy = build_bone_hierarchy(scene)
     hierarchy_violations_list = detect_hierarchy_violations(hierarchy)
     results["hierarchy_violations"] = len(hierarchy_violations_list)
 
-    # Analyze curve discontinuities (simplified)
+    # Step 3: Detect IK chains from the hierarchy
+    # min_chain_length=3 means we only find chains with 3+ bones (e.g., hip->thigh->calf->foot)
+    chains = detect_chains_from_hierarchy(hierarchy, min_chain_length=3)
+    results["total_chains"] = len(chains)
+
+    # Step 4: Validate each IK chain for integrity violations with ADAPTIVE thresholds
+    for chain in chains:
+        # Build a dictionary of just the bones in THIS chain
+        bone_positions = {}
+        for bone_name in chain:
+            if bone_name in bone_data:
+                bone_positions[bone_name] = bone_data[bone_name]["positions"]
+
+        # Skip chains where we don't have enough data
+        if len(bone_positions) < 2:
+            continue
+
+        # ADAPTIVE TOLERANCE: Compute chain length variance to determine natural flexibility
+        # Higher variance = more flexible chain (e.g., tail, cloth) → higher tolerance
+        # Lower variance = rigid chain (e.g., arm, leg) → stricter tolerance
+        num_frames = len(bone_positions[chain[0]])
+        chain_lengths = np.zeros(num_frames)
+
+        # Compute total chain length per frame
+        for i in range(len(chain) - 1):
+            bone1, bone2 = chain[i], chain[i + 1]
+            if bone1 in bone_positions and bone2 in bone_positions:
+                vectors = bone_positions[bone2] - bone_positions[bone1]
+                segment_lengths = np.linalg.norm(vectors, axis=1)
+                chain_lengths += segment_lengths
+
+        # Calculate coefficient of variation (CV = std / mean)
+        if np.mean(chain_lengths) > 0:
+            coeff_variation = np.std(chain_lengths) / np.mean(
+                chain_lengths
+            )  # TODO Address this warning: "Unexpected Types"
+
+            # Adaptive tolerance based on CV:
+            # Low CV (0.0-0.02) = very rigid → strict 3% tolerance
+            # Medium CV (0.02-0.05) = normal IK → standard 5% tolerance
+            # High CV (0.05+) = flexible → lenient 10% tolerance
+            if coeff_variation < 0.02:
+                adaptive_tolerance = 0.03  # Strict for rigid chains
+            elif coeff_variation < 0.05:
+                adaptive_tolerance = 0.05  # Standard for normal IK
+            else:
+                adaptive_tolerance = min(0.10, coeff_variation * 2.0)  # Lenient for flexible, cap at 10%
+        else:
+            adaptive_tolerance = 0.05  # Fallback to standard
+
+        # Validate chain length with adaptive tolerance
+        length_violations = validate_ik_chain_length(bone_positions, chain, tolerance=adaptive_tolerance)
+        ik_violations_list.extend(length_violations)
+
+        # ADAPTIVE MAX_DISTANCE: Compute acceleration-based threshold for chain breaks
+        # Use the same MAD-based approach as curve discontinuity detection
+        # Aggregate accelerations across all bones in the chain
+        all_accelerations = []
+        for bone_name in chain:
+            if bone_name in bone_positions:
+                positions = bone_positions[bone_name]
+                if len(positions) >= 3:
+                    # Compute velocity (displacement per frame)
+                    velocities = np.linalg.norm(np.diff(positions, axis=0), axis=1)
+                    # Compute acceleration (change in velocity)
+                    accelerations = np.abs(np.diff(velocities))
+                    all_accelerations.extend(accelerations)
+
+        if len(all_accelerations) > 2:
+            # Use MAD for robust outlier detection
+            all_accelerations = np.array(all_accelerations)
+            median_accel = np.median(all_accelerations)
+            mad = np.median(np.abs(all_accelerations - median_accel))
+
+            if mad > 0:
+                # 3.5 modified Z-scores (robust outlier threshold)
+                adaptive_max_distance = median_accel + (3.5 * 1.4826 * mad)
+            else:
+                # Fallback: use 3x median if MAD is 0 (constant acceleration)
+                adaptive_max_distance = median_accel * 3.0
+        else:
+            adaptive_max_distance = 0.1  # Fallback to default
+
+        # Detect chain breaks with adaptive threshold
+        break_violations = detect_chain_breaks(bone_positions, chain, max_distance=adaptive_max_distance)
+        ik_violations_list.extend(break_violations)
+
+    # Step 5: Detect curve discontinuities using ACCELERATION analysis
+    # A true discontinuity shows as a SPIKE in acceleration (sudden jerk), not just fast velocity
+    # This properly distinguishes smooth rapid motion from actual discontinuities
     curve_discontinuities_list = []
-    # TODO: Implement full curve analysis
+    for bone_name, data in bone_data.items():
+        # data is a dict: {"positions": array, "rotations": array}
+        positions = data["positions"]
+
+        # Need at least 4 frames for acceleration analysis (position -> velocity -> acceleration)
+        if len(positions) < 4:
+            continue
+
+        # Check each axis (X, Y, Z) independently
+        for axis_idx in range(3):
+            axis_name = ["X", "Y", "Z"][axis_idx]
+
+            # Extract single axis curve
+            curve = positions[:, axis_idx]
+
+            # STEP 1: Compute velocities (first derivative)
+            velocities = np.diff(curve)
+
+            # STEP 2: Compute accelerations (second derivative - rate of velocity change)
+            # TRUE discontinuities show as acceleration spikes, not just velocity spikes
+            accelerations = np.diff(velocities)
+
+            if len(accelerations) < 2:
+                continue
+
+            # STEP 3: Compute adaptive threshold for acceleration outliers
+            abs_accelerations = np.abs(accelerations)
+
+            # Skip nearly-static bones (mean acceleration < 0.01)
+            mean_accel = np.mean(abs_accelerations)
+            if mean_accel < 0.01:
+                continue
+
+            std_accel = np.std(abs_accelerations)
+
+            # Use modified Z-score (median absolute deviation) for robustness to outliers
+            # This is more reliable than mean/std for detecting true anomalies
+            median_accel = np.median(abs_accelerations)
+            mad = np.median(np.abs(abs_accelerations - median_accel))  # Median Absolute Deviation
+
+            if mad > 0:
+                # Modified Z-score threshold: 3.5 is standard for outlier detection
+                # Values beyond 3.5 modified Z-scores are considered anomalies
+                threshold_mad = 3.5 * 1.4826 * mad  # 1.4826 is constant to make MAD consistent with std
+
+                # Detect frames where acceleration exceeds threshold
+                acceleration_outliers = abs_accelerations > (median_accel + threshold_mad)
+
+                # Only flag if the outlier is ALSO significantly larger than typical accelerations
+                # Must be at least 5x the median to be a true discontinuity
+                for i, is_outlier in enumerate(acceleration_outliers):
+                    if is_outlier and abs_accelerations[i] > (median_accel * 5.0):
+                        # Found a discontinuity at frame i+2 (accounting for two derivatives)
+                        # Calculate the corresponding velocity jump
+                        velocity_jump = abs(velocities[i + 1])
+
+                        curve_discontinuities_list.append(
+                            {
+                                "frame": i + 2,
+                                "bone": bone_name,
+                                "axis": axis_name,
+                                "magnitude": velocity_jump,
+                                "type": "acceleration_spike",
+                                "adaptive_threshold": median_accel + threshold_mad,
+                                "acceleration_magnitude": abs_accelerations[i],
+                            }
+                        )
 
     results["ik_violations"] = len(ik_violations_list)
     results["curve_discontinuities"] = len(curve_discontinuities_list)
@@ -531,10 +695,17 @@ def analyze_constraint_violations(scene, output_dir: str = ".") -> Dict[str, Any
     # Compute overall score
     total_violations = len(ik_violations_list) + len(hierarchy_violations_list) + len(curve_discontinuities_list)
 
-    if total_violations == 0:
+    # Fix confidence score bug: distinguish between "no violations" and "no data"
+    if results["total_chains"] == 0:
+        # No IK chains detected = no data to analyze
+        results["overall_constraint_score"] = 0.0
+    elif total_violations == 0:
+        # All checks passed = perfect score
         results["overall_constraint_score"] = 1.0
     else:
-        # Penalize based on violations
+        # Penalize based on number of violations
+        # Each violation reduces score by 10%, capped at 80% reduction (min score 0.2)
+        # NOTE: These are heuristic thresholds (reasonable defaults, not data-driven)
         penalty = min(total_violations * 0.1, 0.8)
         results["overall_constraint_score"] = max(0.2, 1.0 - penalty)
 
@@ -548,17 +719,30 @@ def analyze_constraint_violations(scene, output_dir: str = ".") -> Dict[str, Any
 
 
 def _get_all_bones(scene) -> List:
-    """Extract all bones from FBX scene."""
+    """
+    Extract all skeleton bones from FBX scene.
+
+    Uses the same FBX API pattern as build_bone_hierarchy() in utils.py
+    for consistency across modules.
+
+    Args:
+        scene: FBX scene object
+
+    Returns:
+        List of FBX skeleton nodes
+    """
     bones = []
     root = scene.GetRootNode()
 
     def traverse(node):
+        # Check if this node is a skeleton bone
         attr = node.GetNodeAttribute()
         if attr:
             attr_type = attr.GetAttributeType()
-            if hasattr(scene, "FbxSkeleton") and attr_type == scene.FbxSkeleton.eAttributeType:
+            if attr_type == fbx.FbxNodeAttribute.EType.eSkeleton:
                 bones.append(node)
 
+        # Recursively traverse children
         for i in range(node.GetChildCount()):
             traverse(node.GetChild(i))
 
@@ -567,18 +751,34 @@ def _get_all_bones(scene) -> List:
 
 
 def _extract_hierarchy(bones) -> Dict[str, Optional[str]]:
-    """Extract hierarchy from bones."""
+    """
+    Extract parent-child hierarchy from bones.
+
+    Uses the same pattern as build_bone_hierarchy() in utils.py
+    to ensure compatibility with detect_chains_from_hierarchy().
+
+    Args:
+        bones: List of FBX skeleton nodes
+
+    Returns:
+        dict: {bone_name: parent_bone_name or None}
+    """
     hierarchy = {}
+    bone_names = {bone.GetName() for bone in bones}  # Set of all skeleton bones
 
     for bone in bones:
         bone_name = bone.GetName()
         parent = bone.GetParent()
 
-        if parent and hasattr(parent, "GetNodeAttribute") and parent.GetNodeAttribute():
-            parent_name = parent.GetName()
-            hierarchy[bone_name] = parent_name
-        else:
-            hierarchy[bone_name] = None
+        # Walk up parent chain until we find another skeleton bone
+        parent_bone_name = None
+        while parent:
+            if parent.GetName() in bone_names:
+                parent_bone_name = parent.GetName()
+                break
+            parent = parent.GetParent()
+
+        hierarchy[bone_name] = parent_bone_name
 
     return hierarchy
 
@@ -635,13 +835,15 @@ def _write_curve_discontinuities_csv(filepath: Path, discontinuities: List[Dict]
     """Write curve discontinuities to CSV."""
     with open(filepath, "w", newline="") as f:
         if discontinuities:
-            fieldnames = ["frame", "bone", "type", "magnitude"]
+            fieldnames = ["frame", "bone", "axis", "type", "magnitude", "adaptive_threshold", "acceleration_magnitude"]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(discontinuities)
         else:
             writer = csv.writer(f)
-            writer.writerow(["frame", "bone", "type", "magnitude"])
+            writer.writerow(
+                ["frame", "bone", "axis", "type", "magnitude", "adaptive_threshold", "acceleration_magnitude"]
+            )
 
 
 def _write_constraint_summary_csv(filepath: Path, results: Dict):

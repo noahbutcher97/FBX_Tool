@@ -47,6 +47,26 @@ This directory contains all project documentation organized by category.
   - Mock checklist
   - Debugging strategies
 
+### 🚀 Quick Reference
+
+**Fast access to common commands and patterns:**
+
+- **[quick-reference/COMMANDS.md](quick-reference/COMMANDS.md)** - **NEW** Development commands
+  - Environment setup
+  - Testing commands (pytest options, markers)
+  - Code quality (black, isort, flake8, mypy)
+  - Running the application
+  - Building executables
+  - Coverage requirements
+
+- **[quick-reference/TDD_EXAMPLES.md](quick-reference/TDD_EXAMPLES.md)** - **NEW** Test-driven development patterns
+  - TDD workflow steps
+  - Good vs bad test examples
+  - Test organization patterns
+  - Using fixtures from conftest.py
+  - Common test patterns (parametrized, confidence scores, adaptive thresholds)
+  - Reference: test_gait_analysis.py breakdown
+
 ### 🔧 Development
 
 **Development guidelines and issue tracking:**
@@ -78,12 +98,14 @@ This directory contains all project documentation organized by category.
 
 **Current state and improvement areas:**
 
-- **[../CODE_REVIEW_FINDINGS.md](../CODE_REVIEW_FINDINGS.md)** - Algorithm correctness issues
-  - MUST FIX issues (incorrect calculations)
-  - SHOULD FIX issues (performance, maintainability)
-  - NICE TO HAVE improvements
+- **[development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md)** - **Detailed** algorithm correctness issues
+  - Complete code review findings for velocity_analysis.py, gait_analysis.py, chain_analysis.py
+  - Line-specific issues with fixes
+  - Priority categorization (MUST FIX, SHOULD FIX, NICE TO HAVE)
 
-- **[../IMPROVEMENT_RECOMMENDATIONS.md](../IMPROVEMENT_RECOMMENDATIONS.md)** - Edge case handling patterns
+- **[development/CODE_REVIEW_FINDINGS.md](development/CODE_REVIEW_FINDINGS.md)** - Original code review (archived)
+
+- **[development/EDGE_CASE_PATTERNS.md](development/EDGE_CASE_PATTERNS.md)** - Edge case handling patterns
   - Graceful degradation strategies
   - Validation patterns
   - Error handling recommendations
@@ -106,7 +128,7 @@ This directory contains all project documentation organized by category.
 
 #### For Maintainers
 1. Check [development/INCOMPLETE_MODULES.md](development/INCOMPLETE_MODULES.md) for active issues
-2. Review [CODE_REVIEW_FINDINGS.md](../CODE_REVIEW_FINDINGS.md) for priority fixes
+2. Review [development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md) for priority fixes
 3. Consult [architecture/SCENE_MANAGEMENT.md](architecture/SCENE_MANAGEMENT.md) for system design
 4. Use [testing/MOCK_SETUP_PATTERNS.md](testing/MOCK_SETUP_PATTERNS.md) for test writing
 
@@ -129,8 +151,8 @@ This directory contains all project documentation organized by category.
 
 #### Issues & Improvements
 - [development/INCOMPLETE_MODULES.md](development/INCOMPLETE_MODULES.md) - Known issues
-- [../CODE_REVIEW_FINDINGS.md](../CODE_REVIEW_FINDINGS.md) - Code quality
-- [../IMPROVEMENT_RECOMMENDATIONS.md](../IMPROVEMENT_RECOMMENDATIONS.md) - Enhancements
+- [development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md) - Algorithm correctness
+- [development/EDGE_CASE_PATTERNS.md](development/EDGE_CASE_PATTERNS.md) - Edge case handling
 
 ## Quick Reference
 
@@ -213,13 +235,22 @@ When adding new documentation:
 
 ## Recent Updates
 
-### 2025-10-18: Procedural Threshold System
+### 2025-10-18: Documentation Restructure & Procedural Thresholds
+- ✅ **Restructured CLAUDE.md** - Reduced from ~9.9k tokens to ~3k tokens (70% reduction)
+- ✅ **Reorganized root directory** - Moved all docs to appropriate subdirectories
+  - CODE_REVIEW_FINDINGS.md → development/CODE_REVIEW_FINDINGS.md (archived)
+  - IMPROVEMENT_RECOMMENDATIONS.md → development/EDGE_CASE_PATTERNS.md
+  - CHANGELOG.md → CHANGELOG.md
+- ✅ **NEW:** [quick-reference/COMMANDS.md](quick-reference/COMMANDS.md) - All dev commands
+- ✅ **NEW:** [quick-reference/TDD_EXAMPLES.md](quick-reference/TDD_EXAMPLES.md) - Test patterns
+- ✅ **NEW:** [changelog/SESSION_HISTORY.md](changelog/SESSION_HISTORY.md) - Session updates archive
+- ✅ **NEW:** [development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md) - Detailed algorithm fixes
 - ✅ Added [development/HARDCODED_CONSTANTS_AUDIT.md](development/HARDCODED_CONSTANTS_AUDIT.md)
 - ✅ Added [development/NEXT_SESSION_TODO.md](development/NEXT_SESSION_TODO.md)
-- ✅ Updated [CLAUDE.md](../CLAUDE.md) with Session 2025-10-18
 - ✅ Implemented adaptive motion state detection with CV check
 - ✅ Cached derivatives for performance optimization
 - ✅ Created procedural metadata export system
+- **Estimated token savings:** ~15k tokens from autocompact buffer (33% reduction)
 
 ### 2025-10-17: Scene Management Documentation
 - ✅ Added [architecture/SCENE_MANAGEMENT.md](architecture/SCENE_MANAGEMENT.md)
