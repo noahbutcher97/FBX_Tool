@@ -82,9 +82,7 @@ class TestFootContactVisualization:
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ) as mock_build_hierarchy, patch(
             "fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"
-        ) as mock_detect_coord, patch(
-            "fbx_tool.visualization.opengl_viewer.SkeletonGLWidget.initializeGL"
-        ):
+        ) as mock_detect_coord:
             mock_metadata.return_value = mock_anim_info
             mock_build_hierarchy.return_value = mock_hierarchy
 
@@ -243,9 +241,7 @@ class TestFootContactVisualization:
         # Create widget with transforms containing stuck bones
         with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
-        ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch.object(
-            SkeletonGLWidget, "initializeGL"
-        ):
+        ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"):
             scene = Mock()
             scene.GetGlobalSettings().GetAxisSystem().GetUpVector.return_value = (1, 1)
 
@@ -283,9 +279,7 @@ class TestFootContactVisualization:
         """
         with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
-        ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch.object(
-            SkeletonGLWidget, "initializeGL"
-        ):
+        ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"):
             scene = Mock()
             scene.GetGlobalSettings().GetAxisSystem().GetUpVector.return_value = (1, 1)
 
@@ -317,9 +311,7 @@ class TestFootContactVisualization:
         """
         with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
-        ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch.object(
-            SkeletonGLWidget, "initializeGL"
-        ):
+        ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"):
             scene = Mock()
             scene.GetGlobalSettings().GetAxisSystem().GetUpVector.return_value = (1, 1)
 
@@ -449,9 +441,7 @@ class TestFootContactVisualization:
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch(
             "fbx_tool.visualization.opengl_viewer.calculate_adaptive_height_threshold"
-        ) as mock_threshold, patch.object(
-            SkeletonGLWidget, "initializeGL"
-        ):
+        ) as mock_threshold:
             scene = Mock()
             scene.GetGlobalSettings().GetAxisSystem().GetUpVector.return_value = (1, 1)
 
@@ -491,9 +481,7 @@ class TestFootContactVisualization:
         """
         with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
-        ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch.object(
-            SkeletonGLWidget, "initializeGL"
-        ):
+        ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"):
             scene = Mock()
             scene.GetGlobalSettings().GetAxisSystem().GetUpVector.return_value = (1, 1)
 
@@ -550,9 +538,7 @@ class TestFootContactVisualization:
         """
         with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
-        ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch.object(
-            SkeletonGLWidget, "initializeGL"
-        ):
+        ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"):
             scene = Mock()
             scene.GetGlobalSettings().GetAxisSystem().GetUpVector.return_value = (1, 1)
 
@@ -647,9 +633,7 @@ class TestFootContactVisualization:
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ) as mock_hierarchy, patch(
             "fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"
-        ) as mock_detect, patch.object(
-            SkeletonGLWidget, "initializeGL"
-        ):
+        ) as mock_detect:
             scene = Mock()
             scene.GetGlobalSettings().GetAxisSystem().GetUpVector.return_value = (1, 1)
 
