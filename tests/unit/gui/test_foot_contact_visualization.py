@@ -78,7 +78,7 @@ class TestFootContactVisualization:
     @pytest.fixture
     def widget_with_mocks(self, mock_scene, mock_anim_info, mock_hierarchy):
         """Create SkeletonGLWidget with mocked dependencies."""
-        with patch("fbx_tool.visualization.opengl_viewer.get_scene_metadata") as mock_metadata, patch(
+        with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata") as mock_metadata, patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ) as mock_build_hierarchy, patch(
             "fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"
@@ -241,7 +241,7 @@ class TestFootContactVisualization:
         REQUIREMENT: Bones with all Y positions near 0 should be detected as stuck.
         """
         # Create widget with transforms containing stuck bones
-        with patch("fbx_tool.visualization.opengl_viewer.get_scene_metadata"), patch(
+        with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch.object(
             SkeletonGLWidget, "initializeGL"
@@ -281,7 +281,7 @@ class TestFootContactVisualization:
 
         EDGE CASE: Bones with Y values all within 0.05 range should be detected as stuck.
         """
-        with patch("fbx_tool.visualization.opengl_viewer.get_scene_metadata"), patch(
+        with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch.object(
             SkeletonGLWidget, "initializeGL"
@@ -315,7 +315,7 @@ class TestFootContactVisualization:
 
         REQUIREMENT: Normal bone motion should not trigger stuck detection.
         """
-        with patch("fbx_tool.visualization.opengl_viewer.get_scene_metadata"), patch(
+        with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch.object(
             SkeletonGLWidget, "initializeGL"
@@ -445,7 +445,7 @@ class TestFootContactVisualization:
 
         CRITICAL: This prevents data poisoning from stuck child bones.
         """
-        with patch("fbx_tool.visualization.opengl_viewer.get_scene_metadata"), patch(
+        with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch(
             "fbx_tool.visualization.opengl_viewer.calculate_adaptive_height_threshold"
@@ -489,7 +489,7 @@ class TestFootContactVisualization:
 
         REQUIREMENT: Only valid (non-stuck) bones should be used for contact state.
         """
-        with patch("fbx_tool.visualization.opengl_viewer.get_scene_metadata"), patch(
+        with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch.object(
             SkeletonGLWidget, "initializeGL"
@@ -548,7 +548,7 @@ class TestFootContactVisualization:
 
         REQUIREMENT: Line should show at actual lowest point (including stuck bones).
         """
-        with patch("fbx_tool.visualization.opengl_viewer.get_scene_metadata"), patch(
+        with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata"), patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ), patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"), patch.object(
             SkeletonGLWidget, "initializeGL"
@@ -643,7 +643,7 @@ class TestFootContactVisualization:
 
         REQUIREMENT: Must use empirical motion data, not just FBX metadata.
         """
-        with patch("fbx_tool.visualization.opengl_viewer.get_scene_metadata") as mock_metadata, patch(
+        with patch("fbx_tool.analysis.fbx_loader.get_scene_metadata") as mock_metadata, patch(
             "fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"
         ) as mock_hierarchy, patch(
             "fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system"
