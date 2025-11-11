@@ -435,6 +435,15 @@ class TestExtractRootTrajectory:
         mock_scene.GetSrcObjectCount.return_value = 1
         mock_scene.GetSrcObject.return_value = mock_anim_stack
 
+        # Mock axis system (needed for coordinate detection)
+        mock_axis_system = Mock()
+        mock_axis_system.GetUpVector.return_value = (1, 1)  # Y-up, positive
+        mock_axis_system.GetFrontVector.return_value = (2, 1)  # Z-forward, parity odd
+        mock_axis_system.GetCoorSystem.return_value = 0  # Right-handed
+        mock_global_settings = Mock()
+        mock_global_settings.GetAxisSystem.return_value = mock_axis_system
+        mock_scene.GetGlobalSettings.return_value = mock_global_settings
+
         # Mock transform
         mock_transform = Mock()
         mock_transform.GetT.return_value = Mock(__getitem__=lambda s, i: 0.0)
@@ -492,6 +501,15 @@ class TestExtractRootTrajectory:
 
         mock_scene.GetSrcObjectCount.return_value = 1
         mock_scene.GetSrcObject.return_value = mock_anim_stack
+
+        # Mock axis system (needed for coordinate detection)
+        mock_axis_system = Mock()
+        mock_axis_system.GetUpVector.return_value = (1, 1)  # Y-up, positive
+        mock_axis_system.GetFrontVector.return_value = (2, 1)  # Z-forward, parity odd
+        mock_axis_system.GetCoorSystem.return_value = 0  # Right-handed
+        mock_global_settings = Mock()
+        mock_global_settings.GetAxisSystem.return_value = mock_axis_system
+        mock_scene.GetGlobalSettings.return_value = mock_global_settings
 
         mock_transform = Mock()
         mock_transform.GetT.return_value = Mock(__getitem__=lambda s, i: 0.0)
