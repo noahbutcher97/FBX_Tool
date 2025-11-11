@@ -10,11 +10,9 @@ focusing on:
 - Results collection and aggregation
 """
 
-import os
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-from PyQt6.QtCore import QThread
 
 # We need to test the AnalysisWorker but it requires PyQt6
 # Skip tests if running in headless environment or if imports fail
@@ -33,14 +31,21 @@ class TestAnalysisWorkerCacheClearing:
     """Test that AnalysisWorker clears trajectory cache before analysis."""
 
     @patch("fbx_tool.gui.main_window.clear_trajectory_cache")
-    @patch("fbx_tool.gui.main_window.load_fbx")
+    @patch("fbx_tool.analysis.scene_manager.get_scene_manager")
     @patch("fbx_tool.gui.main_window.get_scene_metadata")
     @patch("fbx_tool.gui.main_window.ensure_output_dir")
-    def test_worker_clears_cache_before_analysis(self, mock_ensure_dir, mock_metadata, mock_load, mock_clear_cache):
+    def test_worker_clears_cache_before_analysis(
+        self, mock_ensure_dir, mock_metadata, mock_get_scene_mgr, mock_clear_cache
+    ):
         """Should call clear_trajectory_cache before starting analysis."""
-        # Setup
+        # Setup scene manager mock
         mock_scene = Mock()
-        mock_load.return_value = mock_scene
+        mock_scene_ref = Mock()
+        mock_scene_ref.scene = mock_scene
+        mock_scene_manager = Mock()
+        mock_scene_manager.get_scene.return_value = mock_scene_ref
+        mock_get_scene_mgr.return_value = mock_scene_manager
+
         mock_metadata.return_value = {"duration": 1.0, "frame_rate": 30.0, "bone_count": 10}
 
         # Create worker with no operations to minimize execution
@@ -60,16 +65,21 @@ class TestAnalysisWorkerScenePassing:
 
     @patch("fbx_tool.gui.main_window.clear_trajectory_cache")
     @patch("fbx_tool.gui.main_window.analyze_root_motion")
-    @patch("fbx_tool.gui.main_window.load_fbx")
+    @patch("fbx_tool.analysis.scene_manager.get_scene_manager")
     @patch("fbx_tool.gui.main_window.get_scene_metadata")
     @patch("fbx_tool.gui.main_window.ensure_output_dir")
     def test_root_motion_receives_scene_object(
-        self, mock_ensure_dir, mock_metadata, mock_load, mock_analyze, mock_clear_cache
+        self, mock_ensure_dir, mock_metadata, mock_get_scene_mgr, mock_analyze, mock_clear_cache
     ):
         """Should pass scene object to analyze_root_motion."""
-        # Setup
+        # Setup scene manager mock
         mock_scene = Mock()
-        mock_load.return_value = mock_scene
+        mock_scene_ref = Mock()
+        mock_scene_ref.scene = mock_scene
+        mock_scene_manager = Mock()
+        mock_scene_manager.get_scene.return_value = mock_scene_ref
+        mock_get_scene_mgr.return_value = mock_scene_manager
+
         mock_metadata.return_value = {"duration": 1.0, "frame_rate": 30.0, "bone_count": 10}
         mock_analyze.return_value = {"total_distance": 10.0, "displacement": 5.0, "dominant_direction": "forward"}
 
@@ -86,16 +96,21 @@ class TestAnalysisWorkerScenePassing:
 
     @patch("fbx_tool.gui.main_window.clear_trajectory_cache")
     @patch("fbx_tool.gui.main_window.analyze_directional_changes")
-    @patch("fbx_tool.gui.main_window.load_fbx")
+    @patch("fbx_tool.analysis.scene_manager.get_scene_manager")
     @patch("fbx_tool.gui.main_window.get_scene_metadata")
     @patch("fbx_tool.gui.main_window.ensure_output_dir")
     def test_directional_changes_receives_scene_object(
-        self, mock_ensure_dir, mock_metadata, mock_load, mock_analyze, mock_clear_cache
+        self, mock_ensure_dir, mock_metadata, mock_get_scene_mgr, mock_analyze, mock_clear_cache
     ):
         """Should pass scene object to analyze_directional_changes."""
-        # Setup
+        # Setup scene manager mock
         mock_scene = Mock()
-        mock_load.return_value = mock_scene
+        mock_scene_ref = Mock()
+        mock_scene_ref.scene = mock_scene
+        mock_scene_manager = Mock()
+        mock_scene_manager.get_scene.return_value = mock_scene_ref
+        mock_get_scene_mgr.return_value = mock_scene_manager
+
         mock_metadata.return_value = {"duration": 1.0, "frame_rate": 30.0, "bone_count": 10}
         mock_analyze.return_value = {"movement_segments": [], "turning_events": []}
 
@@ -112,16 +127,21 @@ class TestAnalysisWorkerScenePassing:
 
     @patch("fbx_tool.gui.main_window.clear_trajectory_cache")
     @patch("fbx_tool.gui.main_window.analyze_motion_transitions")
-    @patch("fbx_tool.gui.main_window.load_fbx")
+    @patch("fbx_tool.analysis.scene_manager.get_scene_manager")
     @patch("fbx_tool.gui.main_window.get_scene_metadata")
     @patch("fbx_tool.gui.main_window.ensure_output_dir")
     def test_motion_transitions_receives_scene_object(
-        self, mock_ensure_dir, mock_metadata, mock_load, mock_analyze, mock_clear_cache
+        self, mock_ensure_dir, mock_metadata, mock_get_scene_mgr, mock_analyze, mock_clear_cache
     ):
         """Should pass scene object to analyze_motion_transitions."""
-        # Setup
+        # Setup scene manager mock
         mock_scene = Mock()
-        mock_load.return_value = mock_scene
+        mock_scene_ref = Mock()
+        mock_scene_ref.scene = mock_scene
+        mock_scene_manager = Mock()
+        mock_scene_manager.get_scene.return_value = mock_scene_ref
+        mock_get_scene_mgr.return_value = mock_scene_manager
+
         mock_metadata.return_value = {"duration": 1.0, "frame_rate": 30.0, "bone_count": 10}
         mock_analyze.return_value = {"motion_states": []}
 
@@ -143,11 +163,13 @@ class TestAnalysisWorkerErrorHandling:
     """Test robust error handling in AnalysisWorker."""
 
     @patch("fbx_tool.gui.main_window.clear_trajectory_cache")
-    @patch("fbx_tool.gui.main_window.load_fbx")
-    def test_worker_handles_fbx_load_failure(self, mock_load, mock_clear_cache):
+    @patch("fbx_tool.analysis.scene_manager.get_scene_manager")
+    def test_worker_handles_fbx_load_failure(self, mock_get_scene_mgr, mock_clear_cache):
         """Should emit error signal when FBX load fails."""
-        # Setup
-        mock_load.side_effect = Exception("Failed to load FBX")
+        # Setup scene manager to raise error
+        mock_scene_manager = Mock()
+        mock_scene_manager.get_scene.side_effect = Exception("Failed to load FBX")
+        mock_get_scene_mgr.return_value = mock_scene_manager
 
         # Create worker
         worker = AnalysisWorker("bad.fbx", ["root_motion"])
@@ -165,16 +187,21 @@ class TestAnalysisWorkerErrorHandling:
 
     @patch("fbx_tool.gui.main_window.clear_trajectory_cache")
     @patch("fbx_tool.gui.main_window.analyze_root_motion")
-    @patch("fbx_tool.gui.main_window.load_fbx")
+    @patch("fbx_tool.analysis.scene_manager.get_scene_manager")
     @patch("fbx_tool.gui.main_window.get_scene_metadata")
     @patch("fbx_tool.gui.main_window.ensure_output_dir")
     def test_worker_continues_after_individual_failure(
-        self, mock_ensure_dir, mock_metadata, mock_load, mock_analyze, mock_clear_cache
+        self, mock_ensure_dir, mock_metadata, mock_get_scene_mgr, mock_analyze, mock_clear_cache
     ):
         """Should continue to other operations even if one fails."""
-        # Setup
+        # Setup scene manager mock
         mock_scene = Mock()
-        mock_load.return_value = mock_scene
+        mock_scene_ref = Mock()
+        mock_scene_ref.scene = mock_scene
+        mock_scene_manager = Mock()
+        mock_scene_manager.get_scene.return_value = mock_scene_ref
+        mock_get_scene_mgr.return_value = mock_scene_manager
+
         mock_metadata.return_value = {"duration": 1.0, "frame_rate": 30.0, "bone_count": 10}
 
         # First call fails, second should still be attempted
@@ -200,16 +227,21 @@ class TestAnalysisWorkerProgressSignals:
 
     @patch("fbx_tool.gui.main_window.clear_trajectory_cache")
     @patch("fbx_tool.gui.main_window.analyze_root_motion")
-    @patch("fbx_tool.gui.main_window.load_fbx")
+    @patch("fbx_tool.analysis.scene_manager.get_scene_manager")
     @patch("fbx_tool.gui.main_window.get_scene_metadata")
     @patch("fbx_tool.gui.main_window.ensure_output_dir")
     def test_worker_emits_progress_signals(
-        self, mock_ensure_dir, mock_metadata, mock_load, mock_analyze, mock_clear_cache
+        self, mock_ensure_dir, mock_metadata, mock_get_scene_mgr, mock_analyze, mock_clear_cache
     ):
         """Should emit progress signals during analysis."""
-        # Setup
+        # Setup scene manager mock
         mock_scene = Mock()
-        mock_load.return_value = mock_scene
+        mock_scene_ref = Mock()
+        mock_scene_ref.scene = mock_scene
+        mock_scene_manager = Mock()
+        mock_scene_manager.get_scene.return_value = mock_scene_ref
+        mock_get_scene_mgr.return_value = mock_scene_manager
+
         mock_metadata.return_value = {"duration": 1.0, "frame_rate": 30.0, "bone_count": 10}
         mock_analyze.return_value = {"total_distance": 10.0, "displacement": 5.0, "dominant_direction": "forward"}
 

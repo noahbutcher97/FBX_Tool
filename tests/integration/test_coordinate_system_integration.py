@@ -91,9 +91,9 @@ class TestTrajectoryCoordinateSystemIntegration:
 
         # Mock the parts we need
         with (
-            patch("fbx_tool.analysis.utils.get_scene_metadata") as mock_metadata,
+            patch("fbx_tool.analysis.fbx_loader.get_scene_metadata") as mock_metadata,
             patch("fbx_tool.analysis.utils._detect_root_bone") as mock_root,
-            patch("fbx_tool.analysis.utils.compute_derivatives") as mock_derivatives,
+            patch("fbx_tool.analysis.velocity_analysis.compute_derivatives") as mock_derivatives,
         ):
             # Setup mocks
             mock_metadata.return_value = {

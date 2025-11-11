@@ -417,3 +417,4 @@ See **[docs/changelog/SESSION_HISTORY.md](docs/changelog/SESSION_HISTORY.md)** f
 - 📄 New: `docs/testing/MOCK_SETUP_PATTERNS.md`
 
 **Breaking change:** All FBX loading must use scene manager (context managers preferred)
+- Never signoff with claude as a coauthor for anything. Not for version control or just documentation editing. Leave claude's role out of official documentation.
