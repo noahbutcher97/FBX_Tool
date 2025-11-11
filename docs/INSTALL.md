@@ -181,11 +181,82 @@ pip install -r requirements.txt
 
 ## Step 8: Build Executable (Optional)
 
+### Distribution Strategy for Open Source
+
+This project follows **Strategy C: Documentation-Based Distribution** for the FBX SDK dependency.
+
+**Why we don't bundle the FBX SDK:**
+1. **Legal compliance** - Autodesk's FBX SDK license requires users to accept their EULA. Bundling the SDK would bypass this requirement.
+2. **Updates** - Users get the latest FBX SDK version directly from Autodesk, including security patches.
+3. **Open source best practice** - Similar to how CUDA-dependent projects don't bundle NVIDIA libraries.
+
+**What this means for users:**
+- The PyInstaller executable includes all Python dependencies (NumPy, PyQt6, OpenGL, etc.)
+- Users must install FBX SDK separately (one-time setup via Steps 1-3)
+- The executable will show a helpful error message if FBX SDK is not found
+
+### Building with PyInstaller
+
 ```powershell
-(.fbxenv) python -m PyInstaller --name="FBX_Tool" --onefile --windowed --clean fbx_tool/gui/main_window.py
+# Use the pre-configured spec file (recommended)
+(.fbxenv) pyinstaller FBX_Tool.spec
+
+# Or build manually (basic)
+(.fbxenv) pyinstaller --name="FBX_Tool" --onefile --windowed --clean fbx_tool/gui/main_window.py
 ```
 
 **Output:** `dist\FBX_Tool.exe`
+
+**Important:** The executable does NOT include FBX SDK. Users must have it installed separately.
+
+### What Gets Bundled
+
+✅ **Included in executable:**
+- Python interpreter
+- NumPy, PyQt6, PyOpenGL
+- All fbx_tool analysis modules
+- GUI and visualization code
+
+❌ **NOT included (user must install):**
+- Autodesk FBX Python SDK binaries (`fbx.pyd`, DLLs)
+- Visual C++ runtime (if not already on system)
+
+### Distribution Checklist
+
+When releasing a new version:
+
+1. **Build the executable:**
+   ```powershell
+   pyinstaller FBX_Tool.spec --clean
+   ```
+
+2. **Test on clean machine:**
+   - Copy `dist\FBX_Tool.exe` to a machine without Python
+   - Verify FBX SDK error message is helpful
+   - Test with FBX SDK installed
+
+3. **Create GitHub release:**
+   - Upload `FBX_Tool.exe`
+   - Include installation instructions (link to this document)
+   - Note FBX SDK requirement prominently
+
+4. **Release notes template:**
+   ```markdown
+   ## Download
+
+   Download `FBX_Tool.exe` from the Assets section below.
+
+   ## ⚠️ Important: FBX SDK Required
+
+   This executable requires the Autodesk FBX Python SDK to be installed separately.
+
+   **First-time users:**
+   1. Install Python 3.10.x
+   2. Install Autodesk FBX Python SDK 2020.3.7
+   3. Run FBX_Tool.exe
+
+   See [Installation Guide](docs/INSTALL.md) for detailed instructions.
+   ```
 
 ---
 

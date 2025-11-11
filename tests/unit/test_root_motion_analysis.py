@@ -46,7 +46,7 @@ class TestAnalyzeRootMotion:
                 "velocity_x": 0.0,
                 "velocity_y": 0.0,
                 "velocity_z": 0.0,
-                "angular_velocity_y": 0.0,
+                "angular_velocity_yaw": 0.0,
                 "direction": "stationary",
                 "turning_speed": "none",
                 "turning_direction": "right",
@@ -64,7 +64,7 @@ class TestAnalyzeRootMotion:
                 "velocity_x": 30.0,
                 "velocity_y": 0.0,
                 "velocity_z": 0.0,
-                "angular_velocity_y": 150.0,
+                "angular_velocity_yaw": 150.0,
                 "direction": "forward",
                 "turning_speed": "fast",
                 "turning_direction": "left",
@@ -75,7 +75,7 @@ class TestAnalyzeRootMotion:
         velocities = np.array([[0.0, 0.0, 0.0], [30.0, 0.0, 0.0]])
         rotations = np.array([[0.0, 0.0, 0.0], [0.0, 5.0, 0.0]])
         velocity_mags = np.array([0.0, 30.0])
-        angular_velocity_y = np.array([0.0, 150.0])
+        angular_velocity_yaw = np.array([0.0, 150.0])
 
         mock_extract_trajectory.return_value = {
             "trajectory_data": trajectory_data,
@@ -87,7 +87,8 @@ class TestAnalyzeRootMotion:
             "rotations": rotations,
             "forward_directions": np.array([[0, 0, -1], [0, 0, -1]]),
             "velocity_mags": velocity_mags,
-            "angular_velocity_y": angular_velocity_y,
+            "angular_velocity_yaw": angular_velocity_yaw,
+            "coordinate_system": {"up_axis": 1, "forward_axis": 2, "right_axis": 0, "yaw_axis": 1},
         }
 
         # Execute
@@ -99,7 +100,7 @@ class TestAnalyzeRootMotion:
         assert "displacement" in result
         assert "mean_velocity" in result
         assert "max_velocity" in result
-        assert "total_rotation_y" in result
+        assert "total_rotation_yaw" in result
         assert "dominant_direction" in result
         assert "direction_distribution" in result
         assert "trajectory_frames" in result
@@ -115,8 +116,8 @@ class TestAnalyzeRootMotion:
         # Verify caching was used
         mock_extract_trajectory.assert_called_once_with(scene)
 
-        # Verify CSVs were written (3 files: trajectory, direction, summary)
-        assert mock_open.call_count == 3
+        # Verify files were written (4 files: trajectory, direction, summary, procedural_metadata)
+        assert mock_open.call_count == 4
 
     @patch("fbx_tool.analysis.root_motion_analysis.extract_root_trajectory")
     @patch("fbx_tool.analysis.root_motion_analysis.get_scene_metadata")
@@ -145,7 +146,7 @@ class TestAnalyzeRootMotion:
                 "velocity_x": 30.0 if i > 0 else 0.0,
                 "velocity_y": 0.0,
                 "velocity_z": 0.0,
-                "angular_velocity_y": 300.0 if i > 0 else 0.0,  # 300 deg/s
+                "angular_velocity_yaw": 300.0 if i > 0 else 0.0,  # 300 deg/s
                 "direction": "forward" if i > 0 else "stationary",
                 "turning_speed": "very_fast" if i > 0 else "none",
                 "turning_direction": "left",
@@ -157,7 +158,7 @@ class TestAnalyzeRootMotion:
         velocities = np.array([[30.0 if i > 0 else 0.0, 0.0, 0.0] for i in range(4)])
         rotations = np.array([[0.0, float(i * 10), 0.0] for i in range(4)])
         velocity_mags = np.array([0.0, 30.0, 30.0, 30.0])
-        angular_velocity_y = np.array([0.0, 300.0, 300.0, 300.0])
+        angular_velocity_yaw = np.array([0.0, 300.0, 300.0, 300.0])
 
         mock_extract_trajectory.return_value = {
             "trajectory_data": trajectory_data,
@@ -169,7 +170,8 @@ class TestAnalyzeRootMotion:
             "rotations": rotations,
             "forward_directions": np.tile([0, 0, -1], (4, 1)),
             "velocity_mags": velocity_mags,
-            "angular_velocity_y": angular_velocity_y,
+            "angular_velocity_yaw": angular_velocity_yaw,
+            "coordinate_system": {"up_axis": 1, "forward_axis": 2, "right_axis": 0, "yaw_axis": 1},
         }
 
         result = analyze_root_motion(scene)
@@ -193,7 +195,7 @@ class TestAnalyzeRootMotion:
                 {
                     "frame": 0,
                     "direction": "stationary",
-                    "angular_velocity_y": 0.0,
+                    "angular_velocity_yaw": 0.0,
                     "rotation_y": 0.0,
                     "velocity_magnitude": 0.0,
                 }
@@ -206,7 +208,8 @@ class TestAnalyzeRootMotion:
             "rotations": np.array([[0, 0, 0]]),
             "forward_directions": np.array([[0, 0, -1]]),
             "velocity_mags": np.array([0.0]),
-            "angular_velocity_y": np.array([0.0]),
+            "angular_velocity_yaw": np.array([0.0]),
+            "coordinate_system": {"up_axis": 1, "forward_axis": 2, "right_axis": 0, "yaw_axis": 1},
         }
 
         with patch("fbx_tool.analysis.root_motion_analysis.get_scene_metadata") as mock_metadata:
@@ -228,7 +231,7 @@ class TestAnalyzeRootMotion:
         """Should write three CSV files with correct data."""
         scene = Mock()
 
-        trajectory_data = [{"frame": 0, "direction": "forward", "angular_velocity_y": 0.0, "rotation_y": 0.0}]
+        trajectory_data = [{"frame": 0, "direction": "forward", "angular_velocity_yaw": 0.0, "rotation_y": 0.0}]
 
         mock_extract_trajectory.return_value = {
             "trajectory_data": trajectory_data,
@@ -240,7 +243,8 @@ class TestAnalyzeRootMotion:
             "rotations": np.array([[0, 0, 0]]),
             "forward_directions": np.array([[0, 0, -1]]),
             "velocity_mags": np.array([0.0]),
-            "angular_velocity_y": np.array([0.0]),
+            "angular_velocity_yaw": np.array([0.0]),
+            "coordinate_system": {"up_axis": 1, "forward_axis": 2, "right_axis": 0, "yaw_axis": 1},
         }
 
         with patch("fbx_tool.analysis.root_motion_analysis.get_scene_metadata") as mock_metadata:
@@ -248,14 +252,15 @@ class TestAnalyzeRootMotion:
 
             result = analyze_root_motion(scene, output_dir="output")
 
-        # Should open 3 files: trajectory, direction, summary
-        assert mock_open.call_count == 3
+        # Should open 4 files: trajectory, direction, summary, procedural_metadata
+        assert mock_open.call_count == 4
 
         # Verify file paths
         call_args = [call[0][0] for call in mock_open.call_args_list]
         assert any("root_motion_trajectory.csv" in str(arg) for arg in call_args)
         assert any("root_motion_direction.csv" in str(arg) for arg in call_args)
         assert any("root_motion_summary.csv" in str(arg) for arg in call_args)
+        assert any("procedural_metadata.json" in str(arg) for arg in call_args)
 
 
 @pytest.mark.unit
@@ -279,7 +284,8 @@ class TestEdgeCases:
             "rotations": np.array([[0, 0, 0]]),
             "forward_directions": np.array([[0, 0, -1]]),
             "velocity_mags": np.array([0.0]),
-            "angular_velocity_y": np.array([0.0]),
+            "angular_velocity_yaw": np.array([0.0]),
+            "coordinate_system": {"up_axis": 1, "forward_axis": 2, "right_axis": 0, "yaw_axis": 1},
         }
 
         with patch("fbx_tool.analysis.root_motion_analysis.get_scene_metadata") as mock_metadata:
@@ -310,7 +316,8 @@ class TestEdgeCases:
             "rotations": np.array([]).reshape(0, 3),
             "forward_directions": np.array([]).reshape(0, 3),
             "velocity_mags": np.array([]),
-            "angular_velocity_y": np.array([]),
+            "angular_velocity_yaw": np.array([]),
+            "coordinate_system": {"up_axis": 1, "forward_axis": 2, "right_axis": 0, "yaw_axis": 1},
         }
 
         with patch("fbx_tool.analysis.root_motion_analysis.get_scene_metadata") as mock_metadata:

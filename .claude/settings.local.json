@@ -10,7 +10,8 @@
       "Bash(python -m isort fbx_tool/visualization/opengl_viewer.py --profile black)",
       "Bash(python -m pytest tests/integration/test_foot_contact_visualization_integration.py::TestFootContactVisualizationIntegration::test_threshold_calculation_uses_only_root_bone -v --no-cov -n 0 --tb=short)",
       "Bash(python -m black fbx_tool/gui/main_window.py --line-length 120)",
-      "Bash(python -m isort fbx_tool/gui/main_window.py --profile black)"
+      "Bash(python -m isort fbx_tool/gui/main_window.py --profile black)",
+      "Bash(python -m pytest:*)"
     ],
     "deny": [],
     "ask": []

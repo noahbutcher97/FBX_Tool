@@ -31,23 +31,43 @@ Professional desktop application for analyzing FBX animation files with biomecha
 - **File-Specific Output** - Each FBX file gets its own output directory
 - **GUI & CLI** - Use graphical interface or command-line for batch processing
 
-## Requirements
+## Installation Options
 
+Choose the installation method that fits your needs:
+
+### Option A: Download Pre-Built Executable (Easiest for End Users)
+
+Perfect for users who want to analyze FBX files without setting up a development environment.
+
+1. **Download** `FBX_Tool.exe` from [Releases](https://github.com/noahbutcher97/FBX_Tool/releases)
+2. **Install prerequisites** (one-time setup):
+   - Python 3.10.x - [Download here](https://www.python.org/downloads/release/python-31011/)
+   - Autodesk FBX Python SDK 2020.3.7 - [Download here](https://www.autodesk.com/developer-network/platform-technologies/fbx-sdk-2020-3-7)
+3. **Run** `FBX_Tool.exe`
+
+📖 **See [docs/INSTALL.md](docs/INSTALL.md) for detailed setup instructions**
+
+**Note:** The executable does NOT bundle the FBX SDK due to licensing requirements. See [Why we don't bundle FBX SDK](docs/INSTALL.md#distribution-strategy-for-open-source).
+
+### Option B: Build from Source (For Developers)
+
+For contributors, developers, or users who want the latest features.
+
+**Requirements:**
 - **Python 3.10.x** (required - FBX SDK does not support 3.11+)
 - **Visual Studio 2022** with C++ build tools
 - **Autodesk FBX Python SDK 2020.3.7**
 
-See [INSTALL.md](INSTALL.md) for detailed installation instructions.
-
-## Quick Start
-
-### Installation
-
+**Quick Setup:**
 ```bash
 # Clone repository
 git clone https://github.com/noahbutcher97/FBX_Tool.git
 cd FBX_Tool
 
+# Use automated setup script (Windows)
+.\setup-environment.ps1
+
+# Or manually:
 # Create virtual environment (Python 3.10 required!)
 python -m venv .fbxenv --system-site-packages
 
@@ -58,6 +78,10 @@ source .fbxenv/bin/activate  # Linux/Mac
 # Install dependencies
 pip install -r requirements.txt
 ```
+
+📖 **See [docs/INSTALL.md](docs/INSTALL.md) for complete installation guide**
+
+## Quick Start
 
 ### Usage
 
@@ -200,18 +224,39 @@ FBX_Tool/
 
 ## Building Executable
 
+### For Developers/Contributors
+
 ```bash
 # Activate virtual environment
 .fbxenv\Scripts\activate
 
-# Build
+# Build using pre-configured spec file (recommended)
+pyinstaller FBX_Tool.spec --clean
+
+# Or build manually
 python -m PyInstaller --name="FBX_Tool" --onefile --windowed --clean fbx_tool/gui/main_window.py
 
 # Output
 dist/FBX_Tool.exe
 ```
 
-**Note:** The executable requires FBX SDK DLLs. Copy them to `dist/` or ensure they're in system PATH.
+### Distribution Strategy
+
+**Important:** The executable does NOT bundle the FBX SDK due to Autodesk's licensing requirements.
+
+**What gets bundled:**
+- ✅ Python interpreter and all Python dependencies (NumPy, PyQt6, OpenGL)
+- ✅ All FBX Tool analysis and visualization code
+
+**What users must install separately:**
+- ❌ Autodesk FBX Python SDK (legal requirement - users must accept Autodesk's EULA)
+
+📖 **See [docs/INSTALL.md](docs/INSTALL.md) for complete distribution documentation**
+
+This approach:
+- Keeps the project legally compliant with Autodesk's licensing
+- Ensures users get the latest FBX SDK with security updates
+- Follows open-source best practices (similar to CUDA-dependent projects)
 
 ## Development
 

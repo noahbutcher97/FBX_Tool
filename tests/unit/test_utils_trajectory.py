@@ -537,7 +537,7 @@ class TestExtractRootTrajectory:
             "rotations",
             "forward_directions",
             "velocity_mags",
-            "angular_velocity_y",
+            "angular_velocity_yaw",
         ]
 
         # This is a documentation test - verifies our expectations

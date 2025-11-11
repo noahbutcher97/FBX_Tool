@@ -43,9 +43,9 @@ class TestAnalyzeDirectionalChanges:
 
         # Setup trajectory extraction result
         trajectory_data = [
-            {"direction": "forward", "angular_velocity_y": 0.0, "rotation_y": 0.0, "frame": 0},
-            {"direction": "forward", "angular_velocity_y": 0.0, "rotation_y": 0.0, "frame": 1},
-            {"direction": "backward", "angular_velocity_y": 50.0, "rotation_y": 5.0, "frame": 2},
+            {"direction": "forward", "angular_velocity_yaw": 0.0, "rotation_y": 0.0, "frame": 0},
+            {"direction": "forward", "angular_velocity_yaw": 0.0, "rotation_y": 0.0, "frame": 1},
+            {"direction": "backward", "angular_velocity_yaw": 50.0, "rotation_y": 5.0, "frame": 2},
         ]
 
         mock_extract.return_value = {"trajectory_data": trajectory_data, "frame_rate": 30.0}
@@ -72,7 +72,7 @@ class TestAnalyzeDirectionalChanges:
         trajectory_data = []
         for i in range(30):
             direction = "forward" if i < 15 else "backward"
-            trajectory_data.append({"direction": direction, "angular_velocity_y": 0.0, "rotation_y": 0.0, "frame": i})
+            trajectory_data.append({"direction": direction, "angular_velocity_yaw": 0.0, "rotation_y": 0.0, "frame": i})
 
         mock_extract.return_value = {"trajectory_data": trajectory_data, "frame_rate": 30.0}
 
@@ -97,7 +97,7 @@ class TestAnalyzeDirectionalChanges:
             rotation = (i - 10) * 2.0 if i >= 10 else 0.0
 
             trajectory_data.append(
-                {"direction": "forward", "angular_velocity_y": angular_vel, "rotation_y": rotation, "frame": i}
+                {"direction": "forward", "angular_velocity_yaw": angular_vel, "rotation_y": rotation, "frame": i}
             )
 
         mock_extract.return_value = {"trajectory_data": trajectory_data, "frame_rate": 30.0}
@@ -125,7 +125,7 @@ class TestAnalyzeDirectionalChanges:
             else:
                 direction = "strafe_left"
 
-            trajectory_data.append({"direction": direction, "angular_velocity_y": 0.0, "rotation_y": 0.0, "frame": i})
+            trajectory_data.append({"direction": direction, "angular_velocity_yaw": 0.0, "rotation_y": 0.0, "frame": i})
 
         mock_extract.return_value = {"trajectory_data": trajectory_data, "frame_rate": 30.0}
 
@@ -150,7 +150,7 @@ class TestAnalyzeDirectionalChanges:
             rotation = (i - 10) * 2.0 if i >= 10 else 0.0
 
             trajectory_data.append(
-                {"direction": direction, "angular_velocity_y": angular_vel, "rotation_y": rotation, "frame": i}
+                {"direction": direction, "angular_velocity_yaw": angular_vel, "rotation_y": rotation, "frame": i}
             )
 
         mock_extract.return_value = {"trajectory_data": trajectory_data, "frame_rate": 30.0}
@@ -243,8 +243,8 @@ class TestTurningEventDetection:
     def test_detect_single_turn_event(self):
         """Should detect a single turning event."""
         n_frames = 100
-        angular_velocity_y = np.zeros(n_frames)
-        angular_velocity_y[30:50] = 45.0
+        angular_velocity_yaw = np.zeros(n_frames)
+        angular_velocity_yaw[30:50] = 45.0
 
         rotations_y = np.zeros(n_frames)
         for i in range(30, 50):
@@ -252,7 +252,7 @@ class TestTurningEventDetection:
 
         frame_rate = 30.0
 
-        turning_events = detect_turning_events(angular_velocity_y, rotations_y, frame_rate)
+        turning_events = detect_turning_events(angular_velocity_yaw, rotations_y, frame_rate)
 
         assert len(turning_events) >= 1
         turn = turning_events[0]
@@ -262,11 +262,11 @@ class TestTurningEventDetection:
     def test_no_turns_detected_when_stationary(self):
         """Should detect no turns when angular velocity is zero."""
         n_frames = 100
-        angular_velocity_y = np.zeros(n_frames)
+        angular_velocity_yaw = np.zeros(n_frames)
         rotations_y = np.zeros(n_frames)
         frame_rate = 30.0
 
-        turning_events = detect_turning_events(angular_velocity_y, rotations_y, frame_rate)
+        turning_events = detect_turning_events(angular_velocity_yaw, rotations_y, frame_rate)
 
         assert len(turning_events) == 0
 
@@ -352,7 +352,9 @@ class TestIntegratedAnalysis:
                 angular_vel = 60.0
                 rotation = (i - 30) * 2.0
 
-            trajectory_data.append({"direction": direction, "angular_velocity_y": angular_vel, "rotation_y": rotation})
+            trajectory_data.append(
+                {"direction": direction, "angular_velocity_yaw": angular_vel, "rotation_y": rotation}
+            )
 
         frame_rate = 30.0
 
@@ -408,7 +410,7 @@ class TestEdgeCases:
         scene = Mock()
 
         # Minimal trajectory - just one frame
-        trajectory_data = [{"direction": "stationary", "angular_velocity_y": 0.0, "rotation_y": 0.0, "frame": 0}]
+        trajectory_data = [{"direction": "stationary", "angular_velocity_yaw": 0.0, "rotation_y": 0.0, "frame": 0}]
 
         mock_extract.return_value = {"trajectory_data": trajectory_data, "frame_rate": 30.0}
 
