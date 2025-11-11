@@ -69,6 +69,7 @@ desktop.ini
 # Temporary files
 *.tmp
 *.bak
+nul
 """
 
 with open('.gitignore', 'w') as f:
