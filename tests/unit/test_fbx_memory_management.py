@@ -137,57 +137,59 @@ class TestBatchProcessingMemoryUsage:
 
         assert "scene" not in batch_result_example, "Batch results must NOT store scenes - causes memory leaks"
 
-    @patch("fbx_tool.gui.main_window.load_fbx")
-    def test_worker_cleans_up_manager_on_success(self, mock_load):
-        """Worker must clean up FBX manager even on success."""
+    @patch("fbx_tool.analysis.scene_manager.get_scene_manager")
+    @patch("fbx_tool.gui.main_window.get_scene_metadata")
+    def test_worker_cleans_up_manager_on_success(self, mock_metadata, mock_get_scene_mgr):
+        """Worker must release scene reference even on success (scene manager pattern)."""
         # Import here to avoid PyQt issues in headless environment
         try:
             from fbx_tool.gui.main_window import AnalysisWorker
         except ImportError:
             pytest.skip("GUI not available in headless environment")
 
+        # Setup scene manager mock
         mock_scene = Mock()
-        mock_manager = Mock()
-        mock_load.return_value = (mock_scene, mock_manager)
+        mock_scene_ref = Mock()
+        mock_scene_ref.scene = mock_scene
+        mock_scene_manager = Mock()
+        mock_scene_manager.get_scene.return_value = mock_scene_ref
+        mock_get_scene_mgr.return_value = mock_scene_manager
 
-        with patch("fbx_tool.gui.main_window.get_scene_metadata") as mock_metadata:
-            mock_metadata.return_value = {"duration": 1.0, "frame_rate": 30.0, "bone_count": 10}
+        mock_metadata.return_value = {"duration": 1.0, "frame_rate": 30.0, "bone_count": 10}
 
-            worker = AnalysisWorker("test.fbx", [])
+        worker = AnalysisWorker("test.fbx", [])
+        worker.run()
 
-            # Patch cleanup to verify it's called
-            with patch("fbx_tool.analysis.fbx_loader.cleanup_fbx_scene") as mock_cleanup:
-                worker.run()
+        # Verify scene reference was released (cleanup via scene manager)
+        mock_scene_ref.release.assert_called_once()
+        assert mock_scene_ref.release.called, "Worker must release scene reference on success"
 
-                # Verify cleanup was called with manager
-                mock_cleanup.assert_called_once()
-                call_args = mock_cleanup.call_args[0]
-                assert call_args[1] == mock_manager, "Worker must pass manager to cleanup_fbx_scene()"
-
-    @patch("fbx_tool.gui.main_window.load_fbx")
-    def test_worker_cleans_up_manager_on_error(self, mock_load):
-        """Worker must clean up FBX manager even on error."""
+    @patch("fbx_tool.analysis.scene_manager.get_scene_manager")
+    @patch("fbx_tool.gui.main_window.get_scene_metadata")
+    @patch("fbx_tool.gui.main_window.export_dopesheet")
+    def test_worker_cleans_up_manager_on_error(self, mock_export, mock_metadata, mock_get_scene_mgr):
+        """Worker must release scene reference even on error (scene manager pattern)."""
         try:
             from fbx_tool.gui.main_window import AnalysisWorker
         except ImportError:
             pytest.skip("GUI not available in headless environment")
 
+        # Setup scene manager mock
         mock_scene = Mock()
-        mock_manager = Mock()
-        mock_load.return_value = (mock_scene, mock_manager)
+        mock_scene_ref = Mock()
+        mock_scene_ref.scene = mock_scene
+        mock_scene_manager = Mock()
+        mock_scene_manager.get_scene.return_value = mock_scene_ref
+        mock_get_scene_mgr.return_value = mock_scene_manager
 
-        with patch("fbx_tool.gui.main_window.get_scene_metadata") as mock_metadata:
-            # Simulate error during processing
-            mock_metadata.side_effect = Exception("Processing error")
+        mock_metadata.return_value = {"duration": 1.0, "frame_rate": 30.0, "bone_count": 10}
 
-            worker = AnalysisWorker("test.fbx", ["dopesheet"])
+        # Simulate error during processing
+        mock_export.side_effect = Exception("Processing error")
 
-            # Patch cleanup to verify it's called even on error
-            with patch("fbx_tool.analysis.fbx_loader.cleanup_fbx_scene") as mock_cleanup:
-                worker.run()
+        worker = AnalysisWorker("test.fbx", ["dopesheet"])
+        worker.run()
 
-                # Verify cleanup was still called
-                assert mock_cleanup.called, "Worker must cleanup even on error"
-                if mock_cleanup.called:
-                    call_args = mock_cleanup.call_args[0]
-                    assert call_args[1] == mock_manager, "Worker must pass manager to cleanup even on error"
+        # Verify scene reference was still released even after error (finally block)
+        mock_scene_ref.release.assert_called_once()
+        assert mock_scene_ref.release.called, "Worker must release scene reference even on error"
