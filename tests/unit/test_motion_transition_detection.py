@@ -217,12 +217,16 @@ class TestAdaptiveThresholds:
 
     def test_calculate_adaptive_velocity_thresholds_from_distribution(self):
         """Should derive velocity thresholds from data distribution."""
+        # Create tighter, well-separated clusters with explicit gaps to ensure gap detection
+        # Idle: 2-8, Walk: 25-35, Run: 65-85, Sprint: 125-145
+        # Gaps: 8-25 (17 units), 35-65 (30 units), 85-125 (40 units)
+        np.random.seed(42)  # Reproducible test
         velocities = np.concatenate(
             [
-                np.random.uniform(0, 10, 30),
-                np.random.uniform(20, 40, 40),
-                np.random.uniform(60, 100, 20),
-                np.random.uniform(120, 150, 10),
+                np.random.uniform(2, 8, 30),      # Idle cluster
+                np.random.uniform(25, 35, 40),    # Walk cluster
+                np.random.uniform(65, 85, 20),    # Run cluster
+                np.random.uniform(125, 145, 10),  # Sprint cluster
             ]
         )
 

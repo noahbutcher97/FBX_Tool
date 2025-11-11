@@ -13,8 +13,21 @@ import os
 import tempfile
 from unittest.mock import Mock, patch
 
+import fbx
 import numpy as np
 import pytest
+
+
+def setup_mock_axis_system(mock_scene):
+    """Helper to setup axis system mocks for a scene (Y-up, right-handed)."""
+    mock_global_settings = Mock()
+    mock_axis_system = Mock()
+    mock_axis_system.GetUpVector.return_value = (fbx.FbxAxisSystem.EUpVector.eYAxis, 1)
+    mock_axis_system.GetFrontVector.return_value = (fbx.FbxAxisSystem.EFrontVector.eParityEven, 1)
+    mock_axis_system.GetCoorSystem.return_value = fbx.FbxAxisSystem.ECoordSystem.eRightHanded
+    mock_global_settings.GetAxisSystem.return_value = mock_axis_system
+    mock_scene.GetGlobalSettings.return_value = mock_global_settings
+    return mock_global_settings
 
 
 @pytest.mark.integration
@@ -38,6 +51,9 @@ class TestAnalysisPipelineCaching:
         mock_scene = Mock()
         mock_root_node = Mock()
         mock_scene.GetRootNode.return_value = mock_root_node
+
+        # Setup axis system
+        setup_mock_axis_system(mock_scene)
 
         # Create mock hierarchy
         hips_node = Mock()
@@ -135,6 +151,9 @@ class TestAnalysisPipelineCaching:
         mock_root_node1 = Mock()
         mock_scene1.GetRootNode.return_value = mock_root_node1
 
+        # Setup axis system (Y-up, right-handed)
+        mock_global_settings = setup_mock_axis_system(mock_scene1)
+
         hips_node1 = Mock()
         hips_node1.GetName.return_value = "Hips"
         hips_node1.GetChildCount.return_value = 0
@@ -208,6 +227,9 @@ class TestAnalysisPipelineCaching:
             mock_root_node2 = Mock()
             mock_scene2.GetRootNode.return_value = mock_root_node2
 
+            # Setup axis system for scene2
+            setup_mock_axis_system(mock_scene2)
+
             hips_node2 = Mock()
             hips_node2.GetName.return_value = "Hips"
             hips_node2.GetChildCount.return_value = 0
@@ -257,6 +279,9 @@ class TestAnalysisPipelineDataFlow:
         mock_scene = Mock()
         mock_root_node = Mock()
         mock_scene.GetRootNode.return_value = mock_root_node
+
+        # Setup axis system
+        setup_mock_axis_system(mock_scene)
 
         hips_node = Mock()
         hips_node.GetName.return_value = "Hips"
@@ -351,6 +376,9 @@ class TestAnalysisPipelineOutputs:
         mock_scene = Mock()
         mock_root_node = Mock()
         mock_scene.GetRootNode.return_value = mock_root_node
+
+        # Setup axis system
+        setup_mock_axis_system(mock_scene)
 
         hips_node = Mock()
         hips_node.GetName.return_value = "Hips"
