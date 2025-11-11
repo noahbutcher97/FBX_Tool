@@ -34,7 +34,7 @@ class TestFootContactCoordinateSystem:
             dtype=float,
         )
 
-        velocities = np.diff(positions, axis=0)
+        velocities = np.gradient(positions, axis=0)
         ground_height = 0.0
         up_axis = 1  # Y is up
 
@@ -44,9 +44,7 @@ class TestFootContactCoordinateSystem:
 
         assert len(contacts) == 1, "Should detect exactly one contact event"
         start, end = contacts[0]
-        # Note: Due to velocity being computed between frames, contact detection happens
-        # one frame earlier (at the transition into low-velocity state)
-        assert start == 2, "Contact should start at frame 2 (transition to low velocity)"
+        assert start == 2, "Contact should start at frame 2"
         assert end == 5, "Contact should end at frame 5"
 
     def test_detect_contact_events_z_up(self):
@@ -65,7 +63,7 @@ class TestFootContactCoordinateSystem:
             dtype=float,
         )
 
-        velocities = np.diff(positions, axis=0)
+        velocities = np.gradient(positions, axis=0)
         ground_height = 0.0
         up_axis = 2  # Z is up
 
@@ -75,9 +73,7 @@ class TestFootContactCoordinateSystem:
 
         assert len(contacts) == 1, "Should detect exactly one contact event"
         start, end = contacts[0]
-        # Note: Due to velocity being computed between frames, contact detection happens
-        # one frame earlier (at the transition into low-velocity state)
-        assert start == 2, "Contact should start at frame 2 (transition to low velocity)"
+        assert start == 2, "Contact should start at frame 2"
         assert end == 5, "Contact should end at frame 5"
 
     def test_detect_contact_events_x_up(self):
@@ -96,7 +92,7 @@ class TestFootContactCoordinateSystem:
             dtype=float,
         )
 
-        velocities = np.diff(positions, axis=0)
+        velocities = np.gradient(positions, axis=0)
         ground_height = 0.0
         up_axis = 0  # X is up
 
@@ -124,7 +120,7 @@ class TestFootContactCoordinateSystem:
             dtype=float,
         )
 
-        velocities = np.diff(positions, axis=0)
+        velocities = np.gradient(positions, axis=0)
         contact_segments = [(0, 3)]  # All frames in contact
         up_axis = 1  # Y is up
         forward_axis = 2  # Z is forward
@@ -156,7 +152,7 @@ class TestFootContactCoordinateSystem:
             dtype=float,
         )
 
-        velocities = np.diff(positions, axis=0)
+        velocities = np.gradient(positions, axis=0)
         contact_segments = [(0, 3)]
         up_axis = 2  # Z is up
         forward_axis = 1  # Y is forward
@@ -230,7 +226,7 @@ class TestFootContactCoordinateSystem:
         # Y-up: sliding along Z axis (horizontal)
         # Need at least 3 positions for meaningful sliding detection (2 velocity frames)
         positions_y_up = np.array([[0, 0, 0], [0, 0, 10], [0, 0, 20]], dtype=float)  # Stationary in Y, moving in Z
-        velocities_y_up = np.diff(positions_y_up, axis=0)
+        velocities_y_up = np.gradient(positions_y_up, axis=0)
         contact_segments = [(0, 2)]
 
         sliding_y_up = detect_foot_sliding(
@@ -245,7 +241,7 @@ class TestFootContactCoordinateSystem:
 
         # Z-up: sliding along Y axis (horizontal)
         positions_z_up = np.array([[0, 0, 0], [0, 10, 0], [0, 20, 0]], dtype=float)  # Stationary in Z, moving in Y
-        velocities_z_up = np.diff(positions_z_up, axis=0)
+        velocities_z_up = np.gradient(positions_z_up, axis=0)
 
         sliding_z_up = detect_foot_sliding(
             positions_z_up,
@@ -272,7 +268,7 @@ class TestFootContactEdgeCases:
         """Foot never touches ground."""
         positions = np.array([[0, 20, 0], [0, 20, 10], [0, 20, 20]], dtype=float)  # Always high in Y
 
-        velocities = np.diff(positions, axis=0)
+        velocities = np.gradient(positions, axis=0)
         ground_height = 0.0
 
         contacts = detect_contact_events(
@@ -285,7 +281,7 @@ class TestFootContactEdgeCases:
         """Contact lasts only one frame."""
         positions = np.array([[0, 20, 0], [0, 0, 0], [0, 20, 0]], dtype=float)  # Touch ground for one frame
 
-        velocities = np.diff(positions, axis=0)
+        velocities = np.gradient(positions, axis=0)
         ground_height = 0.0
 
         contacts = detect_contact_events(
@@ -310,7 +306,7 @@ class TestFootContactEdgeCases:
             dtype=float,
         )
 
-        velocities = np.diff(positions, axis=0)
+        velocities = np.gradient(positions, axis=0)
         ground_height = 0.0
 
         contacts = detect_contact_events(
