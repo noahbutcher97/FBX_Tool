@@ -355,12 +355,216 @@ def test_worker(self, mock_metadata, mock_fbx_module):
     # ... more setup ...
 ```
 
+## Issue 6: PyQt6 Widget Mocking and Skip Strategy
+
+**Context:** GUI tests for `SkeletonGLWidget` fail when PyQt6 is mocked because the widget becomes a `MagicMock` instead of a real class.
+
+**Root Cause:** Widget `__init__` does substantial work:
+- Calls `get_scene_metadata(scene)` to extract animation info
+- Calls `build_bone_hierarchy(scene)` to build skeleton
+- Calls `detect_full_coordinate_system()` for axis detection
+- Calls `_extract_transforms()` which requires extensive scene node mocking
+
+**Problem:** Testing widget methods requires:
+```python
+# Widget becomes MagicMock when PyQt6 is mocked
+widget = SkeletonGLWidget(scene)  # This is now a MagicMock, not real widget
+descendants = widget._get_bone_descendants("Foot")  # Returns MagicMock, not list
+```
+
+**Attempted Solutions:**
+
+1. **Fake Base Classes** - Created `FakeQOpenGLWidget` and `FakeQTimer` to allow real widget instantiation
+   - **Result:** Widget init got further but failed in `_extract_transforms()`
+   - **Issue:** Requires mocking `scene.FindNodeByName()` for every bone with proper return values
+
+2. **Deep Scene Mocking** - Mock entire scene hierarchy with all bones and transforms
+   - **Result:** Test becomes complex duplication of widget initialization logic
+   - **Issue:** Maintenance burden, brittle tests
+
+**✅ RECOMMENDED SOLUTION: Use pytest-qt**
+
+Add pytest-qt as a dependency and use real Qt fixtures:
+
+```python
+# In pyproject.toml or requirements-test.txt
+pytest-qt>=4.2.0
+
+# In test file - remove PyQt6 mocking, use real Qt
+def test_get_bone_descendants(qtbot):
+    """Test with real Qt widget using pytest-qt."""
+    scene = Mock()
+    # ... mock only FBX SDK parts, not Qt ...
+
+    widget = SkeletonGLWidget(scene)  # Real widget!
+    qtbot.addWidget(widget)  # pytest-qt manages lifecycle
+
+    descendants = widget._get_bone_descendants("Foot")  # Real method call!
+    assert isinstance(descendants, list)
+    assert len(descendants) == 3
+```
+
+**Alternative: Skip Tests Until pytest-qt Added**
+
+For tests that require real widget methods, use skip decorator:
+
+```python
+@pytest.mark.skip(
+    reason="Requires real widget methods - SkeletonGLWidget becomes MagicMock when PyQt6 is mocked. "
+    "Widget.__init__ calls _extract_transforms() which requires extensive mock scene setup. "
+    "Alternative: Use pytest-qt or refactor widget to separate testable logic from Qt initialization."
+)
+def test_get_bone_descendants_full_hierarchy(self, widget_with_mocks):
+    # Test remains as documentation of expected behavior
+    # Enable when pytest-qt is added or widget is refactored
+```
+
+**When to Skip vs. When to Mock:**
+
+| Test Type | Strategy |
+|-----------|----------|
+| Widget initialization | Skip (or use pytest-qt) |
+| Widget method logic | Skip (or use pytest-qt) |
+| Non-Qt helper functions | Mock normally |
+| Stuck bone detection logic | Can test without real widget (no Qt calls) |
+| Contact state calculation | Can test without real widget (pure logic) |
+
+**Current Status:**
+- 11 GUI tests skipped in `tests/unit/gui/test_foot_contact_visualization.py`
+- Tests remain as documentation of expected behavior
+- 11 other GUI tests pass (test pure logic without widget instantiation)
+
+## Issue 7: Patch Location for Functions Imported Inside Other Functions
+
+**Error:** `AttributeError: <module 'X'> does not have the attribute 'Y'`
+
+**Root Cause:** When a function imports another function inside itself (not at module level), you must patch at the **source module**, not the import location.
+
+**Production Code Example:**
+```python
+# fbx_tool/gui/main_window.py
+class AnalysisWorker:
+    def run(self):
+        # Import inside method!
+        from fbx_tool.analysis.scene_manager import get_scene_manager
+        scene_mgr = get_scene_manager()
+```
+
+**❌ WRONG:**
+```python
+# Patching at import location fails
+@patch("fbx_tool.gui.main_window.get_scene_manager")
+def test_worker(mock_get_scene_mgr):
+    # ERROR: main_window doesn't have get_scene_manager attribute
+```
+
+**✅ CORRECT:**
+```python
+# Patch at source module
+@patch("fbx_tool.analysis.scene_manager.get_scene_manager")
+def test_worker(mock_get_scene_mgr):
+    # Works! Patches where the function is defined
+```
+
+**Rule of Thumb:** Always patch at the module where the function/class is **defined**, not where it's **imported**.
+
+## Issue 8: Scene Manager Pattern in Tests
+
+**Context:** After refactoring from direct FBX loading to scene manager pattern, tests need updating.
+
+**Old Pattern (Direct Loading):**
+```python
+@patch("fbx_tool.analysis.fbx_loader.load_fbx")
+def test_worker(mock_load):
+    mock_scene = Mock()
+    mock_manager = Mock()
+    mock_load.return_value = (mock_scene, mock_manager)
+
+    worker.run()
+
+    # Old cleanup pattern
+    mock_manager.Destroy.assert_called_once()
+```
+
+**New Pattern (Scene Manager):**
+```python
+@patch("fbx_tool.analysis.scene_manager.get_scene_manager")
+@patch("fbx_tool.gui.main_window.get_scene_metadata")
+def test_worker(mock_metadata, mock_get_scene_mgr):
+    # Setup scene reference mock
+    mock_scene = Mock()
+    mock_scene_ref = Mock()
+    mock_scene_ref.scene = mock_scene
+
+    # Setup scene manager mock
+    mock_scene_manager = Mock()
+    mock_scene_manager.get_scene.return_value = mock_scene_ref
+    mock_get_scene_mgr.return_value = mock_scene_manager
+
+    mock_metadata.return_value = {
+        "duration": 1.0,
+        "frame_rate": 30.0,
+        "bone_count": 10
+    }
+
+    worker.run()
+
+    # Verify scene reference was released (new cleanup pattern)
+    mock_scene_ref.release.assert_called_once()
+```
+
+**Key Changes:**
+1. Mock `get_scene_manager()` instead of `load_fbx()`
+2. Create `mock_scene_ref` with `.scene` attribute
+3. Scene manager returns reference via `get_scene()`
+4. Verify `.release()` called instead of `manager.Destroy()`
+
+## Issue 9: Array Length Mismatches (np.diff vs np.gradient)
+
+**Error:** `ValueError: operands could not be broadcast together with shapes (7,) (6,)`
+
+**Root Cause:** Tests used `np.diff()` which produces n-1 length arrays, but production code uses `np.gradient()` which maintains n length.
+
+**Production Code:**
+```python
+# fbx_tool/analysis/velocity_analysis.py line 239
+velocity = np.gradient(positions, dt, axis=0)  # Same length as positions
+
+# fbx_tool/analysis/foot_contact_analysis.py lines 484-489
+velocity_mags = np.linalg.norm(velocities, axis=1)
+heights = positions[:, up_axis]  # Both same length
+contact_mask = (heights < threshold) & (velocity_mags < threshold)
+```
+
+**❌ WRONG (Test):**
+```python
+positions = np.array([[0, 20, 0], [0, 10, 0], [0, 0, 0]])  # Shape: (3, 3)
+velocities = np.diff(positions, axis=0)  # Shape: (2, 3) - ONE SHORTER!
+
+# Later comparison fails:
+# heights (length 3) vs velocity_mags (length 2)
+```
+
+**✅ CORRECT (Test):**
+```python
+positions = np.array([[0, 20, 0], [0, 10, 0], [0, 0, 0]])  # Shape: (3, 3)
+velocities = np.gradient(positions, axis=0)  # Shape: (3, 3) - SAME LENGTH!
+
+# Comparison works:
+# heights (length 3) vs velocity_mags (length 3)
+```
+
+**When to Use Each:**
+- `np.gradient()` - When you need same-length output (velocity from position)
+- `np.diff()` - When you explicitly want differences between consecutive elements
+
 ## Related Documentation
 
 - `tests/integration/test_analysis_pipeline.py` - Reference integration tests
 - `tests/unit/test_scene_manager.py` - Reference unit tests with mocks
 - `tests/conftest.py` - Shared fixtures and mock utilities
 - `docs/development/FBX_SDK_FIXES.md` - FBX SDK API patterns
+- `docs/architecture/SCENE_MANAGEMENT.md` - Scene manager architecture
 
 ## Lessons Learned
 
@@ -371,3 +575,7 @@ def test_worker(self, mock_metadata, mock_fbx_module):
 5. **Test the tests** - If a test passes with placeholder code, it's not testing enough
 6. **Mock at the right level** - Mock external dependencies, not internal helpers
 7. **Document your mocks** - Add comments explaining why each mock is needed
+8. **Know when to skip** - When mocking becomes more complex than the code being tested, skip and document alternatives
+9. **Patch at source** - Always patch where functions are defined, not where they're imported
+10. **Array operations matter** - Match production code's choice of np.gradient vs np.diff
+11. **Scene manager pattern** - Mock get_scene_manager(), not load_fbx(); verify release(), not Destroy()
