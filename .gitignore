@@ -1,8 +1,7 @@
-# Create .gitignore
-gitignore = """# Python
+﻿# Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.class
 *.so
 .Python
 env/
@@ -70,10 +69,3 @@ desktop.ini
 *.tmp
 *.bak
 nul
-"""
-
-with open('.gitignore', 'w') as f:
-    f.write(gitignore)
-
-print("✓ Created .gitignore")nul
-fbx_tool/analysis/velocity_analysis.py.backup

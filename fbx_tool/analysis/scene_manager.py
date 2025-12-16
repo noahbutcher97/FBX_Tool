@@ -1,5 +1,5 @@
-"""
-FBX Scene Manager with Reference Counting
+﻿"""
+FBX Scene Manager with Reference Counting.
 
 Manages FBX scene lifecycle to prevent memory leaks while allowing
 scene sharing between analysis and visualization.
@@ -29,7 +29,7 @@ Usage:
 """
 
 import threading
-from typing import Dict, Optional
+from typing import Dict
 
 from fbx_tool.analysis.fbx_loader import cleanup_fbx_scene, load_fbx
 
@@ -42,6 +42,7 @@ class FBXSceneReference:
     """
 
     def __init__(self, scene, manager, filepath, scene_manager):
+        """Initialize scene reference."""
         self.scene = scene
         self.manager = manager
         self.filepath = filepath
@@ -73,6 +74,7 @@ class SceneEntry:
     """Internal: tracks a cached scene with its ref count."""
 
     def __init__(self, scene, manager, filepath):
+        """Initialize scene entry."""
         self.scene = scene
         self.manager = manager
         self.filepath = filepath
@@ -119,21 +121,21 @@ class FBXSceneManager:
             if filepath in self._scenes and not force_reload:
                 entry = self._scenes[filepath]
                 entry.ref_count += 1
-                print(f"📦 Scene cache HIT: {filepath} (refs: {entry.ref_count})")
+                print(f"Scene cache HIT: {filepath} (refs: {entry.ref_count})")
                 return FBXSceneReference(entry.scene, entry.manager, filepath, self)
 
             # Need to load
             if filepath in self._scenes and force_reload:
                 # Force reload - cleanup old version first
-                print(f"🔄 Force reloading scene: {filepath}")
+                print(f"Force reloading scene: {filepath}")
                 old_entry = self._scenes[filepath]
                 if old_entry.ref_count > 0:
-                    print(f"⚠️  Warning: Force reloading scene with {old_entry.ref_count} active references!")
+                    print(f"Warning: Force reloading scene with {old_entry.ref_count} active references!")
                 cleanup_fbx_scene(old_entry.scene, old_entry.manager)
                 del self._scenes[filepath]
 
             # Load new scene
-            print(f"📂 Loading scene: {filepath}")
+            print(f"Loading scene: {filepath}")
             scene, manager = load_fbx(filepath)
 
             # Cache it
@@ -141,7 +143,7 @@ class FBXSceneManager:
             entry.ref_count = 1
             self._scenes[filepath] = entry
 
-            print(f"✓ Scene loaded and cached: {filepath} (refs: 1)")
+            print(f"Scene loaded and cached: {filepath} (refs: 1)")
             return FBXSceneReference(scene, manager, filepath, self)
 
     def _release_scene(self, filepath: str):
@@ -153,17 +155,17 @@ class FBXSceneManager:
         """
         with self._cache_lock:
             if filepath not in self._scenes:
-                print(f"⚠️  Warning: Attempted to release non-cached scene: {filepath}")
+                print(f"Warning: Attempted to release non-cached scene: {filepath}")
                 return
 
             entry = self._scenes[filepath]
             entry.ref_count -= 1
 
-            print(f"📉 Scene reference released: {filepath} (refs: {entry.ref_count})")
+            print(f"Scene reference released: {filepath} (refs: {entry.ref_count})")
 
             # Cleanup if no more references
             if entry.ref_count <= 0:
-                print(f"🧹 Cleaning up scene (0 refs): {filepath}")
+                print(f"Cleaning up scene (0 refs): {filepath}")
                 cleanup_fbx_scene(entry.scene, entry.manager)
                 del self._scenes[filepath]
 
@@ -174,19 +176,20 @@ class FBXSceneManager:
         WARNING: Only call on application shutdown or when certain no scenes are in use!
         """
         with self._cache_lock:
-            print(f"🧹 Cleaning up all cached scenes ({len(self._scenes)} total)")
+            print(f"Cleaning up all cached scenes ({len(self._scenes)} total)")
             for filepath, entry in list(self._scenes.items()):
                 if entry.ref_count > 0:
-                    print(f"⚠️  Warning: Cleaning up scene with {entry.ref_count} active references: {filepath}")
+                    print(f"Warning: Cleaning up scene with {entry.ref_count} active references: {filepath}")
                 cleanup_fbx_scene(entry.scene, entry.manager)
             self._scenes.clear()
 
     def get_cache_stats(self) -> dict:
         """Get cache statistics for debugging."""
         with self._cache_lock:
-            stats = {"cached_scenes": len(self._scenes), "scenes": []}
+            scene_list = []
             for filepath, entry in self._scenes.items():
-                stats["scenes"].append({"filepath": filepath, "ref_count": entry.ref_count})
+                scene_list.append({"filepath": filepath, "ref_count": entry.ref_count})
+            stats = {"cached_scenes": len(self._scenes), "scenes": scene_list}
             return stats
 
 

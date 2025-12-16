@@ -98,3 +98,6 @@ directory = "htmlcov"
 name = "FBX_Tool"
 console = false
 onefile = true
+
+[tool.bandit]
+exclude_dirs = ["tests"]

@@ -558,10 +558,130 @@ velocities = np.gradient(positions, axis=0)  # Shape: (3, 3) - SAME LENGTH!
 - `np.gradient()` - When you need same-length output (velocity from position)
 - `np.diff()` - When you explicitly want differences between consecutive elements
 
+## GUI Testing with pytest-qt
+
+### Pattern: Testing Qt Widgets
+
+**Use pytest-qt's `qtbot` fixture** for all Qt widget tests. Never mock PyQt6 at module level.
+
+#### ❌ WRONG: Module-Level PyQt6 Mocking
+
+```python
+# WRONG: Makes SkeletonGLWidget become MagicMock
+import sys
+from unittest.mock import MagicMock
+sys.modules["PyQt6"] = MagicMock()
+sys.modules["PyQt6.QtCore"] = MagicMock()
+# ... etc
+
+from fbx_tool.visualization.opengl_viewer import SkeletonGLWidget  # noqa: E402
+```
+
+**Problems:**
+- Widget classes become MagicMock, can't test real behavior
+- Tests crash in parallel execution (pytest-xdist)
+- Requires extensive skip decorators
+
+#### ✅ CORRECT: pytest-qt with Selective Patching
+
+```python
+# CORRECT: Real PyQt6, pytest-qt for lifecycle management
+from unittest.mock import Mock, patch
+import pytest
+from fbx_tool.visualization.opengl_viewer import SkeletonGLWidget
+
+@pytest.fixture
+def widget_with_mocks(qtbot, mock_scene):
+    """Create widget with mocked FBX dependencies."""
+    with (
+        patch("fbx_tool.visualization.opengl_viewer.get_scene_metadata") as mock_metadata,
+        patch("fbx_tool.visualization.opengl_viewer.build_bone_hierarchy") as mock_hierarchy,
+        patch("fbx_tool.visualization.opengl_viewer.detect_full_coordinate_system") as mock_detect,
+        patch.object(SkeletonGLWidget, "_extract_transforms"),  # Prevent FBX extraction
+    ):
+        mock_metadata.return_value = {"start_time": 0.0, "stop_time": 1.0, ...}
+        mock_hierarchy.return_value = {"Root": None}
+        mock_detect.return_value = {"up_axis": 1, "confidence": 0.95}
+
+        widget = SkeletonGLWidget(mock_scene)
+        qtbot.addWidget(widget)  # CRITICAL: Registers with Qt application context
+
+        # Manually set coord_system since _extract_transforms is mocked
+        widget.coord_system = mock_detect.return_value
+
+        return widget
+
+def test_widget_behavior(widget_with_mocks):
+    """Test widget behavior with mocked FBX backend."""
+    assert widget_with_mocks.up_axis == 1
+    assert widget_with_mocks.coord_system["confidence"] == 0.95
+```
+
+#### Pattern: Inline Widget Creation
+
+For tests that create widgets directly (not using fixture):
+
+```python
+def test_widget_initialization(qtbot):  # qtbot parameter required
+    """Test widget with inline creation."""
+    with (
+        patch("fbx_tool.visualization.opengl_viewer.get_scene_metadata"),
+        patch("fbx_tool.visualization.opengl_viewer.build_bone_hierarchy"),
+        patch.object(SkeletonGLWidget, "_extract_transforms"),  # Prevent FBX extraction
+    ):
+        scene = Mock()
+        scene.GetGlobalSettings().GetAxisSystem().GetUpVector.return_value = (1, 1)
+
+        widget = SkeletonGLWidget(scene)
+        qtbot.addWidget(widget)  # CRITICAL: Required for Qt context
+
+        # Test widget behavior
+        assert widget is not None
+```
+
+### Why qtbot.addWidget() Is Critical
+
+`qtbot.addWidget(widget)` does more than widget lifecycle management:
+
+1. **Registers widget with QApplication context**
+   - Tests pass in serial execution without it
+   - Tests crash with "worker crashed" in parallel execution (pytest-xdist)
+   - Qt widgets need proper application context to prevent cross-worker interference
+
+2. **Automatic cleanup**
+   - Widget properly destroyed after test
+   - No memory leaks between tests
+
+3. **Event loop integration**
+   - Qt signals/slots work correctly
+   - Timer events processed properly
+
+### When to Patch _extract_transforms
+
+Widget's `__init__` calls `_extract_transforms()` which:
+- Iterates through all animation frames
+- Calls `scene.FindNodeByName()` for every bone
+- Accesses `node.EvaluateGlobalTransform()` and `transform.GetT()`
+- Requires extensive FBX scene mocking
+
+**Solution:** Patch `_extract_transforms` and manually set required attributes:
+
+```python
+with patch.object(SkeletonGLWidget, "_extract_transforms"):
+    widget = SkeletonGLWidget(scene)
+    qtbot.addWidget(widget)
+
+    # Manually set attributes that _extract_transforms would have set
+    widget.bone_transforms = {...}
+    widget.coord_system = {...}
+    widget.total_frames = 30
+```
+
 ## Related Documentation
 
 - `tests/integration/test_analysis_pipeline.py` - Reference integration tests
 - `tests/unit/test_scene_manager.py` - Reference unit tests with mocks
+- `tests/unit/gui/test_foot_contact_visualization.py` - Reference pytest-qt GUI tests
 - `tests/conftest.py` - Shared fixtures and mock utilities
 - `docs/development/FBX_SDK_FIXES.md` - FBX SDK API patterns
 - `docs/architecture/SCENE_MANAGEMENT.md` - Scene manager architecture
@@ -579,3 +699,5 @@ velocities = np.gradient(positions, axis=0)  # Shape: (3, 3) - SAME LENGTH!
 9. **Patch at source** - Always patch where functions are defined, not where they're imported
 10. **Array operations matter** - Match production code's choice of np.gradient vs np.diff
 11. **Scene manager pattern** - Mock get_scene_manager(), not load_fbx(); verify release(), not Destroy()
+12. **pytest-qt for GUI tests** - Use qtbot.addWidget() for all Qt widgets; never mock PyQt6 at module level
+13. **Test behavior not implementation** - Avoid testing "method A calls method B with parameters X"; test outcomes instead

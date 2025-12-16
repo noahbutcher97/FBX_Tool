@@ -1,12 +1,12 @@
 """
-FBX Loader Module
+FBX Loader Module.
+
 Handles loading FBX files and extracting scene metadata safely.
 
 Supports multi-stack FBX files by evaluating and ranking animation stacks
 based on activity metrics (animated bones, keyframe density, duration).
 """
 import fbx
-import numpy as np
 
 
 def load_fbx(path):
@@ -69,42 +69,6 @@ def cleanup_fbx_scene(scene, manager):
     # Just need to destroy the manager
     if manager is not None:
         manager.Destroy()
-
-
-def get_scene_metadata(scene):
-    """
-    Extract useful metadata from an FBX scene.
-
-    Args:
-        scene (fbx.FbxScene): The FBX scene object.
-
-    Returns:
-        dict: Metadata including frame rate, time range, bone count, etc.
-    """
-    anim_stack_count = scene.GetSrcObjectCount(fbx.FbxCriteria.ObjectType(fbx.FbxAnimStack.ClassId))
-    if anim_stack_count == 0:
-        return {"has_animation": False}
-
-    anim_stack = scene.GetSrcObject(fbx.FbxCriteria.ObjectType(fbx.FbxAnimStack.ClassId), 0)
-    scene.SetCurrentAnimationStack(anim_stack)
-    take_info = anim_stack.GetLocalTimeSpan()
-    start = take_info.GetStart().GetSecondDouble()
-    stop = take_info.GetStop().GetSecondDouble()
-    time_mode = scene.GetGlobalSettings().GetTimeMode()
-    frame_rate = fbx.FbxTime.GetFrameRate(time_mode)
-
-    root = scene.GetRootNode()
-    bone_count = count_bones(root)
-
-    return {
-        "has_animation": True,
-        "start_time": start,
-        "stop_time": stop,
-        "duration": stop - start,
-        "frame_rate": frame_rate,
-        "bone_count": bone_count,
-        "anim_stack_name": anim_stack.GetName(),
-    }
 
 
 def count_bones(node):
