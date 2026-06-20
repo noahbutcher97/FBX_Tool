@@ -23,14 +23,19 @@ repos:
     rev: 6.1.0
     hooks:
       - id: flake8
-        args: ['--max-line-length=120', '--extend-ignore=E203,W503']
-        additional_dependencies: [flake8-docstrings]
+        # Format, doc coverage, and style are covered by Black, isort, and interrogate.
+        args:
+          - --max-line-length=120
+          - --select=E9,F63,F7,F82
+          - --extend-ignore=E203,W503
+          - --per-file-ignores=tests/unit/test_utils.py:F821
 
   # Type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.5.0
     hooks:
       - id: mypy
+        exclude: ^tests/(debug|exploratory|scripts)/
         additional_dependencies: [types-PyYAML, types-requests]
         args: ['--ignore-missing-imports', '--python-version=3.10']
 

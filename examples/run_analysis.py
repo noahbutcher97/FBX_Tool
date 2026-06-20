@@ -215,8 +215,8 @@ def run_analysis(fbx_file):
                         f.write(f"Traceback:\n{trace}\n")
                         f.write(f"{'-'*70}\n\n")
                 print(f"\nDetailed error log saved to: {error_log_path}")
-            except Exception:
-                pass  # Don't crash if we can't write error log
+            except Exception as log_error:
+                print(f"WARNING: Failed to write error log: {log_error}")
 
         return results
 
