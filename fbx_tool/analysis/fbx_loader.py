@@ -144,7 +144,7 @@ def evaluate_stack_activity(scene, anim_stack):
     core_bone_weight = 0.0
 
     def traverse_and_count(node):
-        nonlocal animated_curves, animated_bones_set, total_keyframes, core_bone_weight
+        nonlocal animated_curves, total_keyframes, core_bone_weight
 
         # Check if this node has animation on its properties
         # Most skeletal animation lives in transform properties
