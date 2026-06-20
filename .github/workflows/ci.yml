@@ -1,0 +1,60 @@
+name: Agentic Hygiene
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  hygiene:
+    name: SDK-free workflow checks
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Check Python version
+        shell: pwsh
+        run: python -c "import sys; assert sys.version_info[:2] == (3, 10), sys.version"
+
+      - name: Validate PowerShell scripts parse
+        shell: pwsh
+        run: |
+          $files = @(
+            "scripts/bootstrap.ps1",
+            "scripts/verify-fast.ps1",
+            "scripts/verify-full.ps1"
+          )
+          foreach ($file in $files) {
+            $errors = $null
+            [System.Management.Automation.PSParser]::Tokenize((Get-Content -Raw $file), [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | Format-List
+              exit 1
+            }
+          }
+
+      - name: Validate agentic docs are present
+        shell: pwsh
+        run: |
+          $required = @(
+            "AGENTS.md",
+            "docs/agentic/WORKFLOW.md",
+            "docs/agentic/BASELINE.md",
+            "docs/agentic/ROLE_ROUTING.md",
+            "docs/agentic/TASK_TEMPLATE.md",
+            "docs/agentic/HANDOFF_TEMPLATE.md"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path -LiteralPath $file)) {
+              throw "Missing required agentic workflow file: $file"
+            }
+          }
