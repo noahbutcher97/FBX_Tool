@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a reproducible defect in the FBX tool.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What failed, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Include commands, UI steps, input files, and the smallest reproducible case.
+      placeholder: |
+        1. Run ...
+        2. Open ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Paste relevant logs, tracebacks, screenshots, or analysis output.
+      render: text
+    validations:
+      required: false
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected Surface
+      options:
+        - CLI
+        - GUI
+        - Analysis output
+        - Visualization
+        - Packaging or installer
+        - Tests or CI
+        - Documentation
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Python version, FBX SDK version, and whether `.fbxenv` is active.
+      placeholder: "Windows 11, Python 3.10, Autodesk FBX SDK 2020.3.7, .fbxenv active"
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Checks Already Run
+      description: List focused commands, `verify-fast.ps1`, or manual checks already attempted.
+      placeholder: |
+        .\scripts\verify-fast.ps1 -PytestTarget 'tests/unit'
+        .\.fbxenv\Scripts\python.exe -m pytest tests/unit/test_example.py -q
+    validations:
+      required: false
