@@ -31,7 +31,7 @@ Use this checklist before merging any Codex-assisted change. `main` is protected
 
 1. Commit with a short imperative subject, for example `docs: add release checklist`.
 2. Push with tracking: `git push -u origin <branch>`.
-3. Open a draft PR with the summary, risk, and validation commands.
+3. Open a draft PR and complete the GitHub PR template with summary, risk, and validation commands.
 4. Confirm GitHub reports `SDK-free workflow checks` as successful.
 
 ## Merge and Clean Up

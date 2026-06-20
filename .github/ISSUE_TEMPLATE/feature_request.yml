@@ -1,0 +1,58 @@
+name: Feature request
+description: Propose a targeted improvement or new capability.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What user workflow or analysis problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed Behavior
+      description: Describe the expected behavior, output, or UI change.
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example Inputs or Outputs
+      description: Include sample FBX characteristics, CLI output, CSV fields, screenshots, or mock data when useful.
+    validations:
+      required: false
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Target Surface
+      options:
+        - CLI
+        - GUI
+        - Analysis module
+        - Visualization
+        - Packaging or installer
+        - Tests or CI
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What must be true for this to be complete?
+      placeholder: |
+        - Adds or updates focused unit tests.
+        - Keeps SDK-free CI green.
+        - Documents any new command or output field.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints or Risks
+      description: Note SDK dependencies, real FBX asset requirements, performance concerns, or compatibility needs.
+    validations:
+      required: false

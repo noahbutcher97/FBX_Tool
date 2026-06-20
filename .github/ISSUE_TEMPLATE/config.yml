@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Agentic workflow guide
+    url: https://github.com/noahbutcher97/FBX_Tool/blob/main/docs/agentic/WORKFLOW.md
+    about: Read this before opening Codex-assisted implementation work.
+  - name: Release checklist
+    url: https://github.com/noahbutcher97/FBX_Tool/blob/main/docs/agentic/RELEASE_CHECKLIST.md
+    about: Use this before merging PRs.
