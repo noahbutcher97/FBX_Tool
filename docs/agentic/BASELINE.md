@@ -13,8 +13,8 @@ Command:
 Result:
 
 - Python 3.10 check passed.
-- Unit tests: 485 passed, 32 skipped, 5 warnings.
-- Runtime: approximately 1.5 seconds after collection in the local `.fbxenv`.
+- Unit tests: 499 passed, 5 warnings.
+- Runtime: approximately 1.6 seconds after collection in the local `.fbxenv`.
 
 Use this as the default Codex handoff gate for ordinary code and documentation tasks.
 
@@ -31,8 +31,8 @@ Result:
 - Python 3.10 check passed.
 - Black check passed.
 - isort check passed.
-- Unit tests: 485 passed, 32 skipped, 5 warnings.
-- Runtime: approximately 1.4 seconds after collection in the local `.fbxenv`.
+- Unit tests: 499 passed, 5 warnings.
+- Runtime: approximately 1.8 seconds after collection in the local `.fbxenv`.
 
 Use this when the task touches Python source, test files, examples, or scripts and the local FBX SDK environment is available.
 

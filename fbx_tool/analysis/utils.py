@@ -1068,8 +1068,9 @@ def _infer_chain_name(chain):
     Returns:
         str: Inferred chain name
     """
+    raw_bones = [bone.lower().replace("mixamorig:", "") for bone in chain]
     # Normalize all bone names in chain for analysis
-    normalized_bones = [bone.lower().replace("mixamorig:", "").replace("_", "").replace("-", "") for bone in chain]
+    normalized_bones = [bone.replace("_", "").replace("-", "") for bone in raw_bones]
     chain_str = " ".join(normalized_bones)  # Combined string for fuzzy matching
 
     # Also check first and last for compatibility with existing logic
@@ -1078,10 +1079,30 @@ def _infer_chain_name(chain):
 
     # === SIDE DETECTION (fuzzy - check entire chain) ===
     side = ""
-    # Check for side indicators anywhere in the chain
-    if any("left" in bone or bone.startswith("l") for bone in normalized_bones):
+
+    def has_side_marker(bone, full_name, short_name):
+        """Return True when a bone name has an explicit left/right marker."""
+        separators = ("_", "-", ".", " ")
+        tokens = [bone]
+        for separator in separators:
+            tokens.extend(part for part in bone.split(separator) if part)
+        compact = bone.replace("_", "").replace("-", "").replace(".", "").replace(" ", "")
+
+        return (
+            full_name in tokens
+            or compact.startswith(full_name)
+            or compact.endswith(full_name)
+            or short_name in tokens
+            or any(
+                bone.startswith(f"{short_name}{separator}") or bone.endswith(f"{separator}{short_name}")
+                for separator in separators
+            )
+        )
+
+    # Check for explicit side indicators anywhere in the chain.
+    if any(has_side_marker(bone, "left", "l") for bone in raw_bones):
         side = "Left"
-    elif any("right" in bone or bone.startswith("r") for bone in normalized_bones):
+    elif any(has_side_marker(bone, "right", "r") for bone in raw_bones):
         side = "Right"
 
     # === BODY PART DETECTION (fuzzy - check entire chain) ===
