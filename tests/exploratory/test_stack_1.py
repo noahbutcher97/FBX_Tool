@@ -1,4 +1,5 @@
 """Test animation from stack 1 (mixamo.com)."""
+
 import sys
 
 import fbx

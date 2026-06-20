@@ -1,4 +1,5 @@
 """Test if animation data actually varies across frames."""
+
 import sys
 
 import fbx

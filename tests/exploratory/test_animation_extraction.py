@@ -1,4 +1,5 @@
 """Test animation data extraction."""
+
 import sys
 
 import fbx

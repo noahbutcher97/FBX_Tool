@@ -1,4 +1,5 @@
 """Quick test script for motion state detection debug logging"""
+
 import io
 import os
 import sys

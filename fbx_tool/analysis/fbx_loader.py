@@ -6,6 +6,7 @@ Handles loading FBX files and extracting scene metadata safely.
 Supports multi-stack FBX files by evaluating and ranking animation stacks
 based on activity metrics (animated bones, keyframe density, duration).
 """
+
 import fbx
 
 

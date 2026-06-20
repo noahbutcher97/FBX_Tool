@@ -1,4 +1,5 @@
 """Inspect bone names and hierarchy in FBX file."""
+
 import sys
 
 import fbx

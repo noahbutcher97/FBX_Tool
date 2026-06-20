@@ -389,20 +389,16 @@ class TestFootContactVisualizationIntegration:
         viewer.current_frame = 0
 
         # Mock OpenGL calls to prevent errors
-        with patch("fbx_tool.visualization.opengl_viewer.glColor3f"), patch(
-            "fbx_tool.visualization.opengl_viewer.glPushMatrix"
-        ), patch("fbx_tool.visualization.opengl_viewer.glPopMatrix"), patch(
-            "fbx_tool.visualization.opengl_viewer.glTranslatef"
-        ), patch(
-            "fbx_tool.visualization.opengl_viewer.glutSolidSphere"
-        ), patch(
-            "fbx_tool.visualization.opengl_viewer.glBegin"
-        ), patch(
-            "fbx_tool.visualization.opengl_viewer.glEnd"
-        ), patch(
-            "fbx_tool.visualization.opengl_viewer.glVertex3f"
-        ), patch(
-            "fbx_tool.visualization.opengl_viewer.glLineWidth"
+        with (
+            patch("fbx_tool.visualization.opengl_viewer.glColor3f"),
+            patch("fbx_tool.visualization.opengl_viewer.glPushMatrix"),
+            patch("fbx_tool.visualization.opengl_viewer.glPopMatrix"),
+            patch("fbx_tool.visualization.opengl_viewer.glTranslatef"),
+            patch("fbx_tool.visualization.opengl_viewer.glutSolidSphere"),
+            patch("fbx_tool.visualization.opengl_viewer.glBegin"),
+            patch("fbx_tool.visualization.opengl_viewer.glEnd"),
+            patch("fbx_tool.visualization.opengl_viewer.glVertex3f"),
+            patch("fbx_tool.visualization.opengl_viewer.glLineWidth"),
         ):
             # This should NOT raise an exception
             try:

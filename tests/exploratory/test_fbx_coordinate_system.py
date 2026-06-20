@@ -1,4 +1,5 @@
 """Test script to check FBX file coordinate system and animation data."""
+
 import sys
 
 import fbx

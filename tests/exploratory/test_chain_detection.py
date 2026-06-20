@@ -1,4 +1,5 @@
 """Test dynamic chain detection."""
+
 import sys
 
 sys.path.insert(0, "C:\\Users\\posne\\Projects\\FBX_Tool")

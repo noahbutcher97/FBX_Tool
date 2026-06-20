@@ -1,4 +1,5 @@
 """Inspect animation layers and curves in FBX file."""
+
 import sys
 
 import fbx

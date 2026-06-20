@@ -1,4 +1,5 @@
 """Gait Summary Model"""
+
 import json
 
 from fbx_tool.analysis.utils import convert_numpy_to_native, prepare_output_file
