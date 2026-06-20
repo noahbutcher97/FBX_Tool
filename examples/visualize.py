@@ -1,22 +1,21 @@
-"""
-Visualization Examples
-
-Demonstrates how to use the skeleton visualization features.
-"""
+"""Demonstrate skeleton visualization features."""
 
 import sys
+
 from fbx_tool.analysis.fbx_loader import load_fbx
-from fbx_tool.visualization.matplotlib_viewer import SkeletonVisualizer, visualize_skeleton_frame, create_skeleton_animation
+from fbx_tool.visualization.matplotlib_viewer import (
+    SkeletonVisualizer,
+    create_skeleton_animation,
+    visualize_skeleton_frame,
+)
 from fbx_tool.visualization.opengl_viewer import launch_skeleton_viewer
 
 
 def example_matplotlib_single_frame(fbx_path):
-    """
-    Example: Visualize a single frame with matplotlib.
-    """
-    print("\n" + "="*60)
+    """Visualize a single frame with matplotlib."""
+    print("\n" + "=" * 60)
     print("EXAMPLE 1: Matplotlib Single Frame")
-    print("="*60)
+    print("=" * 60)
 
     # Load FBX
     scene = load_fbx(fbx_path)
@@ -28,35 +27,25 @@ def example_matplotlib_single_frame(fbx_path):
 
 
 def example_matplotlib_animation(fbx_path):
-    """
-    Example: Create animation with matplotlib.
-    """
-    print("\n" + "="*60)
+    """Create an animation with matplotlib."""
+    print("\n" + "=" * 60)
     print("EXAMPLE 2: Matplotlib Animation")
-    print("="*60)
+    print("=" * 60)
 
     # Load FBX
     scene = load_fbx(fbx_path)
 
     # Create animation (first 100 frames at 30fps)
-    create_skeleton_animation(
-        scene,
-        output_path="skeleton_animation.mp4",
-        start_frame=0,
-        end_frame=100,
-        fps=30
-    )
+    create_skeleton_animation(scene, output_path="skeleton_animation.mp4", start_frame=0, end_frame=100, fps=30)
 
     print("✓ Saved: skeleton_animation.mp4")
 
 
 def example_matplotlib_custom(fbx_path):
-    """
-    Example: Custom visualization with SkeletonVisualizer class.
-    """
-    print("\n" + "="*60)
+    """Create a custom visualization with SkeletonVisualizer."""
+    print("\n" + "=" * 60)
     print("EXAMPLE 3: Matplotlib Custom Visualization")
-    print("="*60)
+    print("=" * 60)
 
     # Load FBX
     scene = load_fbx(fbx_path)
@@ -65,8 +54,8 @@ def example_matplotlib_custom(fbx_path):
     visualizer = SkeletonVisualizer(scene)
 
     # Customize colors
-    visualizer.bone_color = 'blue'
-    visualizer.joint_color = 'yellow'
+    visualizer.bone_color = "blue"
+    visualizer.joint_color = "yellow"
     visualizer.joint_size = 100
     visualizer.bone_width = 3
 
@@ -77,19 +66,17 @@ def example_matplotlib_custom(fbx_path):
 
 
 def example_opengl_viewer(fbx_path):
-    """
-    Example: Interactive OpenGL viewer.
-    """
-    print("\n" + "="*60)
+    """Launch the interactive OpenGL viewer."""
+    print("\n" + "=" * 60)
     print("EXAMPLE 4: Interactive OpenGL Viewer")
-    print("="*60)
+    print("=" * 60)
     print("Controls:")
     print("  - Left Mouse: Rotate camera")
     print("  - Right Mouse: Pan camera")
     print("  - Mouse Wheel: Zoom")
     print("  - Play/Pause: Animation playback")
     print("  - Slider: Scrub frames")
-    print("="*60)
+    print("=" * 60)
 
     # Load FBX
     scene = load_fbx(fbx_path)
@@ -99,14 +86,13 @@ def example_opengl_viewer(fbx_path):
 
 
 def example_batch_visualization(fbx_path, output_dir="visualizations"):
-    """
-    Example: Batch export frames at key intervals.
-    """
-    print("\n" + "="*60)
+    """Batch export frames at key intervals."""
+    print("\n" + "=" * 60)
     print("EXAMPLE 5: Batch Frame Export")
-    print("="*60)
+    print("=" * 60)
 
     import os
+
     os.makedirs(output_dir, exist_ok=True)
 
     # Load FBX

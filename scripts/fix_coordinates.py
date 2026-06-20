@@ -1,5 +1,6 @@
+"""Patch OpenGL viewer coordinate conversion and orbit camera snippets."""
+
 from pathlib import Path
-import re
 
 filepath = Path("fbx_tool/visualization/opengl_viewer.py")
 
@@ -11,7 +12,7 @@ init_section = """        # Animation data
         self.current_frame = 0
         self.total_frames = 0
         self.bone_transforms = {}
-        
+
         # Camera settings
         self.camera_distance = 400.0
         self.camera_rotation_x = -45.0
@@ -22,7 +23,7 @@ replacement = """        # Animation data
         self.current_frame = 0
         self.total_frames = 0
         self.bone_transforms = {}
-        
+
         # Camera settings (orbit camera)
         self.camera_distance = 400.0
         self.camera_azimuth = 45.0    # Horizontal rotation
@@ -45,25 +46,29 @@ new_extract = """                global_transform = node.EvaluateGlobalTransform
 content = content.replace(old_extract, new_extract)
 
 # Fix 3: Better orbit camera in paintGL
-old_camera = """        # Set up camera
-        cam_x = self.camera_target[0] + self.camera_distance * np.sin(np.radians(self.camera_rotation_y)) * np.cos(np.radians(self.camera_rotation_x))
-        cam_y = self.camera_target[1] + self.camera_distance * np.sin(np.radians(self.camera_rotation_x))
-        cam_z = self.camera_target[2] + self.camera_distance * np.cos(np.radians(self.camera_rotation_y)) * np.cos(np.radians(self.camera_rotation_x))
-        
-        gluLookAt(
-            cam_x, cam_y, cam_z,
-            self.camera_target[0], self.camera_target[1], self.camera_target[2],
-            0.0, 1.0, 0.0
-        )"""
+old_camera = (
+    "        # Set up camera\n"
+    "        cam_x = self.camera_target[0] + self.camera_distance * "
+    "np.sin(np.radians(self.camera_rotation_y)) * np.cos(np.radians(self.camera_rotation_x))\n"
+    "        cam_y = self.camera_target[1] + self.camera_distance * np.sin(np.radians(self.camera_rotation_x))\n"
+    "        cam_z = self.camera_target[2] + self.camera_distance * "
+    "np.cos(np.radians(self.camera_rotation_y)) * np.cos(np.radians(self.camera_rotation_x))\n"
+    "\n"
+    "        gluLookAt(\n"
+    "            cam_x, cam_y, cam_z,\n"
+    "            self.camera_target[0], self.camera_target[1], self.camera_target[2],\n"
+    "            0.0, 1.0, 0.0\n"
+    "        )"
+)
 
 new_camera = """        # Orbit camera (azimuth/elevation style)
         azimuth_rad = np.radians(self.camera_azimuth)
         elevation_rad = np.radians(self.camera_elevation)
-        
+
         cam_x = self.camera_target[0] + self.camera_distance * np.cos(elevation_rad) * np.sin(azimuth_rad)
         cam_y = self.camera_target[1] + self.camera_distance * np.sin(elevation_rad)
         cam_z = self.camera_target[2] + self.camera_distance * np.cos(elevation_rad) * np.cos(azimuth_rad)
-        
+
         gluLookAt(
             cam_x, cam_y, cam_z,
             self.camera_target[0], self.camera_target[1], self.camera_target[2],

@@ -1,5 +1,5 @@
+"""Rewrite legacy analysis module imports to package-qualified imports."""
 
-import os
 from pathlib import Path
 
 root = Path.cwd()
@@ -15,23 +15,17 @@ if analysis_dir.exists():
         if py_file.name == "__init__.py":
             continue
 
-        with open(py_file, 'r', encoding='utf-8') as f:
+        with open(py_file, "r", encoding="utf-8") as f:
             content = f.read()
 
         original = content
 
         # Fix imports
-        content = content.replace(
-            "from analysis_modules.", 
-            "from fbx_tool.analysis."
-        )
-        content = content.replace(
-            "import analysis_modules.",
-            "import fbx_tool.analysis."
-        )
+        content = content.replace("from analysis_modules.", "from fbx_tool.analysis.")
+        content = content.replace("import analysis_modules.", "import fbx_tool.analysis.")
 
         if content != original:
-            with open(py_file, 'w', encoding='utf-8') as f:
+            with open(py_file, "w", encoding="utf-8") as f:
                 f.write(content)
             print(f"✓ Fixed: {py_file.name}")
         else:

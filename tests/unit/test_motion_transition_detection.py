@@ -1,5 +1,4 @@
-"""
-Unit tests for motion_transition_detection module (refactored version)
+"""Unit tests for motion_transition_detection module (refactored version).
 
 Tests the refactored analyze_motion_transitions function that accepts
 a scene parameter and uses cached trajectory extraction.
@@ -13,7 +12,6 @@ Also tests helper functions for:
 - Motion state segmentation
 """
 
-import os
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
@@ -23,10 +21,8 @@ from fbx_tool.analysis.motion_transition_detection import (
     analyze_motion_transitions,
     analyze_transition_smoothness,
     calculate_adaptive_velocity_thresholds,
-    calculate_adaptive_vertical_thresholds,
     classify_motion_state,
     classify_transition_type,
-    detect_motion_state_sequence,
     detect_state_transitions,
     segment_by_motion_state,
 )
@@ -203,7 +199,7 @@ class TestAnalyzeMotionTransitions:
 
         mock_extract.return_value = {"trajectory_data": trajectory_data, "frame_rate": 30.0}
 
-        result = analyze_motion_transitions(scene, output_dir="output")
+        analyze_motion_transitions(scene, output_dir="output")
 
         # Should write CSV files (potentially 3: transitions, states, quality)
         # At least one file should be written
@@ -223,9 +219,9 @@ class TestAdaptiveThresholds:
         np.random.seed(42)  # Reproducible test
         velocities = np.concatenate(
             [
-                np.random.uniform(2, 8, 30),      # Idle cluster
-                np.random.uniform(25, 35, 40),    # Walk cluster
-                np.random.uniform(65, 85, 20),    # Run cluster
+                np.random.uniform(2, 8, 30),  # Idle cluster
+                np.random.uniform(25, 35, 40),  # Walk cluster
+                np.random.uniform(65, 85, 20),  # Run cluster
                 np.random.uniform(125, 145, 10),  # Sprint cluster
             ]
         )

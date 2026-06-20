@@ -1,6 +1,5 @@
+"""Rewrite legacy imports in known source files."""
 
-import os
-import re
 from pathlib import Path
 
 root = Path.cwd()
@@ -27,7 +26,7 @@ files_to_fix = {
     },
     "examples/run_analysis.py": {
         "from analysis_modules.": "from fbx_tool.analysis.",
-    }
+    },
 }
 
 print("Fixing imports...")
@@ -40,7 +39,7 @@ for filepath, replacements in files_to_fix.items():
         print(f"⚠️  File not found: {filepath}")
         continue
 
-    with open(full_path, 'r', encoding='utf-8') as f:
+    with open(full_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     original = content
@@ -49,7 +48,7 @@ for filepath, replacements in files_to_fix.items():
         content = content.replace(old, new)
 
     if content != original:
-        with open(full_path, 'w', encoding='utf-8') as f:
+        with open(full_path, "w", encoding="utf-8") as f:
             f.write(content)
         print(f"✓ Fixed: {filepath}")
     else:

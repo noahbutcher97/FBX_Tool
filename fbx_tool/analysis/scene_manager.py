@@ -1,4 +1,4 @@
-﻿"""
+"""
 FBX Scene Manager with Reference Counting.
 
 Manages FBX scene lifecycle to prevent memory leaks while allowing
@@ -148,7 +148,7 @@ class FBXSceneManager:
 
     def _release_scene(self, filepath: str):
         """
-        Internal: Release a scene reference (decrements ref count, cleans up if 0).
+        Release a scene reference (decrements ref count, cleans up if 0).
 
         Args:
             filepath: Path to FBX file

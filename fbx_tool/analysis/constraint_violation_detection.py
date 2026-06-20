@@ -1,5 +1,5 @@
 """
-Constraint Violation Detection Module
+Constraint Violation Detection Module.
 
 Detects violations of animation constraints including:
 - IK chain integrity
@@ -13,9 +13,8 @@ Author: FBX Tool
 
 import csv
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-import diffs
 import fbx
 import numpy as np
 
@@ -38,7 +37,7 @@ def validate_ik_chain_length(
     Returns:
         List of violation events
     """
-    violations = []
+    violations: List[Dict[str, Any]] = []
 
     if len(chain) < 2:
         return violations
@@ -164,7 +163,7 @@ def detect_chain_breaks(
     Returns:
         List of break events
     """
-    breaks = []
+    breaks: List[Dict[str, Any]] = []
 
     if len(chain) < 2:
         return breaks
@@ -226,7 +225,7 @@ def validate_parent_child_consistency(
     Returns:
         List of consistency violations
     """
-    violations = []
+    violations: List[Dict[str, Any]] = []
 
     # Compute distances
     vectors = child_pos - parent_pos
@@ -309,7 +308,7 @@ def detect_curve_discontinuities(
     Returns:
         List of discontinuity events
     """
-    discontinuities = []
+    discontinuities: List[Dict[str, Any]] = []
 
     if len(curve_data) < 2:
         return discontinuities
@@ -353,7 +352,7 @@ def validate_keyframe_timing(
     Returns:
         List of timing violations
     """
-    violations = []
+    violations: List[Dict[str, Any]] = []
 
     if len(keyframes) < 2:
         return violations
@@ -438,7 +437,7 @@ def detect_hierarchy_violations(hierarchy: Dict[str, Optional[str]]) -> List[Dic
     Returns:
         List of hierarchy violations
     """
-    violations = []
+    violations: List[Dict[str, Any]] = []
 
     if not hierarchy:
         return violations
@@ -654,8 +653,6 @@ def analyze_constraint_violations(scene, output_dir: str = ".") -> Dict[str, Any
             if mean_accel < 0.01:
                 continue
 
-            std_accel = np.std(abs_accelerations)
-
             # Use modified Z-score (median absolute deviation) for robustness to outliers
             # This is more reliable than mean/std for detecting true anomalies
             median_accel = np.median(abs_accelerations)
@@ -811,12 +808,12 @@ def _write_ik_violations_csv(filepath: Path, violations: List[Dict]):
     with open(filepath, "w", newline="") as f:
         if violations:
             fieldnames = ["chain", "frame_start", "frame_end", "type", "severity"]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(violations)
+            dict_writer = csv.DictWriter(f, fieldnames=fieldnames)
+            dict_writer.writeheader()
+            dict_writer.writerows(violations)
         else:
-            writer = csv.writer(f)
-            writer.writerow(["chain", "frame_start", "frame_end", "type", "severity"])
+            row_writer = csv.writer(f)
+            row_writer.writerow(["chain", "frame_start", "frame_end", "type", "severity"])
 
 
 def _write_hierarchy_violations_csv(filepath: Path, violations: List[Dict]):
@@ -836,12 +833,12 @@ def _write_curve_discontinuities_csv(filepath: Path, discontinuities: List[Dict]
     with open(filepath, "w", newline="") as f:
         if discontinuities:
             fieldnames = ["frame", "bone", "axis", "type", "magnitude", "adaptive_threshold", "acceleration_magnitude"]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(discontinuities)
+            dict_writer = csv.DictWriter(f, fieldnames=fieldnames)
+            dict_writer.writeheader()
+            dict_writer.writerows(discontinuities)
         else:
-            writer = csv.writer(f)
-            writer.writerow(
+            row_writer = csv.writer(f)
+            row_writer.writerow(
                 ["frame", "bone", "axis", "type", "magnitude", "adaptive_threshold", "acceleration_magnitude"]
             )
 

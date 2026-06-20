@@ -1,5 +1,5 @@
 """
-Pose Validity Analysis Module
+Pose Validity Analysis Module.
 
 Analyzes animation poses for anatomical validity and common issues:
 - Bone length consistency (stretch/squash detection)
@@ -93,7 +93,7 @@ def detect_bone_length_violations(
     Returns:
         List of violation events with details
     """
-    violations = []
+    violations: List[Dict[str, Any]] = []
 
     # Compute deviation from reference
     deviations = (bone_lengths - reference_length) / reference_length
@@ -192,7 +192,7 @@ def validate_joint_angle_limits(
     Returns:
         List of angle limit violations
     """
-    violations = []
+    violations: List[Dict[str, Any]] = []
 
     # Filter out NaN values
     valid_mask = ~np.isnan(angles)
@@ -314,7 +314,7 @@ def detect_self_intersections(
         else:
             # Fallback to hardcoded value
             distance_threshold = 0.5
-    intersections = []
+    intersections: List[Dict[str, Any]] = []
 
     # Check if bones are identical (filter out self-comparison)
     if np.allclose(bone1_start, bone2_start) and np.allclose(bone1_end, bone2_end):
@@ -598,7 +598,7 @@ def analyze_pose_validity(scene, output_dir: str = ".") -> Dict[str, Any]:
     results["bones_with_length_violations"] = len(set(v["bone_name"] for v in length_violations))
 
     # Analyze joint angles (simplified - would need proper joint hierarchy)
-    angle_violations = []
+    angle_violations: List[Dict[str, Any]] = []
     # TODO: Implement full joint angle analysis with proper hierarchy
 
     # Detect self-intersections (simplified)
@@ -810,12 +810,12 @@ def _write_bone_length_violations_csv(filepath: Path, violations: List[Dict]):
                 "mean_deviation_percent",
                 "severity",
             ]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(violations)
+            dict_writer = csv.DictWriter(f, fieldnames=fieldnames)
+            dict_writer.writeheader()
+            dict_writer.writerows(violations)
         else:
-            writer = csv.writer(f)
-            writer.writerow(
+            row_writer = csv.writer(f)
+            row_writer.writerow(
                 [
                     "bone_name",
                     "frame_start",
@@ -841,12 +841,12 @@ def _write_joint_angle_violations_csv(filepath: Path, violations: List[Dict]):
                 "mean_violation_degrees",
                 "severity",
             ]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(violations)
+            dict_writer = csv.DictWriter(f, fieldnames=fieldnames)
+            dict_writer.writeheader()
+            dict_writer.writerows(violations)
         else:
-            writer = csv.writer(f)
-            writer.writerow(
+            row_writer = csv.writer(f)
+            row_writer.writerow(
                 [
                     "bone_name",
                     "frame_start",
