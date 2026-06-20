@@ -4,7 +4,7 @@
 
 `fbx_tool/` is the main Python package. Core FBX loading and motion analysis live in `fbx_tool/analysis/`, the PyQt entry point is `fbx_tool/gui/main_window.py`, and viewer code lives in `fbx_tool/visualization/`. Use `examples/` for runnable CLI or visualization samples, `docs/` for architecture, setup, and testing notes, and `assets/` for icons or screenshots. Tests are organized under `tests/unit/`, `tests/integration/`, plus non-CI exploratory/debug scripts under `tests/exploratory/` and `tests/debug/`.
 
-For Codex-based workflows, start with `docs/agentic/WORKFLOW.md`, use `docs/agentic/ROLE_ROUTING.md` to choose the review lens, and use the task and handoff templates in `docs/agentic/` for multi-step work.
+For Codex-based workflows, start with `docs/agentic/WORKFLOW.md`, use `docs/agentic/ROLE_ROUTING.md` to choose the review lens, use `docs/agentic/RELEASE_CHECKLIST.md` before merging, and use the task and handoff templates in `docs/agentic/` for multi-step work.
 
 ## Build, Test, and Development Commands
 
@@ -25,7 +25,7 @@ python -m PyInstaller --name="FBX_Tool" --onefile --windowed --clean fbx_tool\gu
 
 ## Coding Style & Naming Conventions
 
-Format Python with Black at 120 columns and sort imports with isort using the Black profile. Lint with flake8 using `--max-line-length=120 --extend-ignore=E203,W503`; mypy runs with missing imports ignored for SDK-heavy code. Use `snake_case` for modules, functions, variables, and generated CSV/JSON output names. Test functions should describe behavior, for example `test_detect_stride_segments_normal_gait`.
+Format Python with Black at 120 columns and sort imports with isort using the Black profile. Pre-commit runs flake8 as a high-signal syntax and undefined-name gate; do not use it as a broad style formatter. Mypy runs with missing imports ignored for SDK-heavy code. Use `snake_case` for modules, functions, variables, and generated CSV/JSON output names. Test functions should describe behavior, for example `test_detect_stride_segments_normal_gait`.
 
 ## Testing Guidelines
 
