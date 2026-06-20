@@ -8,9 +8,11 @@ This directory contains all project documentation organized by category.
 
 **New to the project? Start here:**
 
-1. **[INSTALL.md](INSTALL.md)** - Environment setup, Python 3.10 installation, FBX SDK setup
-2. **[onboarding/README.md](onboarding/README.md)** - Project overview, TDD workflow, design principles
-3. **[../README.md](../README.md)** - User-facing features and quick start guide
+1. **[../AGENTS.md](../AGENTS.md)** - Contributor guide, commands, style, and PR expectations
+2. **[agentic/WORKFLOW.md](agentic/WORKFLOW.md)** - Codex and agentic development workflow
+3. **[INSTALL.md](INSTALL.md)** - Environment setup, Python 3.10 installation, FBX SDK setup
+4. **[onboarding/README.md](onboarding/README.md)** - Developer orientation and project map
+5. **[../README.md](../README.md)** - User-facing features and quick start guide
 
 ### 🏗️ Architecture
 
@@ -23,7 +25,7 @@ This directory contains all project documentation organized by category.
   - Smart caching strategy
   - Workflow examples and performance impact
 
-- **[architecture/PROCEDURAL_DESIGN_PHILOSOPHY.md](architecture/PROCEDURAL_DESIGN_PHILOSOPHY.md)** - **NEW (2025-10-18)** Procedural design principles
+- **[architecture/PROCEDURAL_DESIGN_PHILOSOPHY.md](architecture/PROCEDURAL_DESIGN_PHILOSOPHY.md)** - Procedural design principles
   - Core principle: "Don't assume. Discover."
   - Data-driven thresholds and scale invariance
   - Confidence scoring patterns
@@ -51,7 +53,7 @@ This directory contains all project documentation organized by category.
 
 **Fast access to common commands and patterns:**
 
-- **[quick-reference/COMMANDS.md](quick-reference/COMMANDS.md)** - **NEW** Development commands
+- **[quick-reference/COMMANDS.md](quick-reference/COMMANDS.md)** - Development commands
   - Environment setup
   - Testing commands (pytest options, markers)
   - Code quality (black, isort, flake8, mypy)
@@ -59,7 +61,7 @@ This directory contains all project documentation organized by category.
   - Building executables
   - Coverage requirements
 
-- **[quick-reference/TDD_EXAMPLES.md](quick-reference/TDD_EXAMPLES.md)** - **NEW** Test-driven development patterns
+- **[quick-reference/TDD_EXAMPLES.md](quick-reference/TDD_EXAMPLES.md)** - Test-driven development patterns
   - TDD workflow steps
   - Good vs bad test examples
   - Test organization patterns
@@ -70,6 +72,11 @@ This directory contains all project documentation organized by category.
 ### 🔧 Development
 
 **Development guidelines and issue tracking:**
+
+- **[agentic/](agentic/)** - Current agentic workflow, task templates, handoff template, baseline, and release checklist
+  - Start with `WORKFLOW.md`
+  - Check `BASELINE.md` before claiming verification status
+  - Use `RELEASE_CHECKLIST.md` before merging PRs
 
 - **[development/FBX_SDK_FIXES.md](development/FBX_SDK_FIXES.md)** - FBX SDK API patterns (MUST READ!)
   - Correct vs incorrect API usage
@@ -82,17 +89,16 @@ This directory contains all project documentation organized by category.
   - Active issues and root causes
   - Fix requirements
 
-- **[development/HARDCODED_CONSTANTS_AUDIT.md](development/HARDCODED_CONSTANTS_AUDIT.md)** - **NEW (2025-10-18)** Proceduralization tracker
+- **[development/HARDCODED_CONSTANTS_AUDIT.md](development/HARDCODED_CONSTANTS_AUDIT.md)** - Proceduralization tracker
   - Comprehensive audit of all hardcoded constants
   - Status tracking (Fixed/Partial/Not Fixed)
   - Priority levels (P0/P1/P2)
   - Impact assessment and fix order
 
-- **[development/NEXT_SESSION_TODO.md](development/NEXT_SESSION_TODO.md)** - **NEW (2025-10-18)** Session handoff
-  - Urgent verification tasks
-  - Priority-ordered todo list
-  - Known issues and fixes in progress
-  - Test protocol and quick commands
+- **[agentic/TASK_TEMPLATE.md](agentic/TASK_TEMPLATE.md)** and **[agentic/HANDOFF_TEMPLATE.md](agentic/HANDOFF_TEMPLATE.md)** - Current task and handoff templates
+  - Scope, proof, and forbidden-scope fields
+  - Verification and skipped-check reporting
+  - Return-format guidance for multi-step work
 
 ### 📊 Project Status
 
@@ -121,16 +127,18 @@ This directory contains all project documentation organized by category.
 ### By Role
 
 #### For New Developers
-1. Read [INSTALL.md](INSTALL.md)
-2. Read [onboarding/README.md](onboarding/README.md)
-3. Read [development/FBX_SDK_FIXES.md](development/FBX_SDK_FIXES.md)
-4. Review test examples in `../tests/unit/test_gait_analysis.py`
+1. Read [../AGENTS.md](../AGENTS.md)
+2. Read [agentic/WORKFLOW.md](agentic/WORKFLOW.md)
+3. Read [INSTALL.md](INSTALL.md)
+4. Read [development/FBX_SDK_FIXES.md](development/FBX_SDK_FIXES.md)
+5. Review test examples in `../tests/unit/test_gait_analysis.py`
 
 #### For Maintainers
-1. Check [development/INCOMPLETE_MODULES.md](development/INCOMPLETE_MODULES.md) for active issues
-2. Review [development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md) for priority fixes
-3. Consult [architecture/SCENE_MANAGEMENT.md](architecture/SCENE_MANAGEMENT.md) for system design
-4. Use [testing/MOCK_SETUP_PATTERNS.md](testing/MOCK_SETUP_PATTERNS.md) for test writing
+1. Use [agentic/RELEASE_CHECKLIST.md](agentic/RELEASE_CHECKLIST.md) before merging PRs
+2. Check [agentic/BASELINE.md](agentic/BASELINE.md) for current verification gates
+3. Check [development/INCOMPLETE_MODULES.md](development/INCOMPLETE_MODULES.md) for implementation gaps
+4. Review [development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md) for priority fixes
+5. Consult [architecture/SCENE_MANAGEMENT.md](architecture/SCENE_MANAGEMENT.md) for system design
 
 #### For Users
 1. Start with [../README.md](../README.md)
@@ -220,8 +228,8 @@ When adding new documentation:
 ### Planned Documentation
 
 - [ ] `architecture/ANALYSIS_PIPELINE.md` - Complete analysis flow
-- [x] ~~`architecture/CACHING_STRATEGY.md`~~ - ✅ Covered in SCENE_MANAGEMENT.md & CLAUDE.md Session 2025-10-18
-- [x] ~~`development/ADAPTIVE_THRESHOLDS.md`~~ - ✅ See HARDCODED_CONSTANTS_AUDIT.md & CLAUDE.md
+- [x] ~~`architecture/CACHING_STRATEGY.md`~~ - Covered in SCENE_MANAGEMENT.md
+- [x] ~~`development/ADAPTIVE_THRESHOLDS.md`~~ - See HARDCODED_CONSTANTS_AUDIT.md and PROCEDURAL_DESIGN_PHILOSOPHY.md
 - [ ] `testing/INTEGRATION_TEST_PATTERNS.md` - Multi-component test examples
 - [ ] `api/MODULES.md` - Module-by-module API reference
 - [ ] `api/METADATA_SCHEMA.md` - procedural_metadata.json specification
@@ -236,7 +244,7 @@ When adding new documentation:
 ## Recent Updates
 
 ### 2025-10-18: Documentation Restructure & Procedural Thresholds
-- ✅ **Restructured CLAUDE.md** - Reduced from ~9.9k tokens to ~3k tokens (70% reduction)
+- ✅ **Restructured legacy assistant notes** - Reduced long-form session context and moved durable guidance into docs
 - ✅ **Reorganized root directory** - Moved all docs to appropriate subdirectories
   - CODE_REVIEW_FINDINGS.md → development/CODE_REVIEW_FINDINGS.md (archived)
   - IMPROVEMENT_RECOMMENDATIONS.md → development/EDGE_CASE_PATTERNS.md
@@ -246,7 +254,7 @@ When adding new documentation:
 - ✅ **NEW:** [changelog/SESSION_HISTORY.md](changelog/SESSION_HISTORY.md) - Session updates archive
 - ✅ **NEW:** [development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md) - Detailed algorithm fixes
 - ✅ Added [development/HARDCODED_CONSTANTS_AUDIT.md](development/HARDCODED_CONSTANTS_AUDIT.md)
-- ✅ Added [development/NEXT_SESSION_TODO.md](development/NEXT_SESSION_TODO.md)
+- ✅ Added a session handoff note, later superseded by [agentic task and handoff templates](agentic/TASK_TEMPLATE.md)
 - ✅ Implemented adaptive motion state detection with CV check
 - ✅ Cached derivatives for performance optimization
 - ✅ Created procedural metadata export system
@@ -264,7 +272,8 @@ When adding new documentation:
 
 **Questions about:**
 - **Setup/Installation** → [INSTALL.md](INSTALL.md)
-- **Getting Started** → [onboarding/README.md](onboarding/README.md)
+- **Getting Started** → [../AGENTS.md](../AGENTS.md) and [onboarding/README.md](onboarding/README.md)
+- **Agentic workflow** → [agentic/WORKFLOW.md](agentic/WORKFLOW.md)
 - **FBX SDK** → [development/FBX_SDK_FIXES.md](development/FBX_SDK_FIXES.md)
 - **Testing** → [testing/MOCK_SETUP_PATTERNS.md](testing/MOCK_SETUP_PATTERNS.md)
 - **Architecture** → [architecture/SCENE_MANAGEMENT.md](architecture/SCENE_MANAGEMENT.md)

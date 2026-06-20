@@ -25,7 +25,7 @@ Analysis of modules returning zero or placeholder results despite having data.
 
 1. ✅ **Foot Contact Visualization** - FIXED! (Session 2025-10-19) Context-aware stuck bone detection
 2. ✅ **Pose Validity Analysis** - FIXED! Now extracts bone data properly (40/40 tests passing)
-3. ❌ **Constraint Violation Analysis** - Returns "0 chains analyzed" (TODO placeholders - needs TDD implementation)
+3. ✅ **Constraint Violation Analysis** - Historical "0 chains analyzed" placeholder behavior has been superseded; verify current state in `docs/audits/MODULE_ERROR_LOGIC_AUDIT.md`.
 
 ---
 
@@ -86,7 +86,7 @@ if all(y <= ground_height + 1.0 for y in all_y_values):  # Context-aware!
 - Calculate stuck thresholds relative to typical bone movement in animation
 - Use statistical measures (mean, std, CV) to classify "stuck" dynamically
 - Handle edge cases: slow-motion, minimal-movement animations
-- See CLAUDE.md "Next priorities" for details
+- Track any new implementation work with `docs/agentic/TASK_TEMPLATE.md` and verify current module status before editing.
 
 ---
 
@@ -316,6 +316,8 @@ The fix follows the established FBX SDK pattern used throughout the codebase:
 
 ## 3. Constraint Violation Analysis
 
+> Historical note: this section documents the original placeholder behavior. Current status is tracked in `docs/audits/MODULE_ERROR_LOGIC_AUDIT.md`; verify the source and tests before treating any item below as active.
+
 ### Symptoms
 ```
 Analyzing constraint violations (IK chains, hierarchy, curves)...
@@ -324,7 +326,7 @@ Analyzing constraint violations (IK chains, hierarchy, curves)...
     - Overall constraint score: 1.00
 ```
 
-### Root Cause
+### Historical Root Cause
 
 **File:** `fbx_tool/analysis/constraint_violation_detection.py`
 
@@ -341,12 +343,12 @@ curve_violations = []
 # TODO: Implement full curve analysis
 ```
 
-**Issues:**
-1. Contains TODO placeholders
+**Historical Issues:**
+1. Placeholder implementation
 2. No actual implementation
-3. Returns hardcoded empty results
+3. Hardcoded empty results
 
-**Required Implementation:**
+**Original Required Implementation:**
 - Detect IK chains from skeleton hierarchy
 - Validate IK chain constraints (reach limits, pole vectors)
 - Detect curve discontinuities (sudden jumps in animation curves)
@@ -363,23 +365,14 @@ curve_violations = []
 4. ✅ **Cached Derivatives** - Acceleration/jerk now cached in trajectory extraction (~3x speedup)
 5. ✅ **Scene Manager** - Reference-counted scene management prevents memory leaks
 
-### 🚧 Remaining Issues (Priority Order)
+### Remaining Work
 
-**Priority 1 - High Impact (Next Session):**
-1. 📝 **Jitter Detection** - Make thresholds adaptive (currently all 65 bones flagged as "high jitter")
-2. 📝 **Constraint Confidence** - Fix misleading 1.0 score when 0 chains analyzed
-3. 📝 **Constraint Violation** - Implement IK chain detection (placeholder code exists)
-4. 📝 **Constraint Violation** - Implement curve discontinuity detection (placeholder code exists)
+This document is no longer the task queue. For active work, start from:
 
-**Priority 2 - Medium Impact:**
-5. 🔍 **Foot Contact** - Debug ground height estimation (0 contacts detected - may be threshold issue)
-6. 🔍 **Foot Sliding** - Review adaptive threshold implementation
-7. 📝 **Temporal Constants** - Make frame-rate aware (`STATE_STABLE_FRAMES`, `TRANSITION_JERK_SMOOTH`)
-
-**Priority 3 - Future Enhancements:**
-8. 📝 Export adaptive thresholds to `procedural_metadata.json` for all analyses
-9. 📝 Add confidence scores to all detections
-10. 📝 Implement metadata caching for performance
+1. `docs/audits/MODULE_ERROR_LOGIC_AUDIT.md`
+2. Current source inspection in `fbx_tool/analysis/`
+3. Current tests in `tests/unit/` and `tests/integration/`
+4. `docs/agentic/TASK_TEMPLATE.md` for scoped task handoff
 
 **Note:** Per TDD methodology, all new implementations should have tests written FIRST.
 
