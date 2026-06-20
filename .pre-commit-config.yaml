@@ -76,4 +76,4 @@ repos:
     rev: v2.2.5
     hooks:
       - id: codespell
-        args: ['--ignore-words-list=nd,ot,ue']
+        args: ['--ignore-words-list=adn,nd,ot,ue']

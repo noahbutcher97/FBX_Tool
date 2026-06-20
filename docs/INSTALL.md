@@ -63,37 +63,27 @@ Download [Visual Studio Build Tools 2022](https://visualstudio.microsoft.com/dow
 
 #### Windows
 1. Run the installer: `fbx202037_fbxpythonsdk_win.exe`
-2. Choose installation directory (default: `C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.7`)
-3. Installer will place `fbx.pyd` in your Python site-packages
+2. Accept the default install path: `C:\Program Files\Autodesk\FBX\FBX Python SDK\2020.3.7`
+3. The installer extracts a pip-installable wheel into that directory. It does **not** auto-install into any Python — that's a separate step (see Step 6 for the venv install).
+
+#### Install the Wheel
+Since 2020.3, the FBX Python SDK ships as a standard CPython 3.10 wheel. Install it with pip:
+
+```powershell
+py -3.10 -m pip install "C:\Program Files\Autodesk\FBX\FBX Python SDK\2020.3.7\fbx-2020.3.7-cp310-none-win_amd64.whl"
+```
+
+> **Recommended:** Skip this step here and install the wheel into your project's virtual environment in Step 6 instead. That keeps the FBX SDK isolated from your system Python.
 
 #### Verify Installation
 ```powershell
-python -c "import fbx; print(fbx.FbxManager.GetVersion())"
-# Should output: 2020.3.7 or similar
+py -3.10 -c "import fbx; m = fbx.FbxManager.Create(); print('OK' if m else 'FAIL'); m.Destroy()"
+# Should output: OK
 ```
 
-#### Manual Installation (if needed)
-If the installer doesn't automatically add to Python:
-
-1. Locate the FBX SDK installation:
-   ```
-   C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.7\lib\Python310_x64\
-   ```
-
-2. Copy files to your Python site-packages:
-   ```powershell
-   # Find your site-packages directory
-   python -c "import site; print(site.getsitepackages()[0])"
-
-   # Copy fbx.pyd and fbx.cp310-win_amd64.pyd
-   copy "C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.7\lib\Python310_x64\fbx*.pyd" "C:\Path\To\site-packages\"
-   ```
-
-3. Copy required DLLs:
-   ```powershell
-   # Copy all DLLs from FBX SDK bin directory
-   copy "C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.7\lib\vs2022\x64\release\*.dll" "C:\Path\To\site-packages\"
-   ```
+> **Note:** The older "manually copy `fbx.pyd` and DLLs into site-packages" workflow applied to FBX SDK ≤ 2020.2 which shipped raw `.pyd` files. Since 2020.3 the wheel format handles everything (including dependent DLLs) automatically — no manual file copying needed.
+>
+> Note also that `fbx.FbxManager.GetVersion()` is **not** a valid call in 2020.3.7 — the SDK doesn't expose that as either a class method or an instance method. The Create/Destroy probe above is a real functional test instead.
 
 ---
 
@@ -135,35 +125,29 @@ Expected packages:
 
 ---
 
-## Step 6: Test FBX SDK in Virtual Environment
+## Step 6: Install FBX SDK Into the Virtual Environment
+
+A fresh venv won't have the FBX SDK — install the wheel that the Step 3 installer extracted:
 
 ```powershell
-(.fbxenv) python -c "import fbx; print('FBX SDK Version:', fbx.FbxManager.GetVersion())"
+(.fbxenv) pip install "C:\Program Files\Autodesk\FBX\FBX Python SDK\2020.3.7\fbx-2020.3.7-cp310-none-win_amd64.whl"
+```
+
+### Verify
+```powershell
+(.fbxenv) python -c "import fbx; m = fbx.FbxManager.Create(); print('OK' if m else 'FAIL'); m.Destroy()"
+# Should output: OK
 ```
 
 **If this fails:**
 
-The virtual environment doesn't include the FBX SDK by default. You need to:
+| Symptom | Cause | Fix |
+|---|---|---|
+| `ModuleNotFoundError: No module named 'fbx'` | Wheel install ran into the wrong Python | Make sure `(.fbxenv)` is in your prompt, then re-run the `pip install` above |
+| `ERROR: ... is not a supported wheel on this platform` | Venv's Python isn't 3.10 (probably 3.11+) | Recreate venv with `py -3.10 -m venv .fbxenv`, then re-install requirements + wheel |
+| `ImportError: DLL load failed` | Missing Visual C++ runtime | Install [VC++ Redistributable 2022](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) |
 
-### Option A: Install FBX SDK into venv
-```powershell
-# Locate global site-packages fbx files
-python -c "import site; print(site.getsitepackages()[0])"
-
-# Copy to venv site-packages
-copy "C:\Path\To\global-site-packages\fbx*.pyd" ".fbxenv\Lib\site-packages\"
-copy "C:\Path\To\global-site-packages\*.dll" ".fbxenv\Lib\site-packages\"
-```
-
-### Option B: Use system site-packages
-Recreate venv with system packages:
-```powershell
-deactivate
-rmdir /s /q .fbxenv
-python -m venv .fbxenv --system-site-packages
-.fbxenv\Scripts\activate
-pip install -r requirements.txt
-```
+> **Note:** The older "copy `fbx.pyd` into venv site-packages" or "use `--system-site-packages`" workarounds are no longer needed. `pip install <wheel>` is the entire install — the wheel bundles the .pyd, FbxCommon.py, sip.pyd, and all dependent DLLs.
 
 ---
 
