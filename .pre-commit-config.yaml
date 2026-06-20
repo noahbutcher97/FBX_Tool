@@ -74,7 +74,7 @@ repos:
     rev: 1.5.0
     hooks:
       - id: interrogate
-        additional_dependencies: [setuptools]
+        additional_dependencies: [setuptools==68.2.2]
         args: [--verbose, --fail-under=50, --ignore-init-module, --ignore-init-method]
 
   # Spelling
