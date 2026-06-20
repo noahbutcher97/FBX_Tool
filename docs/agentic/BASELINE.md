@@ -2,7 +2,7 @@
 
 Last checked: 2026-06-20
 
-## Green Gate
+## Default Green Gate
 
 Command:
 
@@ -18,7 +18,7 @@ Result:
 
 Use this as the default Codex handoff gate for ordinary code and documentation tasks.
 
-## Known Non-Green Gate
+## Strict Green Gate
 
 Command:
 
@@ -28,25 +28,13 @@ Command:
 
 Result:
 
-- Fails at Black before pytest.
-- Black reports 12 files would be reformatted.
+- Python 3.10 check passed.
+- Black check passed.
+- isort check passed.
+- Unit tests: 485 passed, 32 skipped, 5 warnings.
+- Runtime: approximately 1.4 seconds after collection in the local `.fbxenv`.
 
-Current Black debt:
-
-- `fbx_tool/analysis/dopesheet_export.py`
-- `fbx_tool/analysis/fbx_loader.py`
-- `fbx_tool/analysis/gait_summary.py`
-- `tests/debug/inspect_animation_layers.py`
-- `tests/debug/inspect_bones.py`
-- `tests/debug/test_motion_states.py`
-- `tests/exploratory/test_animation_extraction.py`
-- `tests/exploratory/test_animation_variance.py`
-- `tests/exploratory/test_chain_detection.py`
-- `tests/exploratory/test_fbx_coordinate_system.py`
-- `tests/exploratory/test_stack_1.py`
-- `tests/integration/test_foot_contact_visualization_integration.py`
-
-Do not treat these formatting failures as caused by unrelated future tasks unless those tasks edit the listed files.
+Use this when the task touches Python source, test files, examples, or scripts and the local FBX SDK environment is available.
 
 ## Working Tree Caveat
 
