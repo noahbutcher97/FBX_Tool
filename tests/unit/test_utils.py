@@ -3,9 +3,8 @@ Unit tests for utils module
 
 Tests cover:
 - File I/O utilities
-- Data processing utilities
-- Chain definition utilities
-- Math utilities
+- Data conversion utilities
+- Chain detection utilities
 """
 
 import os
@@ -94,14 +93,12 @@ class TestFileIOUtilities:
         assert os.path.exists(os.path.dirname(test_path))
         assert not os.path.exists(test_path)
 
-    @pytest.mark.skip(reason="write_csv function removed - replaced with write_dict_list_to_csv")
-    def test_write_csv_creates_valid_csv(self, temp_dir):
-        """Test that write_csv creates valid CSV files."""
+    def test_write_dict_list_to_csv_creates_valid_csv(self, temp_dir):
+        """Test that write_dict_list_to_csv creates valid CSV files."""
         test_path = os.path.join(temp_dir, "test.csv")
-        header = ["Name", "Age", "Score"]
-        rows = [["Alice", "25", "95.5"], ["Bob", "30", "87.3"]]
+        rows = [{"Name": "Alice", "Age": "25", "Score": "95.5"}, {"Name": "Bob", "Age": "30", "Score": "87.3"}]
 
-        write_csv(test_path, header, rows)
+        write_dict_list_to_csv(rows, test_path)
 
         # Verify file was created
         assert os.path.exists(test_path)
@@ -113,12 +110,11 @@ class TestFileIOUtilities:
             reader = csv.reader(f)
             lines = list(reader)
 
-            assert lines[0] == header
-            assert lines[1] == rows[0]
-            assert lines[2] == rows[1]
+            assert lines[0] == ["Name", "Age", "Score"]
+            assert lines[1] == ["Alice", "25", "95.5"]
+            assert lines[2] == ["Bob", "30", "87.3"]
 
 
-@pytest.mark.skip(reason="Obsolete tests - format_float function removed during refactoring")
 @pytest.mark.unit
 class TestDataProcessingUtilities:
     """Test data processing utility functions."""
@@ -172,40 +168,10 @@ class TestDataProcessingUtilities:
         assert isinstance(result[1], float)
         assert isinstance(result[2], list)
 
-    def test_format_float_with_default_precision(self):
-        """Test formatting floats with default 6 decimal places."""
-        result = format_float(3.14159265359)
-        assert result == "3.141593"
 
-    def test_format_float_with_custom_precision(self):
-        """Test formatting floats with custom precision."""
-        result = format_float(3.14159, precision=2)
-        assert result == "3.14"
-
-    def test_format_float_with_zero_precision(self):
-        """Test formatting floats with zero decimal places."""
-        result = format_float(3.7, precision=0)
-        assert result == "4"
-
-
-@pytest.mark.skip(reason="Obsolete tests - get_standard_chains, validate_chain functions removed")
 @pytest.mark.unit
 class TestChainDefinitionUtilities:
     """Test chain definition utility functions."""
-
-    def test_get_standard_chains_returns_expected_chains(self):
-        """Test that get_standard_chains returns standard humanoid chains."""
-        chains = get_standard_chains()
-
-        assert "LeftLeg" in chains
-        assert "RightLeg" in chains
-        assert "LeftArm" in chains
-        assert "RightArm" in chains
-        assert "Spine" in chains
-
-        # Verify LeftLeg structure
-        assert "thigh_l" in chains["LeftLeg"]
-        assert "foot_l" in chains["LeftLeg"]
 
     def test_detect_chains_from_hierarchy_finds_simple_chain(self):
         """Test detecting a simple linear chain."""
@@ -299,106 +265,6 @@ class TestChainDefinitionUtilities:
 
         assert name == "unknown_bone"
 
-    def test_validate_chain_filters_valid_bones(self):
-        """Test that validate_chain filters bones to those in skeleton."""
-        chain = ["bone1", "bone2", "bone3", "missing_bone"]
-        bone_names = ["bone1", "bone2", "bone3", "other_bone"]
-
-        valid = validate_chain(chain, bone_names)
-
-        assert valid == ["bone1", "bone2", "bone3"]
-        assert "missing_bone" not in valid
-
-    def test_validate_chain_handles_empty_chain(self):
-        """Test validate_chain with empty chain."""
-        chain = []
-        bone_names = ["bone1", "bone2"]
-
-        valid = validate_chain(chain, bone_names)
-
-        assert valid == []
-
-    def test_validate_chain_handles_all_invalid(self):
-        """Test validate_chain when all bones are invalid."""
-        chain = ["missing1", "missing2"]
-        bone_names = ["bone1", "bone2"]
-
-        valid = validate_chain(chain, bone_names)
-
-        assert valid == []
-
-
-@pytest.mark.skip(reason="Obsolete tests - compute_velocity, compute_acceleration, detect_inversions removed")
-@pytest.mark.unit
-class TestMathUtilities:
-    """Test math utility functions."""
-
-    def test_compute_velocity_returns_correct_shape(self):
-        """Test that compute_velocity returns array of same length."""
-        positions = np.array([0, 1, 2, 3, 4])
-        velocity = compute_velocity(positions)
-
-        assert len(velocity) == len(positions)
-
-    def test_compute_velocity_computes_differences(self):
-        """Test that compute_velocity computes correct differences."""
-        positions = np.array([0.0, 1.0, 3.0, 6.0])
-        velocity = compute_velocity(positions)
-
-        # First value prepended (should be 0)
-        assert velocity[0] == 0.0
-        # Rest should be differences
-        assert velocity[1] == 1.0  # 1 - 0
-        assert velocity[2] == 2.0  # 3 - 1
-        assert velocity[3] == 3.0  # 6 - 3
-
-    def test_compute_acceleration_returns_correct_shape(self):
-        """Test that compute_acceleration returns array of same length."""
-        velocity = np.array([0, 1, 2, 3, 4])
-        acceleration = compute_acceleration(velocity)
-
-        assert len(acceleration) == len(velocity)
-
-    def test_compute_acceleration_computes_differences(self):
-        """Test that compute_acceleration computes correct differences."""
-        velocity = np.array([0.0, 1.0, 3.0, 6.0])
-        acceleration = compute_acceleration(velocity)
-
-        # First value prepended (should be 0)
-        assert acceleration[0] == 0.0
-        # Rest should be second derivatives
-        assert acceleration[1] == 1.0  # 1 - 0
-        assert acceleration[2] == 2.0  # 3 - 1
-        assert acceleration[3] == 3.0  # 6 - 3
-
-    def test_detect_inversions_identifies_sign_changes(self):
-        """Test that detect_inversions finds direction changes."""
-        values = np.array([0.0, 1.0, 2.0, 1.5, 1.0, 2.0, 3.0])
-        inversions = detect_inversions(values)
-
-        # Should detect inversion when direction changes
-        # Going up: 0->1->2, then down: 2->1.5->1, then up again: 1->2->3
-        assert isinstance(inversions, np.ndarray)
-        assert (
-            len(inversions) == len(values) - 1
-        )  # detect_inversions returns len-1 array (comparing adjacent velocities)
-
-    def test_detect_inversions_monotonic_sequence(self):
-        """Test that detect_inversions finds no inversions in monotonic sequence."""
-        values = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
-        inversions = detect_inversions(values)
-
-        # No inversions in monotonically increasing sequence
-        assert np.sum(inversions) == 0
-
-    def test_detect_inversions_alternating_sequence(self):
-        """Test that detect_inversions handles alternating values."""
-        values = np.array([0.0, 1.0, 0.5, 1.5, 0.75])
-        inversions = detect_inversions(values)
-
-        # Should detect multiple inversions
-        assert np.sum(inversions) > 0
-
 
 @pytest.mark.unit
 class TestEdgeCases:
@@ -413,43 +279,3 @@ class TestEdgeCases:
         """Test that strings pass through unchanged."""
         result = convert_numpy_to_native("test string")
         assert result == "test string"
-
-    @pytest.mark.skip(reason="compute_velocity function removed")
-    def test_compute_velocity_single_value(self):
-        """Test compute_velocity with single value."""
-        positions = np.array([5.0])
-        velocity = compute_velocity(positions)
-
-        assert len(velocity) == 1
-        assert velocity[0] == 0.0  # prepend with first value
-
-    @pytest.mark.skip(reason="compute_acceleration function removed")
-    def test_compute_acceleration_single_value(self):
-        """Test compute_acceleration with single value."""
-        velocity = np.array([3.0])
-        acceleration = compute_acceleration(velocity)
-
-        assert len(acceleration) == 1
-        assert acceleration[0] == 0.0
-
-    @pytest.mark.skip(reason="detect_inversions function removed")
-    def test_detect_inversions_two_values(self):
-        """Test detect_inversions with minimal input."""
-        values = np.array([1.0, 2.0])
-        inversions = detect_inversions(values)
-
-        # With 2 values, we get 1 comparison (len(values)-1)
-        # velocity = [0, 1], comparison at i=1: vel[0]*vel[1] = 0*1 = 0, not < 0, so False
-        assert len(inversions) == 1
-        assert inversions[0] == False  # No inversion with constant positive velocity
-
-    @pytest.mark.skip(reason="validate_chain function removed")
-    def test_validate_chain_preserves_order(self):
-        """Test that validate_chain preserves chain order."""
-        chain = ["bone3", "bone1", "bone2"]
-        bone_names = ["bone1", "bone2", "bone3", "bone4"]
-
-        valid = validate_chain(chain, bone_names)
-
-        # Order should be preserved from original chain
-        assert valid == ["bone3", "bone1", "bone2"]
