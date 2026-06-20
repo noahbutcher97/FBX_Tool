@@ -170,8 +170,8 @@ These documents contain forward-looking design ideas that may be implemented in 
 
 For current status and next steps:
 - **[HARDCODED_CONSTANTS_AUDIT.md](../development/HARDCODED_CONSTANTS_AUDIT.md)** - What's fixed, what's not
-- **[NEXT_SESSION_TODO.md](../development/NEXT_SESSION_TODO.md)** - Priority tasks
-- **[CLAUDE.md](../../CLAUDE.md)** - Session 2025-10-18 implementation details
+- **[MODULE_ERROR_LOGIC_AUDIT.md](../audits/MODULE_ERROR_LOGIC_AUDIT.md)** - Current module audit findings
+- **[Agentic workflow](../agentic/WORKFLOW.md)** - Current task flow and verification expectations
 
 ---
 
