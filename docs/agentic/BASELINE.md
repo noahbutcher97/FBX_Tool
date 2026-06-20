@@ -36,9 +36,27 @@ Result:
 
 Use this when the task touches Python source, test files, examples, or scripts and the local FBX SDK environment is available.
 
-## Working Tree Caveat
+## Known Non-Green Gate
 
-This baseline was recorded while the repository already had unrelated modified and untracked files. Future workers must run `git status --short` before editing and preserve unrelated user changes.
+Command:
+
+```powershell
+.\.fbxenv\Scripts\python.exe -m pre_commit run --all-files
+```
+
+Result:
+
+- Black passed.
+- isort passed.
+- flake8 failed across legacy source, GUI, visualization, examples, and tests.
+- mypy failed in debug/script-only tests.
+- bandit reported one low-severity `try/except/pass` finding in `examples/run_analysis.py`.
+
+Treat this as repo-wide cleanup debt, not as a regression from a focused task. Normal staged commits do run restored pre-commit hooks, but `--all-files` is not yet a green release gate.
+
+## Working Tree State
+
+This baseline was recorded with `git status --short` clean. Future workers must still run `git status --short` before editing and preserve unrelated user changes if any appear.
 
 ## CI Caveat
 

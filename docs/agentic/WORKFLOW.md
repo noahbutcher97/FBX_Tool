@@ -34,6 +34,6 @@ This guide is the shared entry point for Codex-based and other agentic developme
 
 ## Proof Expectations
 
-Use concrete command output as evidence. For code changes, include at least one focused pytest command. For shared analysis, packaging, or workflow changes, prefer `scripts/verify-fast.ps1`; add `-IncludeStyle` when the task includes formatting cleanup or the style baseline is known green. Use `scripts/verify-full.ps1` before release-oriented handoff.
+Use concrete command output as evidence. For code changes, include at least one focused pytest command. For shared analysis, packaging, or workflow changes, prefer `scripts/verify-fast.ps1`; add `-IncludeStyle` when the task includes formatting cleanup or the style baseline is known green. Check `docs/agentic/BASELINE.md` before using `scripts/verify-full.ps1`; the repo-wide pre-commit phase may expose known cleanup debt.
 
 Do not claim a clean baseline if the repo already has unrelated dirty files or pre-existing test failures. Separate "verified by this change" from "pre-existing project state."
