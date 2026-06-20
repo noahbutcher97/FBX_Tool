@@ -16,11 +16,12 @@ This guide is the shared entry point for Codex-based and other agentic developme
 1. `AGENTS.md` for repository contribution basics.
 2. `docs/agentic/WORKFLOW.md` for agentic workflow rules.
 3. `docs/agentic/BASELINE.md` for current verification status and known gates.
-4. `docs/agentic/ROLE_ROUTING.md` to pick the right review lens.
-5. `docs/quick-reference/COMMANDS.md` for command details.
-6. `docs/development/FBX_SDK_FIXES.md` before touching FBX SDK APIs.
-7. `docs/architecture/SCENE_MANAGEMENT.md` before changing file loading or scene lifetime behavior.
-8. `docs/testing/MOCK_SETUP_PATTERNS.md` before writing FBX SDK-heavy tests.
+4. `docs/agentic/RELEASE_CHECKLIST.md` before opening or merging PRs.
+5. `docs/agentic/ROLE_ROUTING.md` to pick the right review lens.
+6. `docs/quick-reference/COMMANDS.md` for command details.
+7. `docs/development/FBX_SDK_FIXES.md` before touching FBX SDK APIs.
+8. `docs/architecture/SCENE_MANAGEMENT.md` before changing file loading or scene lifetime behavior.
+9. `docs/testing/MOCK_SETUP_PATTERNS.md` before writing FBX SDK-heavy tests.
 
 ## Development Loop
 
@@ -34,6 +35,6 @@ This guide is the shared entry point for Codex-based and other agentic developme
 
 ## Proof Expectations
 
-Use concrete command output as evidence. For code changes, include at least one focused pytest command. For shared analysis, packaging, or workflow changes, prefer `scripts/verify-fast.ps1`; add `-IncludeStyle` when the task includes formatting cleanup or the style baseline is known green. Check `docs/agentic/BASELINE.md` before using `scripts/verify-full.ps1`; the repo-wide pre-commit phase may expose known cleanup debt.
+Use concrete command output as evidence. For code changes, include at least one focused pytest command. For shared analysis, packaging, or workflow changes, prefer `scripts/verify-fast.ps1`; add `-IncludeStyle` when the task includes formatting cleanup or the style baseline is known green. Check `docs/agentic/BASELINE.md` before using `scripts/verify-full.ps1`; it records the current local and CI gates.
 
 Do not claim a clean baseline if the repo already has unrelated dirty files or pre-existing test failures. Separate "verified by this change" from "pre-existing project state."

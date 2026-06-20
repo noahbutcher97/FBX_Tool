@@ -36,7 +36,7 @@ Result:
 
 Use this when the task touches Python source, test files, examples, or scripts and the local FBX SDK environment is available.
 
-## Known Non-Green Gate
+## Repo-Wide Hook Gate
 
 Command:
 
@@ -48,11 +48,14 @@ Result:
 
 - Black passed.
 - isort passed.
-- flake8 failed across legacy source, GUI, visualization, examples, and tests.
-- mypy failed in debug/script-only tests.
-- bandit reported one low-severity `try/except/pass` finding in `examples/run_analysis.py`.
+- flake8 passed.
+- mypy passed.
+- bandit passed.
+- General file hooks passed.
+- interrogate passed.
+- codespell passed.
 
-Treat this as repo-wide cleanup debt, not as a regression from a focused task. Normal staged commits do run restored pre-commit hooks, but `--all-files` is not yet a green release gate.
+Use this before release-sensitive, CI, hook, script, or repo-wide documentation changes.
 
 ## Working Tree State
 
@@ -60,4 +63,4 @@ This baseline was recorded with `git status --short` clean. Future workers must 
 
 ## CI Caveat
 
-GitHub-hosted CI is an SDK-free hygiene gate only. The real test gate is local or self-hosted because unit tests import Autodesk's proprietary `fbx` module. Use `scripts/verify-fast.ps1` on a machine with Python 3.10 and the FBX SDK installed.
+GitHub-hosted CI is an SDK-free hygiene gate. It runs `pre-commit run --all-files`, validates key PowerShell scripts parse, and verifies the required agentic docs are present. The real test gate is local or self-hosted because unit tests import Autodesk's proprietary `fbx` module. Use `scripts/verify-fast.ps1` on a machine with Python 3.10 and the FBX SDK installed.

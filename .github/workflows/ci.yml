@@ -58,6 +58,7 @@ jobs:
             "docs/agentic/WORKFLOW.md",
             "docs/agentic/BASELINE.md",
             "docs/agentic/ROLE_ROUTING.md",
+            "docs/agentic/RELEASE_CHECKLIST.md",
             "docs/agentic/TASK_TEMPLATE.md",
             "docs/agentic/HANDOFF_TEMPLATE.md"
           )
