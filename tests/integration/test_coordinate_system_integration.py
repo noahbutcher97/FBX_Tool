@@ -5,32 +5,30 @@ Tests that the procedural coordinate system detection correctly integrates
 with extract_root_trajectory() and fixes the turning direction bug.
 """
 
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import fbx
 import numpy as np
-import pytest
 
 from fbx_tool.analysis.utils import extract_root_trajectory
+
+LOCAL_FBX_DIR = Path("assets/Test/FBX")
 
 
 class TestTrajectoryCoordinateSystemIntegration:
     """Integration tests verifying coordinate system detection in trajectory extraction."""
 
-    @pytest.mark.skip(reason="Requires real FBX file - run manually with actual assets")
     def test_trajectory_uses_detected_coordinate_system(self):
-        """
-        Verify that extract_root_trajectory uses detected coordinate system.
-
-        This is a manual integration test - requires actual FBX file.
-        Run with: pytest tests/integration/test_coordinate_system_integration.py::TestTrajectoryCoordinateSystemIntegration::test_trajectory_uses_detected_coordinate_system -v -s
-        """
+        """Verify that extract_root_trajectory uses detected coordinate system."""
         from fbx_tool.analysis.scene_manager import get_scene_manager
+        from fbx_tool.analysis.utils import clear_trajectory_cache
 
-        # Use a real FBX file
-        fbx_path = "assets/Test/FBX/Female Walk.fbx"
+        fbx_path = LOCAL_FBX_DIR / "Female Walk.fbx"
+        assert fbx_path.exists(), f"Expected integration fixture at {fbx_path}"
 
-        with get_scene_manager().get_scene(fbx_path) as scene_ref:
+        clear_trajectory_cache()
+        with get_scene_manager().get_scene(str(fbx_path)) as scene_ref:
             scene = scene_ref.scene
 
             # Extract trajectory with coordinate system detection
@@ -47,25 +45,21 @@ class TestTrajectoryCoordinateSystemIntegration:
             # Verify trajectory data uses procedural yaw axis
             assert "angular_velocity_yaw" in trajectory, "Should use yaw (not hardcoded Y)"
 
-            print(f"\nDetected coordinate system:")
-            print(f"  Forward: {coord_sys['forward_sign']}{coord_sys['forward_axis']}")
-            print(f"  Confidence: {coord_sys['detection_confidence']:.2f}")
-
-    @pytest.mark.skip(reason="Requires real FBX files with known turning directions")
-    def test_arc_right_animation_correctly_classified(self):
+    def test_arc_left_animation_correctly_classified(self):
         """
-        Critical test: Verify "WalksArc_Right" is correctly classified as RIGHT turn.
+        Critical test: Verify a left arc animation is classified as a LEFT turn.
 
         This tests the bug fix where turning direction was hardcoded and ignored
         coordinate system conventions.
         """
         from fbx_tool.analysis.scene_manager import get_scene_manager
+        from fbx_tool.analysis.utils import clear_trajectory_cache
 
-        # This test requires access to Mixamo "Run Forward Arc Right" animation
-        # Update path to match your local file
-        fbx_path = "C:/Users/posne/Downloads/Mixamo/Mixamo/Running/Run Forward Arc Right.fbx"
+        fbx_path = LOCAL_FBX_DIR / "Run Forward Arc Left.fbx"
+        assert fbx_path.exists(), f"Expected integration fixture at {fbx_path}"
 
-        with get_scene_manager().get_scene(fbx_path) as scene_ref:
+        clear_trajectory_cache()
+        with get_scene_manager().get_scene(str(fbx_path)) as scene_ref:
             scene = scene_ref.scene
 
             trajectory = extract_root_trajectory(scene)
@@ -77,13 +71,8 @@ class TestTrajectoryCoordinateSystemIntegration:
             left_turns = sum(1 for frame in trajectory_data if frame["turning_direction"] == "left")
             right_turns = sum(1 for frame in trajectory_data if frame["turning_direction"] == "right")
 
-            print(f"\nTurning direction analysis:")
-            print(f"  Left turn frames: {left_turns}")
-            print(f"  Right turn frames: {right_turns}")
-            print(f"  Coordinate system: {trajectory['coordinate_system']}")
-
-            # For an "Arc Right" animation, right turns should dominate
-            assert right_turns > left_turns, "Arc Right animation should have more right turns than left turns"
+            # For an "Arc Left" animation, left turns should dominate.
+            assert left_turns > right_turns, "Arc Left animation should have more left turns than right turns"
 
     def test_coordinate_system_metadata_exported(self):
         """Verify coordinate system metadata is properly packaged in trajectory result."""
@@ -102,6 +91,7 @@ class TestTrajectoryCoordinateSystemIntegration:
                 "stop_time": 1.0,
                 "frame_rate": 30.0,
                 "duration": 1.0,
+                "total_frames": 31,
             }
 
             mock_root_bone = Mock()
@@ -119,10 +109,10 @@ class TestTrajectoryCoordinateSystemIntegration:
             mock_root.return_value = mock_root_bone
 
             # Mock derivatives
-            positions = np.array([[i, 0, 0] for i in range(31)], dtype=float)
-            velocities = np.diff(positions, axis=0)
-            accelerations = np.diff(velocities, axis=0)
-            jerks = np.diff(accelerations, axis=0)
+            sample_count = 31
+            velocities = np.array([[30.0, 0.0, 0.0] for _ in range(sample_count)], dtype=float)
+            accelerations = np.zeros((sample_count, 3), dtype=float)
+            jerks = np.zeros((sample_count, 3), dtype=float)
             mock_derivatives.return_value = (velocities, accelerations, jerks)
 
             # Create mock scene with Y-up right-handed system
@@ -141,27 +131,20 @@ class TestTrajectoryCoordinateSystemIntegration:
             from fbx_tool.analysis.utils import clear_trajectory_cache
 
             clear_trajectory_cache()  # Ensure clean state
+            trajectory = extract_root_trajectory(scene)
 
-            try:
-                trajectory = extract_root_trajectory(scene)
+            # Verify coordinate system metadata is present
+            assert "coordinate_system" in trajectory
+            coord_sys = trajectory["coordinate_system"]
 
-                # Verify coordinate system metadata is present
-                assert "coordinate_system" in trajectory
-                coord_sys = trajectory["coordinate_system"]
+            assert "forward_axis" in coord_sys
+            assert "forward_sign" in coord_sys
+            assert "detection_confidence" in coord_sys
 
-                assert "forward_axis" in coord_sys
-                assert "forward_sign" in coord_sys
-                assert "detection_confidence" in coord_sys
-
-                # Verify metadata is human-readable
-                assert coord_sys["forward_axis"] in ["X", "Y", "Z"]
-                assert coord_sys["forward_sign"] in ["+", "-"]
-                assert isinstance(coord_sys["detection_confidence"], (int, float))
-
-            except Exception as e:
-                # If test fails due to mocking complexity, that's okay
-                # The real integration test is the manual one above
-                pytest.skip(f"Mocking too complex: {e}")
+            # Verify metadata is human-readable
+            assert coord_sys["forward_axis"] in ["X", "Y", "Z"]
+            assert coord_sys["forward_sign"] in ["+", "-"]
+            assert isinstance(coord_sys["detection_confidence"], (int, float))
 
     def _create_mock_scene(self):
         """Helper to create mock FBX scene."""

@@ -122,7 +122,10 @@ class TestAnalysisPipelineCaching:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Run all three analysis modules
-            result1 = analyze_root_motion(mock_scene, output_dir=tmpdir)
+            with patch(
+                "fbx_tool.analysis.root_motion_analysis.get_scene_metadata", return_value=mock_metadata.return_value
+            ):
+                result1 = analyze_root_motion(mock_scene, output_dir=tmpdir)
             result2 = analyze_directional_changes(mock_scene, output_dir=tmpdir)
             result3 = analyze_motion_transitions(mock_scene, output_dir=tmpdir)
 
@@ -213,7 +216,10 @@ class TestAnalysisPipelineCaching:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Analyze first file
-            result1 = analyze_root_motion(mock_scene1, output_dir=tmpdir)
+            with patch(
+                "fbx_tool.analysis.root_motion_analysis.get_scene_metadata", return_value=mock_metadata.return_value
+            ):
+                result1 = analyze_root_motion(mock_scene1, output_dir=tmpdir)
             assert result1 is not None
 
             # Get cache key for first scene
@@ -246,7 +252,10 @@ class TestAnalysisPipelineCaching:
             hips_node2.EvaluateGlobalTransform.side_effect = lambda time: create_mock_transform(0)
 
             # Analyze second file
-            result2 = analyze_root_motion(mock_scene2, output_dir=tmpdir)
+            with patch(
+                "fbx_tool.analysis.root_motion_analysis.get_scene_metadata", return_value=mock_metadata.return_value
+            ):
+                result2 = analyze_root_motion(mock_scene2, output_dir=tmpdir)
             assert result2 is not None
 
             # Get cache key for second scene
@@ -342,7 +351,10 @@ class TestAnalysisPipelineDataFlow:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Run both modules
-            root_result = analyze_root_motion(mock_scene, output_dir=tmpdir)
+            with patch(
+                "fbx_tool.analysis.root_motion_analysis.get_scene_metadata", return_value=mock_metadata.return_value
+            ):
+                root_result = analyze_root_motion(mock_scene, output_dir=tmpdir)
             directional_result = analyze_directional_changes(mock_scene, output_dir=tmpdir)
 
             # Verify both got results
@@ -439,7 +451,10 @@ class TestAnalysisPipelineOutputs:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Run all modules
-            analyze_root_motion(mock_scene, output_dir=tmpdir)
+            with patch(
+                "fbx_tool.analysis.root_motion_analysis.get_scene_metadata", return_value=mock_metadata.return_value
+            ):
+                analyze_root_motion(mock_scene, output_dir=tmpdir)
             analyze_directional_changes(mock_scene, output_dir=tmpdir)
             analyze_motion_transitions(mock_scene, output_dir=tmpdir)
 
