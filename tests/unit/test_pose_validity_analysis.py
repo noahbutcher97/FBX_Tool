@@ -18,6 +18,7 @@ import pytest
 from fbx_tool.analysis.pose_validity_analysis import (
     analyze_pose_validity,
     compute_bone_lengths,
+    compute_joint_angles,
     compute_symmetry_score,
     detect_bone_length_violations,
     detect_pose_type,
@@ -123,6 +124,27 @@ class TestBoneLengthValidation:
 @pytest.mark.unit
 class TestJointAngleLimits:
     """Test joint angle limit validation."""
+
+    def test_compute_joint_angles_reports_flexion_from_straight_pose(self):
+        """Straight limbs should report near-zero flexion."""
+        parent_positions = np.array([[0.0, 0.0, 0.0]])
+        joint_positions = np.array([[1.0, 0.0, 0.0]])
+        child_positions = np.array([[2.0, 0.0, 0.0]])
+
+        angles = compute_joint_angles(parent_positions, joint_positions, child_positions)
+
+        assert angles.shape == (1,)
+        assert angles[0] == pytest.approx(0.0, abs=1e-6)
+
+    def test_compute_joint_angles_reports_deep_flexion(self):
+        """A child bone folded back toward the parent should report high flexion."""
+        parent_positions = np.array([[0.0, 0.0, 0.0]])
+        joint_positions = np.array([[1.0, 0.0, 0.0]])
+        child_positions = np.array([[1.0 - np.cos(np.radians(20.0)), np.sin(np.radians(20.0)), 0.0]])
+
+        angles = compute_joint_angles(parent_positions, joint_positions, child_positions)
+
+        assert angles[0] == pytest.approx(160.0, abs=1e-6)
 
     def test_validate_joint_angle_limits_within_limits(self):
         """Test angles within anatomical limits."""
@@ -404,6 +426,135 @@ class TestPoseTypeDetection:
 @pytest.mark.unit
 class TestPoseValidityAnalysis:
     """Test main pose validity analysis function."""
+
+    def test_analyze_pose_validity_counts_hierarchy_joint_angle_violations(self, temp_output_dir):
+        """Main analysis should wire hierarchy-derived joint angle violations into results and CSV."""
+        from pathlib import Path
+        from unittest.mock import patch
+
+        scene = Mock()
+        scene.GetRootNode.return_value.GetChildCount.return_value = 1
+        bones = [Mock() for _ in range(3)]
+        hierarchy = {
+            "LeftShoulder": None,
+            "LeftElbow": "LeftShoulder",
+            "LeftWrist": "LeftElbow",
+        }
+        parent_positions = np.array([[0.0, 0.0, 0.0]] * 3)
+        joint_positions = np.array([[1.0, 0.0, 0.0]] * 3)
+        child_positions = np.array([[1.0 - np.cos(np.radians(20.0)), np.sin(np.radians(20.0)), 0.0]] * 3)
+        bone_data = {
+            "LeftShoulder": {"positions": parent_positions, "rotations": np.zeros((3, 3)), "parent_positions": None},
+            "LeftElbow": {
+                "positions": joint_positions,
+                "rotations": np.zeros((3, 3)),
+                "parent_positions": parent_positions,
+            },
+            "LeftWrist": {
+                "positions": child_positions,
+                "rotations": np.zeros((3, 3)),
+                "parent_positions": joint_positions,
+            },
+        }
+
+        with (
+            patch("fbx_tool.analysis.pose_validity_analysis._get_all_bones", return_value=bones),
+            patch("fbx_tool.analysis.pose_validity_analysis.build_bone_hierarchy", return_value=hierarchy),
+            patch("fbx_tool.analysis.pose_validity_analysis._extract_bone_animation_data", return_value=bone_data),
+        ):
+            results = analyze_pose_validity(scene, output_dir=temp_output_dir)
+
+        assert results["bones_with_angle_violations"] == 1
+        assert results["overall_validity_score"] < 1.0
+
+        rows = (Path(temp_output_dir) / "joint_angle_violations.csv").read_text()
+        assert "LeftElbow" in rows
+        assert "max_exceeded" in rows
+
+    def test_analyze_pose_validity_counts_non_adjacent_self_intersections(self, temp_output_dir):
+        """Main analysis should compare non-adjacent bone segments for self-intersections."""
+        from unittest.mock import patch
+
+        scene = Mock()
+        scene.GetRootNode.return_value.GetChildCount.return_value = 1
+        bones = [Mock() for _ in range(4)]
+        hierarchy = {
+            "BoneAParent": None,
+            "BoneA": "BoneAParent",
+            "BoneBParent": None,
+            "BoneB": "BoneBParent",
+        }
+        bone_data = {
+            "BoneAParent": {
+                "positions": np.array([[0.0, 5.0, 0.0]]),
+                "rotations": np.zeros((1, 3)),
+                "parent_positions": None,
+            },
+            "BoneA": {
+                "positions": np.array([[10.0, 5.0, 0.0]]),
+                "rotations": np.zeros((1, 3)),
+                "parent_positions": np.array([[0.0, 5.0, 0.0]]),
+            },
+            "BoneBParent": {
+                "positions": np.array([[5.0, 0.0, 0.0]]),
+                "rotations": np.zeros((1, 3)),
+                "parent_positions": None,
+            },
+            "BoneB": {
+                "positions": np.array([[5.0, 10.0, 0.0]]),
+                "rotations": np.zeros((1, 3)),
+                "parent_positions": np.array([[5.0, 0.0, 0.0]]),
+            },
+        }
+
+        with (
+            patch("fbx_tool.analysis.pose_validity_analysis._get_all_bones", return_value=bones),
+            patch("fbx_tool.analysis.pose_validity_analysis.build_bone_hierarchy", return_value=hierarchy),
+            patch("fbx_tool.analysis.pose_validity_analysis._extract_bone_animation_data", return_value=bone_data),
+        ):
+            results = analyze_pose_validity(scene, output_dir=temp_output_dir)
+
+        assert results["self_intersections_detected"] == 1
+        assert results["overall_validity_score"] < 1.0
+
+    def test_analyze_pose_validity_ignores_adjacent_shared_joint_intersections(self, temp_output_dir):
+        """Adjacent bones sharing a skeleton joint should not count as self-intersections."""
+        from unittest.mock import patch
+
+        scene = Mock()
+        scene.GetRootNode.return_value.GetChildCount.return_value = 1
+        bones = [Mock() for _ in range(3)]
+        hierarchy = {
+            "UpperArm": None,
+            "ForeArm": "UpperArm",
+            "Hand": "ForeArm",
+        }
+        bone_data = {
+            "UpperArm": {
+                "positions": np.array([[0.0, 0.0, 0.0]]),
+                "rotations": np.zeros((1, 3)),
+                "parent_positions": None,
+            },
+            "ForeArm": {
+                "positions": np.array([[10.0, 0.0, 0.0]]),
+                "rotations": np.zeros((1, 3)),
+                "parent_positions": np.array([[0.0, 0.0, 0.0]]),
+            },
+            "Hand": {
+                "positions": np.array([[20.0, 0.0, 0.0]]),
+                "rotations": np.zeros((1, 3)),
+                "parent_positions": np.array([[10.0, 0.0, 0.0]]),
+            },
+        }
+
+        with (
+            patch("fbx_tool.analysis.pose_validity_analysis._get_all_bones", return_value=bones),
+            patch("fbx_tool.analysis.pose_validity_analysis.build_bone_hierarchy", return_value=hierarchy),
+            patch("fbx_tool.analysis.pose_validity_analysis._extract_bone_animation_data", return_value=bone_data),
+        ):
+            results = analyze_pose_validity(scene, output_dir=temp_output_dir)
+
+        assert results["self_intersections_detected"] == 0
 
     def test_analyze_pose_validity_basic(self, mock_scene, temp_output_dir):
         """Test basic pose validity analysis."""
