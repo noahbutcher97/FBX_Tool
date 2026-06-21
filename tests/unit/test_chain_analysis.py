@@ -11,6 +11,7 @@ focusing on:
 """
 
 import os
+import warnings
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -211,6 +212,20 @@ class TestTemporalCoherence:
         coherence = compute_temporal_coherence(position_data, frame_rate=30.0)
 
         assert coherence == 0.0
+
+    def test_compute_temporal_coherence_static_motion_does_not_warn(self):
+        """Should treat static windows as no valid correlation without NumPy warnings."""
+        from fbx_tool.analysis.chain_analysis import compute_temporal_coherence
+
+        position_data = np.zeros((30, 3))
+
+        with warnings.catch_warnings(record=True) as warning_records:
+            warnings.simplefilter("always")
+            coherence = compute_temporal_coherence(position_data, frame_rate=30.0)
+
+        runtime_warnings = [record for record in warning_records if issubclass(record.category, RuntimeWarning)]
+        assert coherence == 0.0
+        assert runtime_warnings == []
 
 
 @pytest.mark.unit

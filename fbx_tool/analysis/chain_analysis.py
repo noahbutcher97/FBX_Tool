@@ -80,6 +80,14 @@ def compute_temporal_coherence(position_data, frame_rate):
         w2 = position_data[i + window_size : i + 2 * window_size].flatten()
 
         if len(w1) == len(w2) and len(w1) > 0:
+            if not np.all(np.isfinite(w1)) or not np.all(np.isfinite(w2)):
+                continue
+
+            # Correlation is undefined for constant windows; skip them before
+            # NumPy divides by zero standard deviation.
+            if np.std(w1) == 0.0 or np.std(w2) == 0.0:
+                continue
+
             corr_matrix = np.corrcoef(w1, w2)
             if corr_matrix.shape == (2, 2):  # Valid correlation matrix
                 correlation = corr_matrix[0, 1]
