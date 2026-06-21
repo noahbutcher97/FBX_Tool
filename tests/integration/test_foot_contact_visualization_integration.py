@@ -11,21 +11,10 @@ Following TDD principles:
 3. Verify edge cases are handled
 """
 
-# Mock PyQt and OpenGL before importing
-import sys
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
-
-sys.modules["PyQt6"] = MagicMock()
-sys.modules["PyQt6.QtCore"] = MagicMock()
-sys.modules["PyQt6.QtGui"] = MagicMock()
-sys.modules["PyQt6.QtWidgets"] = MagicMock()
-sys.modules["PyQt6.QtOpenGLWidgets"] = MagicMock()
-sys.modules["OpenGL"] = MagicMock()
-sys.modules["OpenGL.GL"] = MagicMock()
-sys.modules["OpenGL.GLU"] = MagicMock()
 
 from fbx_tool.visualization.opengl_viewer import SkeletonGLWidget
 
@@ -105,6 +94,8 @@ class TestFootContactVisualizationIntegration:
         viewer.bone_transforms = walking_animation_data["bone_transforms"]
         viewer.hierarchy = walking_animation_data["hierarchy"]
         viewer.total_frames = 60
+        viewer.anim_info = {"frame_rate": 30.0}
+        viewer.contact_data = None
         viewer.up_axis = 1
         viewer.coord_system = {"up_axis": 1, "confidence": 0.95}
         viewer.is_y_up = True
@@ -128,6 +119,9 @@ class TestFootContactVisualizationIntegration:
             return float(np.percentile(all_foot_heights, 5))
 
         viewer._compute_adaptive_ground_height = compute_ground_height
+        viewer._get_bone_descendants = SkeletonGLWidget._get_bone_descendants.__get__(viewer, SkeletonGLWidget)
+        viewer._draw_ground_contact_line = SkeletonGLWidget._draw_ground_contact_line.__get__(viewer, SkeletonGLWidget)
+        viewer._draw_foot_contacts = SkeletonGLWidget._draw_foot_contacts.__get__(viewer, SkeletonGLWidget)
 
         return viewer
 
@@ -390,11 +384,17 @@ class TestFootContactVisualizationIntegration:
 
         # Mock OpenGL calls to prevent errors
         with (
+            patch("fbx_tool.visualization.opengl_viewer.glEnable"),
+            patch("fbx_tool.visualization.opengl_viewer.glDisable"),
+            patch("fbx_tool.visualization.opengl_viewer.glBlendFunc"),
+            patch("fbx_tool.visualization.opengl_viewer.glMaterialfv"),
             patch("fbx_tool.visualization.opengl_viewer.glColor3f"),
             patch("fbx_tool.visualization.opengl_viewer.glPushMatrix"),
             patch("fbx_tool.visualization.opengl_viewer.glPopMatrix"),
             patch("fbx_tool.visualization.opengl_viewer.glTranslatef"),
-            patch("fbx_tool.visualization.opengl_viewer.glutSolidSphere"),
+            patch("fbx_tool.visualization.opengl_viewer.gluNewQuadric"),
+            patch("fbx_tool.visualization.opengl_viewer.gluSphere"),
+            patch("fbx_tool.visualization.opengl_viewer.gluDeleteQuadric"),
             patch("fbx_tool.visualization.opengl_viewer.glBegin"),
             patch("fbx_tool.visualization.opengl_viewer.glEnd"),
             patch("fbx_tool.visualization.opengl_viewer.glVertex3f"),
@@ -409,6 +409,75 @@ class TestFootContactVisualizationIntegration:
                 error = str(e)
 
         assert success, f"_draw_foot_contacts raised exception: {error if not success else 'N/A'}"
+
+    def test_fast_ground_pass_stays_airborne(self, mock_fbx_scene):
+        """
+        Regression test: a foot at ground height but moving too fast stays airborne.
+
+        The old height-only contact check would color this frame green. The viewer
+        should require both height and velocity criteria, so this frame stays red.
+        """
+        viewer = Mock(spec=SkeletonGLWidget)
+        y_values = [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            20.0,
+            0.0,
+            20.0,
+            20.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            20.0,
+            20.0,
+            20.0,
+            20.0,
+            0.0,
+        ]
+
+        viewer.scene = mock_fbx_scene
+        viewer.bone_transforms = {
+            "mixamorig:LeftFoot": [
+                {"position": np.array([0.0, y, 0.0]), "rotation": np.array([0, 0, 0, 1])} for y in y_values
+            ]
+        }
+        viewer.hierarchy = {"mixamorig:LeftFoot": None}
+        viewer.total_frames = len(y_values)
+        viewer.anim_info = {"frame_rate": 30.0}
+        viewer.contact_data = None
+        viewer.current_frame = 7
+        viewer._get_bone_descendants = SkeletonGLWidget._get_bone_descendants.__get__(viewer, SkeletonGLWidget)
+        viewer._compute_adaptive_ground_height = SkeletonGLWidget._compute_adaptive_ground_height.__get__(
+            viewer, SkeletonGLWidget
+        )
+        viewer._draw_ground_contact_line = SkeletonGLWidget._draw_ground_contact_line.__get__(viewer, SkeletonGLWidget)
+        viewer._draw_foot_contacts = SkeletonGLWidget._draw_foot_contacts.__get__(viewer, SkeletonGLWidget)
+
+        with (
+            patch("fbx_tool.visualization.opengl_viewer.glEnable"),
+            patch("fbx_tool.visualization.opengl_viewer.glDisable"),
+            patch("fbx_tool.visualization.opengl_viewer.glBlendFunc"),
+            patch("fbx_tool.visualization.opengl_viewer.glMaterialfv") as materialfv,
+            patch("fbx_tool.visualization.opengl_viewer.glPushMatrix"),
+            patch("fbx_tool.visualization.opengl_viewer.glPopMatrix"),
+            patch("fbx_tool.visualization.opengl_viewer.glTranslatef"),
+            patch("fbx_tool.visualization.opengl_viewer.gluNewQuadric"),
+            patch("fbx_tool.visualization.opengl_viewer.gluSphere"),
+            patch("fbx_tool.visualization.opengl_viewer.gluDeleteQuadric"),
+        ):
+            viewer._draw_foot_contacts()
+
+        material_colors = [call.args[2] for call in materialfv.call_args_list]
+
+        assert [1.0, 0.0, 0.0, 0.6] in material_colors, "Fast ground pass should render as airborne"
+        assert [0.0, 1.0, 0.0, 0.8] not in material_colors, "Fast ground pass must not render as contact"
 
 
 if __name__ == "__main__":

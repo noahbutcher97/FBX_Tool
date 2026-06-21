@@ -165,6 +165,37 @@ def calculate_adaptive_velocity_threshold(velocities, percentile=None):
         constant_value = np.mean(valid_velocities)
         return max(constant_value, MIN_VELOCITY_THRESHOLD)
 
+    def find_gap_threshold(values):
+        """Find a balanced low/high velocity split without treating swing as noise."""
+        sorted_values = np.sort(values)
+        if len(sorted_values) < 4:
+            return None
+
+        gaps = np.diff(sorted_values)
+        if len(gaps) == 0:
+            return None
+
+        max_gap_idx = np.argmax(gaps)
+        values_below_gap = max_gap_idx + 1
+        values_above_gap = len(sorted_values) - values_below_gap
+        min_cluster_size = max(2, int(0.1 * len(sorted_values)))
+
+        data_range = sorted_values[-1] - sorted_values[0]
+        if (
+            data_range > 0
+            and gaps[max_gap_idx] > 0.1 * data_range
+            and values_below_gap >= min_cluster_size
+            and values_above_gap >= min_cluster_size
+        ):
+            threshold = (sorted_values[max_gap_idx] + sorted_values[max_gap_idx + 1]) / 2
+            return max(float(threshold), MIN_VELOCITY_THRESHOLD)
+
+        return None
+
+    threshold = find_gap_threshold(valid_velocities)
+    if threshold is not None:
+        return threshold
+
     # Remove extreme outliers using MAD (Median Absolute Deviation)
     # More robust than IQR when most values are identical
     median = np.median(valid_velocities)
@@ -197,37 +228,10 @@ def calculate_adaptive_velocity_threshold(velocities, percentile=None):
                 valid_velocities = filtered_velocities
 
     # Strategy: Look for gap in sorted velocities (bimodal distribution)
-    # Stance velocities (low) vs swing velocities (high) typically have a gap
-    sorted_velocities = np.sort(valid_velocities)
-
-    # Calculate gaps between consecutive values
-    if len(sorted_velocities) > 1:
-        gaps = np.diff(sorted_velocities)
-
-        # Find the largest gap (likely between stance and swing clusters)
-        if len(gaps) > 0:
-            max_gap_idx = np.argmax(gaps)
-
-            # Additional check: gap should not involve only outliers
-            # At least 10% of data should be on each side of the gap
-            values_below_gap = max_gap_idx + 1  # Number of values below gap
-            values_above_gap = len(sorted_velocities) - values_below_gap
-            min_cluster_size = max(3, int(0.1 * len(sorted_velocities)))  # At least 10% or 3 values
-
-            # Threshold is the midpoint of the largest gap
-            # Only use gap if:
-            # 1. Gap is significant (> 10% of data range)
-            # 2. Both sides have reasonable number of points (not just outliers)
-            data_range = sorted_velocities[-1] - sorted_velocities[0]
-            if (
-                data_range > 0
-                and gaps[max_gap_idx] > 0.1 * data_range
-                and values_below_gap >= min_cluster_size
-                and values_above_gap >= min_cluster_size
-            ):
-                threshold = (sorted_velocities[max_gap_idx] + sorted_velocities[max_gap_idx + 1]) / 2
-                threshold = max(threshold, MIN_VELOCITY_THRESHOLD)
-                return float(threshold)
+    # Stance velocities (low) vs swing velocities (high) typically have a gap.
+    threshold = find_gap_threshold(valid_velocities)
+    if threshold is not None:
+        return threshold
 
     # Fallback: Use percentile-based approach
     # Use higher percentile (50th) to better separate clusters when no clear gap

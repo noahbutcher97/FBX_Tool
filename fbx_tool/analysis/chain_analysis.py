@@ -15,6 +15,7 @@ may have motion artifacts or inconsistencies.
 """
 
 import csv
+import os
 
 import fbx
 import numpy as np
@@ -243,7 +244,7 @@ def analyze_chains(scene, output_dir="output/"):
         )
 
     # Write results CSV
-    output_path = output_dir + "chain_confidence.csv"
+    output_path = os.path.join(output_dir, "chain_confidence.csv")
     prepare_output_file(output_path)
     with open(output_path, "w", newline="") as f:
         w = csv.writer(f)
