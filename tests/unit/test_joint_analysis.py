@@ -4,6 +4,7 @@ Unit tests for joint_analysis module.
 Tests joint-level IK suitability analysis and rotation range computation.
 """
 
+import warnings
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
@@ -142,6 +143,20 @@ class TestJointIKSuitabilityComputation:
 
         assert expected_ik_score == pytest.approx(0.68, rel=1e-3)
 
+    def test_ik_suitability_invalid_rotation_shape_does_not_warn(self):
+        """Invalid rotation arrays should produce neutral scores without NumPy warnings."""
+        from fbx_tool.analysis.utils import compute_ik_suitability
+
+        rotation_data = np.empty((4, 3, 0))
+
+        with warnings.catch_warnings(record=True) as warning_records:
+            warnings.simplefilter("always")
+            result = compute_ik_suitability(rotation_data)
+
+        runtime_warnings = [record for record in warning_records if issubclass(record.category, RuntimeWarning)]
+        assert result == (0.0, 0.0, 0.0)
+        assert runtime_warnings == []
+
 
 class TestJointAnalysisEdgeCases:
     """Test edge cases in joint analysis."""
@@ -210,6 +225,8 @@ class TestAnalyzeJointsFunction:
         mock_r_vec.mData = [10.0, 20.0, 30.0, 0.0]
         mock_transform.GetT.return_value = mock_t_vec
         mock_transform.GetR.return_value = mock_r_vec
+        mock_transform.Inverse.return_value = mock_transform
+        mock_transform.__mul__.return_value = mock_transform
 
         mock_node.EvaluateGlobalTransform.return_value = mock_transform
         mock_parent_node.EvaluateGlobalTransform.return_value = mock_transform
@@ -217,10 +234,15 @@ class TestAnalyzeJointsFunction:
         mock_scene.FindNodeByName.side_effect = lambda name: mock_node if name == "ChildBone" else mock_parent_node
 
         # Execute
-        result = analyze_joints(mock_scene, output_dir="test_output/")
+        with warnings.catch_warnings(record=True) as warning_records:
+            warnings.simplefilter("always")
+            result = analyze_joints(mock_scene, output_dir="test_output/")
 
         # Verify
+        runtime_warnings = [record for record in warning_records if issubclass(record.category, RuntimeWarning)]
+        assert runtime_warnings == []
         assert isinstance(result, dict)
+        assert result[("ParentBone", "ChildBone")] == pytest.approx((1.0, 0.0, 0.7))
         mock_prepare.assert_called_once()
 
     @patch("fbx_tool.analysis.joint_analysis.get_scene_metadata")

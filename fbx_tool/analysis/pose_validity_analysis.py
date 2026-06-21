@@ -79,6 +79,53 @@ def compute_bone_lengths(parent_positions: np.ndarray, child_positions: np.ndarr
     return lengths
 
 
+def compute_joint_angles(
+    parent_positions: np.ndarray, joint_positions: np.ndarray, child_positions: np.ndarray
+) -> np.ndarray:
+    """
+    Compute joint flexion angles across frames.
+
+    A straight parent-joint-child chain reports 0 degrees of flexion. A limb
+    folded back toward the parent reports higher flexion as it approaches 180.
+
+    Args:
+        parent_positions: Parent joint positions (frames, 3)
+        joint_positions: Joint positions where the angle is measured (frames, 3)
+        child_positions: Child joint positions (frames, 3)
+
+    Returns:
+        Flexion angle in degrees for each frame. Degenerate frames return NaN.
+    """
+    if len(parent_positions.shape) == 1:
+        parent_positions = parent_positions.reshape(1, -1)
+    if len(joint_positions.shape) == 1:
+        joint_positions = joint_positions.reshape(1, -1)
+    if len(child_positions.shape) == 1:
+        child_positions = child_positions.reshape(1, -1)
+
+    frame_count = min(len(parent_positions), len(joint_positions), len(child_positions))
+    if frame_count == 0:
+        return np.array([])
+
+    parent_vectors = parent_positions[:frame_count] - joint_positions[:frame_count]
+    child_vectors = child_positions[:frame_count] - joint_positions[:frame_count]
+
+    parent_lengths = np.linalg.norm(parent_vectors, axis=1)
+    child_lengths = np.linalg.norm(child_vectors, axis=1)
+    length_products = parent_lengths * child_lengths
+
+    angles = np.full(frame_count, np.nan)
+    valid_mask = length_products > 1e-8
+    if not np.any(valid_mask):
+        return angles
+
+    cos_angles = np.sum(parent_vectors[valid_mask] * child_vectors[valid_mask], axis=1) / length_products[valid_mask]
+    geometric_angles = np.degrees(np.arccos(np.clip(cos_angles, -1.0, 1.0)))
+    angles[valid_mask] = 180.0 - geometric_angles
+
+    return angles
+
+
 def detect_bone_length_violations(
     bone_lengths: np.ndarray, reference_length: float, tolerance: float = 0.05
 ) -> List[Dict[str, Any]]:
@@ -346,6 +393,152 @@ def detect_self_intersections(
     return intersections
 
 
+def _infer_joint_type(bone_name: str) -> Optional[str]:
+    """Infer a broad joint category from common rig bone names."""
+    name = bone_name.lower()
+
+    if any(token in name for token in ("elbow", "forearm", "lowerarm")):
+        return "elbow"
+    if "knee" in name or ("leg" in name and "upleg" not in name):
+        return "knee"
+    if "shoulder" in name or ("arm" in name and "forearm" not in name and "lowerarm" not in name):
+        return "shoulder"
+    if any(token in name for token in ("hip", "upleg", "thigh")):
+        return "hip"
+    if "wrist" in name:
+        return "wrist"
+    if any(token in name for token in ("ankle", "foot")):
+        return "ankle"
+
+    return None
+
+
+def _get_joint_angle_limits(joint_type: str) -> Tuple[float, float]:
+    """Return broad flexion limits for a joint category."""
+    limits = {
+        "elbow": (0.0, 140.0),
+        "knee": (0.0, 130.0),
+        "shoulder": (0.0, 180.0),
+        "hip": (0.0, 160.0),
+        "wrist": (0.0, 90.0),
+        "ankle": (0.0, 90.0),
+    }
+    return limits.get(joint_type, (0.0, 180.0))
+
+
+def _build_child_map(hierarchy: Dict[str, Optional[str]]) -> Dict[str, List[str]]:
+    """Build a parent-to-children map from a child-to-parent hierarchy."""
+    child_map: Dict[str, List[str]] = {}
+    for child_name, parent_name in hierarchy.items():
+        if parent_name is not None:
+            child_map.setdefault(parent_name, []).append(child_name)
+    return child_map
+
+
+def _detect_hierarchy_joint_angle_violations(
+    bone_data: Dict[str, Dict], hierarchy: Dict[str, Optional[str]]
+) -> List[Dict[str, Any]]:
+    """Detect joint angle violations using parent-joint-child chains."""
+    child_map = _build_child_map(hierarchy)
+    angle_violations: List[Dict[str, Any]] = []
+
+    for joint_name, data in bone_data.items():
+        parent_name = hierarchy.get(joint_name)
+        child_names = child_map.get(joint_name, [])
+        joint_type = _infer_joint_type(joint_name)
+
+        if parent_name is None or not child_names or joint_type is None:
+            continue
+
+        parent_data = bone_data.get(parent_name)
+        if parent_data is not None:
+            parent_positions = parent_data.get("positions")
+        else:
+            parent_positions = data.get("parent_positions")
+
+        joint_positions = data.get("positions")
+        if parent_positions is None or joint_positions is None:
+            continue
+
+        min_angle, max_angle = _get_joint_angle_limits(joint_type)
+
+        for child_name in child_names:
+            child_data = bone_data.get(child_name)
+            if child_data is None:
+                continue
+
+            child_positions = child_data.get("positions")
+            if child_positions is None:
+                continue
+
+            angles = compute_joint_angles(parent_positions, joint_positions, child_positions)
+            for violation in validate_joint_angle_limits(angles, joint_type, min_angle, max_angle):
+                violation["bone_name"] = joint_name
+                violation["child_bone_name"] = child_name
+                angle_violations.append(violation)
+
+    return angle_violations
+
+
+def _segments_share_joint(segment_a: Dict[str, Any], segment_b: Dict[str, Any]) -> bool:
+    """Return True when two bone segments share a skeleton joint endpoint."""
+    joints_a = {segment_a["parent_name"], segment_a["bone_name"]}
+    joints_b = {segment_b["parent_name"], segment_b["bone_name"]}
+    return bool(joints_a & joints_b)
+
+
+def _detect_pairwise_self_intersections(
+    bone_data: Dict[str, Dict], hierarchy: Dict[str, Optional[str]], median_bone_length: Optional[float]
+) -> List[Dict[str, Any]]:
+    """Detect self-intersections between non-adjacent bone segments."""
+    segments = []
+    for bone_name, data in bone_data.items():
+        parent_name = hierarchy.get(bone_name)
+        parent_positions = data.get("parent_positions")
+        positions = data.get("positions")
+
+        if parent_name is None or parent_positions is None or positions is None:
+            continue
+        if len(parent_positions) == 0 or len(positions) == 0:
+            continue
+
+        segments.append(
+            {
+                "bone_name": bone_name,
+                "parent_name": parent_name,
+                "start": parent_positions,
+                "end": positions,
+            }
+        )
+
+    intersections: List[Dict[str, Any]] = []
+    for index, segment_a in enumerate(segments):
+        for segment_b in segments[index + 1 :]:
+            if _segments_share_joint(segment_a, segment_b):
+                continue
+
+            frame_count = min(
+                len(segment_a["start"]), len(segment_a["end"]), len(segment_b["start"]), len(segment_b["end"])
+            )
+            if frame_count == 0:
+                continue
+
+            segment_intersections = detect_self_intersections(
+                segment_a["start"][:frame_count],
+                segment_a["end"][:frame_count],
+                segment_b["start"][:frame_count],
+                segment_b["end"][:frame_count],
+                median_bone_length=median_bone_length,
+            )
+
+            for intersection in segment_intersections:
+                intersection["bone1_name"] = segment_a["bone_name"]
+                intersection["bone2_name"] = segment_b["bone_name"]
+                intersections.append(intersection)
+
+    return intersections
+
+
 def compute_line_segment_distance(p1: np.ndarray, p2: np.ndarray, p3: np.ndarray, p4: np.ndarray) -> float:
     """
     Compute minimum distance between two line segments.
@@ -569,8 +762,9 @@ def analyze_pose_validity(scene, output_dir: str = ".") -> Dict[str, Any]:
 
     # STEP 2: Compute adaptive tolerance based on skeleton bone length distribution
     # PROCEDURAL: Use coefficient of variation to determine appropriate tolerance
+    median_bone_length = None
     if len(all_bone_lengths) > 0:
-        median_bone_length = np.median(all_bone_lengths)
+        median_bone_length = float(np.median(all_bone_lengths))
         std_bone_length = np.std(all_bone_lengths)
         cv_bone_lengths = std_bone_length / median_bone_length if median_bone_length > 0 else 0
 
@@ -597,13 +791,13 @@ def analyze_pose_validity(scene, output_dir: str = ".") -> Dict[str, Any]:
 
     results["bones_with_length_violations"] = len(set(v["bone_name"] for v in length_violations))
 
-    # Analyze joint angles (simplified - would need proper joint hierarchy)
-    angle_violations: List[Dict[str, Any]] = []
-    # TODO: Implement full joint angle analysis with proper hierarchy
+    # Analyze broad joint flexion limits from parent-joint-child chains.
+    angle_violations = _detect_hierarchy_joint_angle_violations(bone_data, hierarchy)
+    results["bones_with_angle_violations"] = len(set(v["bone_name"] for v in angle_violations))
 
-    # Detect self-intersections (simplified)
-    intersection_count = 0
-    # TODO: Implement pairwise bone intersection checking
+    # Detect self-intersections between non-adjacent bone segments.
+    intersections = _detect_pairwise_self_intersections(bone_data, hierarchy, median_bone_length)
+    intersection_count = len(intersections)
 
     results["self_intersections_detected"] = intersection_count
 
@@ -777,6 +971,8 @@ def _write_empty_csv_files(output_path: Path):
         writer.writerow(
             [
                 "bone_name",
+                "child_bone_name",
+                "joint_type",
                 "frame_start",
                 "frame_end",
                 "type",
@@ -810,7 +1006,7 @@ def _write_bone_length_violations_csv(filepath: Path, violations: List[Dict]):
                 "mean_deviation_percent",
                 "severity",
             ]
-            dict_writer = csv.DictWriter(f, fieldnames=fieldnames)
+            dict_writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             dict_writer.writeheader()
             dict_writer.writerows(violations)
         else:
@@ -834,6 +1030,8 @@ def _write_joint_angle_violations_csv(filepath: Path, violations: List[Dict]):
         if violations:
             fieldnames = [
                 "bone_name",
+                "child_bone_name",
+                "joint_type",
                 "frame_start",
                 "frame_end",
                 "type",
@@ -841,7 +1039,7 @@ def _write_joint_angle_violations_csv(filepath: Path, violations: List[Dict]):
                 "mean_violation_degrees",
                 "severity",
             ]
-            dict_writer = csv.DictWriter(f, fieldnames=fieldnames)
+            dict_writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             dict_writer.writeheader()
             dict_writer.writerows(violations)
         else:
@@ -849,6 +1047,8 @@ def _write_joint_angle_violations_csv(filepath: Path, violations: List[Dict]):
             row_writer.writerow(
                 [
                     "bone_name",
+                    "child_bone_name",
+                    "joint_type",
                     "frame_start",
                     "frame_end",
                     "type",

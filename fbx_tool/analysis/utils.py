@@ -1242,7 +1242,15 @@ def compute_ik_suitability(rotation_data):
     Returns:
         tuple: (stability, range_score, ik_score)
     """
-    if len(rotation_data) == 0:
+    try:
+        rotation_data = np.asarray(rotation_data, dtype=float)
+    except (TypeError, ValueError):
+        return 0.0, 0.0, 0.0
+
+    if rotation_data.ndim != 2 or rotation_data.shape[0] == 0 or rotation_data.shape[1] != 3:
+        return 0.0, 0.0, 0.0
+
+    if not np.all(np.isfinite(rotation_data)):
         return 0.0, 0.0, 0.0
 
     # Compute statistics
