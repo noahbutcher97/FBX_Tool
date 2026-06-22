@@ -4,7 +4,7 @@
 
 **Status:** Active Design Guide
 
-**Related:** See `HARDCODED_CONSTANTS_AUDIT.md` for current implementation status
+**Related:** See `../audits/MODULE_ERROR_LOGIC_AUDIT.md` for current implementation status. The old hardcoded-constants tracker is archived at `../archive/HARDCODED_CONSTANTS_AUDIT_2025-10-17_SUPERSEDED.md`.
 
 ---
 
@@ -106,7 +106,7 @@ forward_axis, confidence = detect_forward_direction(trajectory)
 
 ## Implementation Status
 
-### ✅ Implemented (Session 2025-10-18)
+### ✅ Implemented
 
 1. **Adaptive Motion State Detection**
    - Percentile-based velocity thresholds
@@ -131,11 +131,15 @@ forward_axis, confidence = detect_forward_direction(trajectory)
    - Supports Mixamo, Unity, Blender rigs
    - Confidence-based matching
 
+6. **Advanced Analysis Unit Coverage**
+   - Directional change detection, motion classification, temporal segmentation, and motion transition detection have focused unit coverage
+   - Pose validity now uses shared hierarchy data and adaptive thresholds in the main path
+
 ### ⏳ In Progress
 
-1. **Jitter Detection** - Make thresholds percentile-based
-2. **Constraint Confidence** - Fix misleading 1.0 score with 0 data
-3. **Foot Contact Analysis** - Audit and proceduralize thresholds
+1. **Focused Analysis Pipeline Completion** - Update CLI/full integration coverage for the advanced analysis outputs exposed by the GUI
+2. **Output Contract Proof** - Assert output files and summary keys before widening internals
+3. **Broader Anatomical Model** - Expand pose validity after abstractable tests cover the current behavior
 
 ### 🔮 Future Vision
 
@@ -169,8 +173,8 @@ These documents contain forward-looking design ideas that may be implemented in 
 ## Current Implementation Guide
 
 For current status and next steps:
-- **[HARDCODED_CONSTANTS_AUDIT.md](../development/HARDCODED_CONSTANTS_AUDIT.md)** - What's fixed, what's not
 - **[MODULE_ERROR_LOGIC_AUDIT.md](../audits/MODULE_ERROR_LOGIC_AUDIT.md)** - Current module audit findings
+- **[HARDCODED_CONSTANTS_AUDIT_2025-10-17_SUPERSEDED.md](../archive/HARDCODED_CONSTANTS_AUDIT_2025-10-17_SUPERSEDED.md)** - Historical threshold audit
 - **[Agentic workflow](../agentic/WORKFLOW.md)** - Current task flow and verification expectations
 
 ---
@@ -229,4 +233,4 @@ For any procedural fix:
 
 ---
 
-**Last Updated:** 2025-10-18
+**Last Updated:** 2026-06-22

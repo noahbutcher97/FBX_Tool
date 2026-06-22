@@ -85,15 +85,14 @@ This directory contains all project documentation organized by category.
   - Common pitfalls
 
 - **[development/INCOMPLETE_MODULES.md](development/INCOMPLETE_MODULES.md)** - Current incomplete modules
-  - Modules requiring TDD implementation
-  - Active issues and root causes
-  - Fix requirements
+  - Historical incomplete-module notes
+  - Resolved placeholder behavior
+  - Pointers to current audit status
 
-- **[development/HARDCODED_CONSTANTS_AUDIT.md](development/HARDCODED_CONSTANTS_AUDIT.md)** - Proceduralization tracker
-  - Comprehensive audit of all hardcoded constants
-  - Status tracking (Fixed/Partial/Not Fixed)
-  - Priority levels (P0/P1/P2)
-  - Impact assessment and fix order
+- **[audits/MODULE_ERROR_LOGIC_AUDIT.md](audits/MODULE_ERROR_LOGIC_AUDIT.md)** - Current module status and follow-up priorities
+  - Live source/test status by analysis module
+  - Verification evidence and remaining risk areas
+  - Current next-step recommendations
 
 - **[agentic/TASK_TEMPLATE.md](agentic/TASK_TEMPLATE.md)** and **[agentic/HANDOFF_TEMPLATE.md](agentic/HANDOFF_TEMPLATE.md)** - Current task and handoff templates
   - Scope, proof, and forbidden-scope fields
@@ -104,12 +103,14 @@ This directory contains all project documentation organized by category.
 
 **Current state and improvement areas:**
 
-- **[development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md)** - **Detailed** algorithm correctness issues
-  - Complete code review findings for velocity_analysis.py, gait_analysis.py, chain_analysis.py
-  - Line-specific issues with fixes
-  - Priority categorization (MUST FIX, SHOULD FIX, NICE TO HAVE)
+- **[audits/MODULE_ERROR_LOGIC_AUDIT.md](audits/MODULE_ERROR_LOGIC_AUDIT.md)** - Current module audit findings
+  - Source/test status by analysis module
+  - Known follow-up areas
+  - Current verification snapshot
 
-- **[development/CODE_REVIEW_FINDINGS.md](development/CODE_REVIEW_FINDINGS.md)** - Original code review (archived)
+- **[archive/ALGORITHM_ISSUES_2025-10-17_FIXED.md](archive/ALGORITHM_ISSUES_2025-10-17_FIXED.md)** - Historical algorithm issue notes
+
+- **[archive/CODE_REVIEW_FINDINGS_2025-10-17_FIXED.md](archive/CODE_REVIEW_FINDINGS_2025-10-17_FIXED.md)** - Original code review (archived)
 
 - **[development/EDGE_CASE_PATTERNS.md](development/EDGE_CASE_PATTERNS.md)** - Edge case handling patterns
   - Graceful degradation strategies
@@ -136,8 +137,8 @@ This directory contains all project documentation organized by category.
 #### For Maintainers
 1. Use [agentic/RELEASE_CHECKLIST.md](agentic/RELEASE_CHECKLIST.md) before merging PRs
 2. Check [agentic/BASELINE.md](agentic/BASELINE.md) for current verification gates
-3. Check [development/INCOMPLETE_MODULES.md](development/INCOMPLETE_MODULES.md) for implementation gaps
-4. Review [development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md) for priority fixes
+3. Check [audits/MODULE_ERROR_LOGIC_AUDIT.md](audits/MODULE_ERROR_LOGIC_AUDIT.md) for current implementation gaps
+4. Review [development/INCOMPLETE_MODULES.md](development/INCOMPLETE_MODULES.md) only for historical context
 5. Consult [architecture/SCENE_MANAGEMENT.md](architecture/SCENE_MANAGEMENT.md) for system design
 
 #### For Users
@@ -158,8 +159,8 @@ This directory contains all project documentation organized by category.
 - `../tests/unit/test_gait_analysis.py` - Reference test examples
 
 #### Issues & Improvements
-- [development/INCOMPLETE_MODULES.md](development/INCOMPLETE_MODULES.md) - Known issues
-- [development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md) - Algorithm correctness
+- [audits/MODULE_ERROR_LOGIC_AUDIT.md](audits/MODULE_ERROR_LOGIC_AUDIT.md) - Current module status
+- [development/INCOMPLETE_MODULES.md](development/INCOMPLETE_MODULES.md) - Historical incomplete-module notes
 - [development/EDGE_CASE_PATTERNS.md](development/EDGE_CASE_PATTERNS.md) - Edge case handling
 
 ## Quick Reference
@@ -229,7 +230,7 @@ When adding new documentation:
 
 - [ ] `architecture/ANALYSIS_PIPELINE.md` - Complete analysis flow
 - [x] ~~`architecture/CACHING_STRATEGY.md`~~ - Covered in SCENE_MANAGEMENT.md
-- [x] ~~`development/ADAPTIVE_THRESHOLDS.md`~~ - See HARDCODED_CONSTANTS_AUDIT.md and PROCEDURAL_DESIGN_PHILOSOPHY.md
+- [x] ~~`development/ADAPTIVE_THRESHOLDS.md`~~ - See `architecture/PROCEDURAL_DESIGN_PHILOSOPHY.md` and `audits/MODULE_ERROR_LOGIC_AUDIT.md`
 - [ ] `testing/INTEGRATION_TEST_PATTERNS.md` - Multi-component test examples
 - [ ] `api/MODULES.md` - Module-by-module API reference
 - [ ] `api/METADATA_SCHEMA.md` - procedural_metadata.json specification
@@ -252,8 +253,7 @@ When adding new documentation:
 - ✅ **NEW:** [quick-reference/COMMANDS.md](quick-reference/COMMANDS.md) - All dev commands
 - ✅ **NEW:** [quick-reference/TDD_EXAMPLES.md](quick-reference/TDD_EXAMPLES.md) - Test patterns
 - ✅ **NEW:** [changelog/SESSION_HISTORY.md](changelog/SESSION_HISTORY.md) - Session updates archive
-- ✅ **NEW:** [development/ALGORITHM_ISSUES.md](development/ALGORITHM_ISSUES.md) - Detailed algorithm fixes
-- ✅ Added [development/HARDCODED_CONSTANTS_AUDIT.md](development/HARDCODED_CONSTANTS_AUDIT.md)
+- ✅ Historical algorithm and hardcoded-constant notes were later archived under [archive/](archive/)
 - ✅ Added a session handoff note, later superseded by [agentic task and handoff templates](agentic/TASK_TEMPLATE.md)
 - ✅ Implemented adaptive motion state detection with CV check
 - ✅ Cached derivatives for performance optimization
@@ -277,6 +277,6 @@ When adding new documentation:
 - **FBX SDK** → [development/FBX_SDK_FIXES.md](development/FBX_SDK_FIXES.md)
 - **Testing** → [testing/MOCK_SETUP_PATTERNS.md](testing/MOCK_SETUP_PATTERNS.md)
 - **Architecture** → [architecture/SCENE_MANAGEMENT.md](architecture/SCENE_MANAGEMENT.md)
-- **Known Issues** → [development/INCOMPLETE_MODULES.md](development/INCOMPLETE_MODULES.md)
+- **Known Issues** → [audits/MODULE_ERROR_LOGIC_AUDIT.md](audits/MODULE_ERROR_LOGIC_AUDIT.md)
 
 **Still stuck?** Check the [main README](../README.md) or review test examples in `../tests/`.

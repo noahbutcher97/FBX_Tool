@@ -2,7 +2,7 @@
 
 Professional desktop application for analyzing FBX animation files with biomechanical motion processing and real-time 3D visualization.
 
-![FBX Tool](assets/screenshot.png)
+![FBX Tool icon](assets/icon/FBX_Tool_Icon.png)
 
 ## Features
 
@@ -69,7 +69,7 @@ cd FBX_Tool
 
 # Or manually:
 # Create virtual environment (Python 3.10 required!)
-python -m venv .fbxenv --system-site-packages
+py -3.10 -m venv .fbxenv
 
 # Activate
 .fbxenv\Scripts\activate  # Windows
@@ -77,6 +77,9 @@ source .fbxenv/bin/activate  # Linux/Mac
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Install Autodesk FBX SDK wheel into the venv
+pip install "C:\Program Files\Autodesk\FBX\FBX Python SDK\2020.3.7\fbx-2020.3.7-cp310-none-win_amd64.whl"
 ```
 
 📖 **See [docs/INSTALL.md](docs/INSTALL.md) for complete installation guide**
@@ -216,7 +219,7 @@ FBX_Tool/
 ├── requirements.txt             # Full dependencies (core + visualization)
 ├── requirements-dev.txt         # Development tools (includes requirements.txt)
 ├── pyproject.toml              # Project metadata
-├── INSTALL.md                  # Installation guide
+├── docs/INSTALL.md             # Installation guide
 ├── README.md                   # This file
 ├── .gitignore                  # Git ignore patterns
 └── LICENSE                     # MIT License
@@ -315,7 +318,7 @@ Partial results saved to: output/animation/
 ## Known Issues
 
 - **"Unknown" Gait Type**: Occurs when left/right phase detection fails or when analyzing non-walking animations. Check `gait_summary.csv` for raw metrics.
-- **FBX SDK Import Errors**: Ensure Python 3.10.x and FBX SDK 2020.3.7 are installed. See [INSTALL.md](INSTALL.md).
+- **FBX SDK Import Errors**: Ensure Python 3.10.x and FBX SDK 2020.3.7 are installed. See [docs/INSTALL.md](docs/INSTALL.md).
 - **High Memory Usage**: Large FBX files (>10k frames, 100+ bones) may consume significant RAM during analysis.
 - **Mixamo Files**: Tool automatically detects and uses the "mixamo.com" animation stack. If animation appears static, check that the file contains animation keyframes.
 

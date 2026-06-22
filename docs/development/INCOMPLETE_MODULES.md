@@ -7,19 +7,21 @@ Analysis of modules returning zero or placeholder results despite having data.
 
 ## Issue Summary
 
-**Last Updated:** Session 2025-10-19c (Historical tracking - see audit for current status)
+**Last Updated:** 2026-06-22 (historical tracking; see audit for current status)
 
-**MANY ISSUES FIXED** - Current Status:
+**MANY ISSUES FIXED** - Current status:
 - ✅ **velocity_analysis.py** - FIXED: Adaptive thresholds implemented, NaN handling added
 - ✅ **gait_analysis.py** - FIXED: Algorithm bugs corrected (cycle rate, stride length, asymmetry)
 - ✅ **root_motion_analysis.py** - FIXED: Compatible with procedural coordinate system
 - ✅ **constraint_violation_detection.py** - FIXED: Proceduralized (58% coverage, 41 tests passing)
 - ✅ **foot_contact_visualization** (opengl_viewer.py) - FIXED: Context-aware stuck bone detection (Session 2025-10-19a)
 - ✅ **foot_contact_analysis.py** - FIXED: KeyError 'up_axis' resolved (Session 2025-10-19c)
-- ✅ **directional_change_detection.py** - FIXED: KeyError 'angular_velocity_y' resolved (Session 2025-10-19c)
+- ✅ **directional_change_detection.py** - FIXED and tested; no longer a 0% coverage module
+- ✅ **motion_classification.py** - Unit-tested; full-pipeline output assertions still pending
+- ✅ **temporal_segmentation.py** - Unit-tested; full-pipeline output assertions still pending
 - ✅ **GUI batch processing** - FIXED: Add to Batch buttons now re-enable after analysis (Session 2025-10-19c)
-- ⚠️ **pose_validity_analysis.py** - Needs shared hierarchy + adaptive thresholds
-- ⚠️ **motion_transition_detection.py** - Needs gap-based thresholds + tests
+- ⚠️ **pose_validity_analysis.py** - Shared hierarchy/adaptive thresholds are in the main path; broader anatomical modeling remains future work
+- ⚠️ **motion_transition_detection.py** - Gap-based thresholds and tests exist; fallback behavior and full-pipeline integration remain the current caveats
 
 **Historical Issues (many resolved):**
 
@@ -289,7 +291,9 @@ for frame in range(total_frames):
 
 ### Test Results
 
-**All 40 unit tests passing:**
+**Current unit tests:** 45 tests in `tests/unit/test_pose_validity_analysis.py`.
+
+**Historical test groups:**
 - ✅ Bone length validation (6 tests)
 - ✅ Joint angle limits (6 tests)
 - ✅ Self-intersection detection (4 tests)
@@ -300,7 +304,7 @@ for frame in range(total_frames):
 - ✅ Edge cases (5 tests)
 - ✅ Reference length computation (2 tests)
 
-**Module coverage:** 62.32% (up from ~0%)
+**Current focused module coverage:** 77.85% (up from the earlier ~0%/62% snapshots)
 
 ### Implementation Details
 
@@ -373,6 +377,8 @@ This document is no longer the task queue. For active work, start from:
 2. Current source inspection in `fbx_tool/analysis/`
 3. Current tests in `tests/unit/` and `tests/integration/`
 4. `docs/agentic/TASK_TEMPLATE.md` for scoped task handoff
+
+The next high-value implementation task is focused analysis completion: update `examples/run_analysis.py` and `tests/integration/test_full_analysis_pipeline.py` so advanced operations are proven end-to-end before broadening the anatomical model.
 
 **Note:** Per TDD methodology, all new implementations should have tests written FIRST.
 

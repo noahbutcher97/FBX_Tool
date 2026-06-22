@@ -215,34 +215,17 @@ return {
 
 See [docs/development/EDGE_CASE_PATTERNS.md](docs/development/EDGE_CASE_PATTERNS.md) for patterns.
 
-## Known Issues & Incomplete Modules
+## Current Analysis Status
 
-See **[docs/development/INCOMPLETE_MODULES.md](docs/development/INCOMPLETE_MODULES.md)** for details.
+Use **[docs/audits/MODULE_ERROR_LOGIC_AUDIT.md](docs/audits/MODULE_ERROR_LOGIC_AUDIT.md)** for current module status.
+Use **[docs/development/INCOMPLETE_MODULES.md](docs/development/INCOMPLETE_MODULES.md)** only as historical context.
 
-### Modules Requiring TDD (Write Tests First!)
+### Current Focus Areas
 
-- `directional_change_detection.py` - 0% coverage
-- `motion_transition_detection.py` - 0% coverage
-- `temporal_segmentation.py` - 0% coverage
-- `motion_classification.py` - 0% coverage
-- `constraint_violation_detection.py` - Contains TODO placeholders
-
-### Algorithm Issues
-
-From **[docs/development/ALGORITHM_ISSUES.md](docs/development/ALGORITHM_ISSUES.md)**:
-
-**gait_analysis.py:**
-- Line 165: Cycle rate calculation WRONG (contact rate, not cycle rate)
-- Line 110: Stride length uses Y-axis instead of horizontal
-- Line 112: Asymmetry always 0.0
-
-**velocity_analysis.py:**
-- Lines 702-707: NaN propagation in chain coherence
-- Magic numbers (0.1, 0.01, 0.25, 0.4, 0.7) undocumented
-
-**chain_analysis.py:**
-- Lines 69-71: Undocumented IK score formula
-- Lines 122-128: Temporal coherence may inflate scores
+- `examples/run_analysis.py` and `tests/integration/test_full_analysis_pipeline.py` still cover the older 10-step pipeline, while the GUI exposes directional changes, motion transitions, temporal segmentation, and motion summary.
+- `pose_validity_analysis.py` has shared hierarchy usage and adaptive thresholds in the main path, but a broader anatomical model is still future work.
+- `motion_transition_detection.py`, `directional_change_detection.py`, `motion_classification.py`, and `temporal_segmentation.py` now have unit coverage; do not treat older 0% coverage notes as current.
+- Historical algorithm issue notes are archived under `docs/archive/`. Verify live source and tests before reviving any old claim.
 
 ## Documentation Map
 
@@ -251,8 +234,8 @@ From **[docs/development/ALGORITHM_ISSUES.md](docs/development/ALGORITHM_ISSUES.
 ### Critical Reading (Read Before Coding!)
 
 1. **[docs/development/FBX_SDK_FIXES.md](docs/development/FBX_SDK_FIXES.md)** - FBX SDK patterns (MUST READ!)
-2. **[docs/development/INCOMPLETE_MODULES.md](docs/development/INCOMPLETE_MODULES.md)** - Current issues
-3. **[docs/development/ALGORITHM_ISSUES.md](docs/development/ALGORITHM_ISSUES.md)** - Algorithm correctness issues
+2. **[docs/audits/MODULE_ERROR_LOGIC_AUDIT.md](docs/audits/MODULE_ERROR_LOGIC_AUDIT.md)** - Current module audit findings
+3. **[docs/development/INCOMPLETE_MODULES.md](docs/development/INCOMPLETE_MODULES.md)** - Historical incomplete-module notes
 4. **[docs/development/EDGE_CASE_PATTERNS.md](docs/development/EDGE_CASE_PATTERNS.md)** - Edge case handling
 
 ### Quick Reference
@@ -395,7 +378,7 @@ See **[docs/changelog/SESSION_HISTORY.md](docs/changelog/SESSION_HISTORY.md)** f
 - ✅ Coefficient of variation for single-state detection
 - ✅ Percentage-based minimum duration (frame-rate aware)
 - ✅ Procedural metadata export system
-- 📄 New: `docs/development/HARDCODED_CONSTANTS_AUDIT.md`
+- 📄 Historical threshold audit archived as `docs/archive/HARDCODED_CONSTANTS_AUDIT_2025-10-17_SUPERSEDED.md`
 
 **Next priorities:**
 1. **Adaptive Stuck Bone Detection** (Session 2025-10-19) - Make stuck transform classification relative to animation movement
