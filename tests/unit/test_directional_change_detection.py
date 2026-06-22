@@ -111,6 +111,41 @@ class TestAnalyzeDirectionalChanges:
     @patch("fbx_tool.analysis.directional_change_detection.extract_root_trajectory")
     @patch("fbx_tool.analysis.directional_change_detection.ensure_output_dir")
     @patch("builtins.open", new_callable=MagicMock)
+    def test_analyze_directional_changes_uses_adaptive_turning_threshold(
+        self, mock_open, mock_ensure_dir, mock_extract
+    ):
+        """Should use trajectory adaptive thresholds for turning event detection."""
+        scene = Mock()
+        trajectory_data = []
+        rotation = 0.0
+
+        for frame in range(40):
+            angular_velocity = 20.0 if 5 <= frame < 35 else 0.0
+            if frame > 5:
+                rotation += angular_velocity / 30.0
+
+            trajectory_data.append(
+                {
+                    "direction": "forward",
+                    "angular_velocity_yaw": angular_velocity,
+                    "rotation_y": rotation,
+                    "frame": frame,
+                }
+            )
+
+        mock_extract.return_value = {
+            "trajectory_data": trajectory_data,
+            "frame_rate": 30.0,
+            "adaptive_thresholds": {"turning_slow_threshold": 15.0},
+        }
+
+        result = analyze_directional_changes(scene)
+
+        assert result["turning_events_count"] == 1
+
+    @patch("fbx_tool.analysis.directional_change_detection.extract_root_trajectory")
+    @patch("fbx_tool.analysis.directional_change_detection.ensure_output_dir")
+    @patch("builtins.open", new_callable=MagicMock)
     def test_analyze_directional_changes_creates_movement_segments(self, mock_open, mock_ensure_dir, mock_extract):
         """Should create movement segments grouped by direction."""
         scene = Mock()

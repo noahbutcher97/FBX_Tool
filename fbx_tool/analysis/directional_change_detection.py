@@ -137,7 +137,7 @@ def classify_direction_change(from_direction, to_direction):
         return "other"
 
 
-def detect_turning_events(angular_velocity_y, rotations_y, frame_rate):
+def detect_turning_events(angular_velocity_y, rotations_y, frame_rate, turning_slow_threshold=None):
     """
     Detect discrete turning events from angular velocity data.
 
@@ -148,6 +148,7 @@ def detect_turning_events(angular_velocity_y, rotations_y, frame_rate):
         angular_velocity_y: Angular velocity (degrees/second) per frame
         rotations_y: Y-axis rotation (degrees) per frame
         frame_rate: Animation frame rate
+        turning_slow_threshold: Optional angular velocity threshold for turn detection
 
     Returns:
         list: Turning events with timing, angle, and classification
@@ -155,13 +156,16 @@ def detect_turning_events(angular_velocity_y, rotations_y, frame_rate):
     # Import threshold from utils where it's now defined
     from fbx_tool.analysis.utils import _TURNING_THRESHOLD_SLOW
 
+    if turning_slow_threshold is None:
+        turning_slow_threshold = _TURNING_THRESHOLD_SLOW
+
     turning_events = []
     in_turn = False
     turn_start_frame = 0
     turn_start_rotation = 0.0
 
     for frame, angular_vel in enumerate(angular_velocity_y):
-        is_turning = abs(angular_vel) >= _TURNING_THRESHOLD_SLOW
+        is_turning = abs(angular_vel) >= turning_slow_threshold
 
         if is_turning and not in_turn:
             # Start of turn
@@ -336,12 +340,23 @@ def analyze_directional_changes(scene, output_dir="output/"):
     # Unpack trajectory data
     trajectory_data = trajectory["trajectory_data"]
     frame_rate = trajectory["frame_rate"]
+    adaptive_thresholds = trajectory.get("adaptive_thresholds", {})
 
     # Delegate to the analysis function
-    return analyze_directional_changes_from_trajectory(trajectory_data, frame_rate, output_dir)
+    return analyze_directional_changes_from_trajectory(
+        trajectory_data,
+        frame_rate,
+        output_dir,
+        turning_slow_threshold=adaptive_thresholds.get("turning_slow_threshold"),
+    )
 
 
-def analyze_directional_changes_from_trajectory(trajectory_data, frame_rate, output_dir="output/"):
+def analyze_directional_changes_from_trajectory(
+    trajectory_data,
+    frame_rate,
+    output_dir="output/",
+    turning_slow_threshold=None,
+):
     """
     Detect and analyze directional changes from trajectory data.
 
@@ -349,6 +364,7 @@ def analyze_directional_changes_from_trajectory(trajectory_data, frame_rate, out
         trajectory_data: List of trajectory dictionaries (from root_motion_analysis)
         frame_rate: Animation frame rate
         output_dir: Output directory for CSV files
+        turning_slow_threshold: Optional angular velocity threshold for turn detection
 
     Returns:
         dict: Summary of directional changes and turning events
@@ -373,7 +389,12 @@ def analyze_directional_changes_from_trajectory(trajectory_data, frame_rate, out
     direction_transitions = detect_direction_transitions(direction_sequence, frame_rate)
 
     # Detect turning events
-    turning_events = detect_turning_events(angular_velocity_y, rotations_y_unwrapped, frame_rate)
+    turning_events = detect_turning_events(
+        angular_velocity_y,
+        rotations_y_unwrapped,
+        frame_rate,
+        turning_slow_threshold=turning_slow_threshold,
+    )
 
     # Segment by direction
     movement_segments = segment_by_direction(direction_sequence, frame_rate)

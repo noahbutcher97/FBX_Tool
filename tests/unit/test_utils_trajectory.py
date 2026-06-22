@@ -13,6 +13,7 @@ import pytest
 
 from fbx_tool.analysis.utils import (
     _classify_turning_speed,
+    _compute_adaptive_thresholds,
     _compute_direction_classification,
     _detect_root_bone,
     _extract_forward_direction,
@@ -376,6 +377,38 @@ class TestTurningSpeedClassification:
         angular_velocity = -120.0  # Turning opposite direction
         result = _classify_turning_speed(angular_velocity)
         assert result == "fast"  # Should use absolute value
+
+
+# ==============================================================================
+# TEST ADAPTIVE THRESHOLD STATE ISOLATION
+# ==============================================================================
+
+
+@pytest.mark.unit
+class TestAdaptiveThresholdStateIsolation:
+    """Test adaptive thresholds do not leak into standalone helper classifiers."""
+
+    def test_adaptive_thresholds_do_not_mutate_default_direction_classification(self):
+        """Test adaptive velocity thresholds do not change default direction helpers."""
+        velocity_mags = np.linspace(5.0, 10.0, 60)
+        angular_velocities = np.linspace(100.0, 300.0, 60)
+
+        _compute_adaptive_thresholds(velocity_mags, angular_velocities)
+
+        velocity = np.array([1.0, 0.0, 0.0])
+        forward = np.array([0.0, 0.0, -1.0])
+
+        result = _compute_direction_classification(velocity, forward, 1.0)
+        assert result == "strafe_right"
+
+    def test_adaptive_thresholds_do_not_mutate_default_turning_classification(self):
+        """Test adaptive turning thresholds do not change default turning helpers."""
+        velocity_mags = np.linspace(5.0, 10.0, 60)
+        angular_velocities = np.linspace(100.0, 300.0, 60)
+
+        _compute_adaptive_thresholds(velocity_mags, angular_velocities)
+
+        assert _classify_turning_speed(50.0) == "slow"
 
 
 # ==============================================================================
