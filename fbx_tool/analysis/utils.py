@@ -68,11 +68,6 @@ def _compute_adaptive_thresholds(velocity_mags, angular_velocities):
             'confidence': float (0-1, how reliable are these thresholds?)
         }
     """
-    global _STATIONARY_VELOCITY_THRESHOLD
-    global _TURNING_THRESHOLD_SLOW
-    global _TURNING_THRESHOLD_FAST
-    global _TURNING_THRESHOLD_VERY_FAST
-
     if len(velocity_mags) < 30:
         # Not enough data - use defaults
         return {
@@ -123,12 +118,6 @@ def _compute_adaptive_thresholds(velocity_mags, angular_velocities):
         turning_fast = _DEFAULT_TURNING_THRESHOLD_FAST
         turning_very_fast = _DEFAULT_TURNING_THRESHOLD_VERY_FAST
         confidence = 0.0
-
-    # Update global thresholds (used by classification functions)
-    _STATIONARY_VELOCITY_THRESHOLD = stationary_threshold
-    _TURNING_THRESHOLD_SLOW = turning_slow
-    _TURNING_THRESHOLD_FAST = turning_fast
-    _TURNING_THRESHOLD_VERY_FAST = turning_very_fast
 
     return {
         "stationary_velocity_threshold": stationary_threshold,
@@ -498,11 +487,19 @@ def extract_root_trajectory(scene, force_refresh=False):
     for frame in range(total_frames):
         # Classify direction of travel
         direction = _compute_direction_classification(
-            velocities[frame], forward_directions[frame], velocity_mags[frame]
+            velocities[frame],
+            forward_directions[frame],
+            velocity_mags[frame],
+            stationary_velocity_threshold=adaptive_thresholds["stationary_velocity_threshold"],
         )
 
         # Classify turning behavior using PROCEDURAL turning convention
-        turning_classification = _classify_turning_speed(angular_velocity_yaw[frame])
+        turning_classification = _classify_turning_speed(
+            angular_velocity_yaw[frame],
+            turning_slow_threshold=adaptive_thresholds["turning_slow_threshold"],
+            turning_fast_threshold=adaptive_thresholds["turning_fast_threshold"],
+            turning_very_fast_threshold=adaptive_thresholds["turning_very_fast_threshold"],
+        )
 
         # PROCEDURAL: Determine left/right using detected coordinate system
         if coord_system["yaw_positive_is_left"]:
@@ -590,7 +587,8 @@ _DEFAULT_TURNING_THRESHOLD_SLOW = 30.0  # degrees/second
 _DEFAULT_TURNING_THRESHOLD_FAST = 90.0  # degrees/second
 _DEFAULT_TURNING_THRESHOLD_VERY_FAST = 180.0  # degrees/second
 
-# Active thresholds (can be overridden by adaptive computation in extract_root_trajectory)
+# Compatibility aliases for internal modules that import the legacy private names.
+# Adaptive threshold computation must not mutate these values.
 _FORWARD_THRESHOLD = _DEFAULT_FORWARD_THRESHOLD
 _BACKWARD_THRESHOLD = _DEFAULT_BACKWARD_THRESHOLD
 _STATIONARY_VELOCITY_THRESHOLD = _DEFAULT_STATIONARY_VELOCITY_THRESHOLD
@@ -685,7 +683,12 @@ def _extract_forward_direction(transform, axis_config=None):
     return forward
 
 
-def _compute_direction_classification(velocity, forward_direction, velocity_magnitude):
+def _compute_direction_classification(
+    velocity,
+    forward_direction,
+    velocity_magnitude,
+    stationary_velocity_threshold=None,
+):
     """
     Classify direction of travel based on velocity and forward direction.
 
@@ -693,12 +696,16 @@ def _compute_direction_classification(velocity, forward_direction, velocity_magn
         velocity: Velocity vector (3D)
         forward_direction: Character's forward direction vector (3D)
         velocity_magnitude: Magnitude of velocity
+        stationary_velocity_threshold: Optional threshold for stationary classification
 
     Returns:
         str: Direction classification (forward, backward, strafe_left, strafe_right, stationary)
     """
+    if stationary_velocity_threshold is None:
+        stationary_velocity_threshold = _DEFAULT_STATIONARY_VELOCITY_THRESHOLD
+
     # Check if stationary
-    if velocity_magnitude < _STATIONARY_VELOCITY_THRESHOLD:
+    if velocity_magnitude < stationary_velocity_threshold:
         return "stationary"
 
     # Normalize velocity direction
@@ -709,9 +716,9 @@ def _compute_direction_classification(velocity, forward_direction, velocity_magn
     angle_deg = np.degrees(np.arccos(dot_product))
 
     # Classify based on angle
-    if angle_deg < _FORWARD_THRESHOLD:
+    if angle_deg < _DEFAULT_FORWARD_THRESHOLD:
         return "forward"
-    elif angle_deg > _BACKWARD_THRESHOLD:
+    elif angle_deg > _DEFAULT_BACKWARD_THRESHOLD:
         return "backward"
     else:
         # Strafing - determine left or right using cross product
@@ -722,23 +729,38 @@ def _compute_direction_classification(velocity, forward_direction, velocity_magn
             return "strafe_right"
 
 
-def _classify_turning_speed(angular_velocity_deg_per_sec):
+def _classify_turning_speed(
+    angular_velocity_deg_per_sec,
+    turning_slow_threshold=None,
+    turning_fast_threshold=None,
+    turning_very_fast_threshold=None,
+):
     """
     Classify turning speed based on angular velocity.
 
     Args:
         angular_velocity_deg_per_sec: Angular velocity in degrees/second
+        turning_slow_threshold: Optional threshold for slow turns
+        turning_fast_threshold: Optional threshold for fast turns
+        turning_very_fast_threshold: Optional threshold for very fast turns
 
     Returns:
         str: Turning classification (none, slow, fast, very_fast)
     """
+    if turning_slow_threshold is None:
+        turning_slow_threshold = _DEFAULT_TURNING_THRESHOLD_SLOW
+    if turning_fast_threshold is None:
+        turning_fast_threshold = _DEFAULT_TURNING_THRESHOLD_FAST
+    if turning_very_fast_threshold is None:
+        turning_very_fast_threshold = _DEFAULT_TURNING_THRESHOLD_VERY_FAST
+
     abs_angular_velocity = abs(angular_velocity_deg_per_sec)
 
-    if abs_angular_velocity < _TURNING_THRESHOLD_SLOW:
+    if abs_angular_velocity < turning_slow_threshold:
         return "none"
-    elif abs_angular_velocity < _TURNING_THRESHOLD_FAST:
+    elif abs_angular_velocity < turning_fast_threshold:
         return "slow"
-    elif abs_angular_velocity < _TURNING_THRESHOLD_VERY_FAST:
+    elif abs_angular_velocity < turning_very_fast_threshold:
         return "fast"
     else:
         return "very_fast"
