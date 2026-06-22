@@ -198,7 +198,7 @@ pre-commit run --all-files
 python fbx_tool/gui/main_window.py
 
 # CLI mode
-python -m fbx_tool path/to/animation.fbx
+python examples/run_analysis.py path/to/animation.fbx
 ```
 
 ## Contributing Documentation

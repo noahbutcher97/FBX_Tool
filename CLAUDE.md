@@ -222,7 +222,7 @@ Use **[docs/development/INCOMPLETE_MODULES.md](docs/development/INCOMPLETE_MODUL
 
 ### Current Focus Areas
 
-- `examples/run_analysis.py` and `tests/integration/test_full_analysis_pipeline.py` still cover the older 10-step pipeline, while the GUI exposes directional changes, motion transitions, temporal segmentation, and motion summary.
+- `examples/run_analysis.py` and `tests/integration/test_full_analysis_pipeline.py` now cover the 14-step pipeline, including directional changes, motion transitions, temporal segmentation, and motion summary.
 - `pose_validity_analysis.py` has shared hierarchy usage and adaptive thresholds in the main path, but a broader anatomical model is still future work.
 - `motion_transition_detection.py`, `directional_change_detection.py`, `motion_classification.py`, and `temporal_segmentation.py` now have unit coverage; do not treat older 0% coverage notes as current.
 - Historical algorithm issue notes are archived under `docs/archive/`. Verify live source and tests before reviving any old claim.
@@ -295,8 +295,8 @@ Use **[docs/development/INCOMPLETE_MODULES.md](docs/development/INCOMPLETE_MODUL
 ## Module Entry Points
 
 - **GUI:** `fbx_tool/gui/main_window.py`
-- **CLI:** `fbx_tool/__main__.py` (enables `python -m fbx_tool`)
-- **Examples:** `examples/run_analysis.py`
+- **CLI pipeline:** `examples/run_analysis.py`
+- **Package entry:** `fbx_tool/__main__.py` (currently routes to the GUI entry point)
 - **Core Utils:** `fbx_tool/analysis/utils.py` (I/O, chain detection)
 - **FBX Loading:** `fbx_tool/analysis/fbx_loader.py`
 - **Scene Manager:** `fbx_tool/analysis/scene_manager.py` (reference counting)
@@ -315,6 +315,12 @@ output/your_animation/
 ├── velocity_analysis.csv              # Motion derivatives
 ├── foot_contacts.csv                  # Ground contacts
 ├── root_motion_analysis.csv           # Trajectory
+├── movement_segments.csv              # Directional movement segments
+├── motion_states.csv                  # Locomotion state segments
+├── temporal_segments.csv              # Unified movement phrases
+├── motion_summary.txt                 # Natural-language motion summary
+├── animation_metadata.json            # Structured motion metadata
+├── motion_classification.json         # Animation type classification
 ├── procedural_metadata.json           # Adaptive thresholds
 └── analysis_summary.json              # Complete summary
 ```

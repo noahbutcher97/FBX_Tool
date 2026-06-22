@@ -137,9 +137,9 @@ forward_axis, confidence = detect_forward_direction(trajectory)
 
 ### ⏳ In Progress
 
-1. **Focused Analysis Pipeline Completion** - Update CLI/full integration coverage for the advanced analysis outputs exposed by the GUI
-2. **Output Contract Proof** - Assert output files and summary keys before widening internals
-3. **Broader Anatomical Model** - Expand pose validity after abstractable tests cover the current behavior
+1. **Broader Anatomical Model** - Expand pose validity now that abstractable output tests cover the current behavior
+2. **Fallback Transparency** - Document or expose conservative fallback threshold paths in metadata
+3. **Output Documentation** - Keep user-facing output references aligned with the 14-step analysis pipeline
 
 ### 🔮 Future Vision
 

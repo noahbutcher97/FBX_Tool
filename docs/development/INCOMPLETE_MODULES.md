@@ -17,11 +17,11 @@ Analysis of modules returning zero or placeholder results despite having data.
 - ✅ **foot_contact_visualization** (opengl_viewer.py) - FIXED: Context-aware stuck bone detection (Session 2025-10-19a)
 - ✅ **foot_contact_analysis.py** - FIXED: KeyError 'up_axis' resolved (Session 2025-10-19c)
 - ✅ **directional_change_detection.py** - FIXED and tested; no longer a 0% coverage module
-- ✅ **motion_classification.py** - Unit-tested; full-pipeline output assertions still pending
-- ✅ **temporal_segmentation.py** - Unit-tested; full-pipeline output assertions still pending
+- ✅ **motion_classification.py** - Unit-tested and covered by CLI/full-pipeline output assertions
+- ✅ **temporal_segmentation.py** - Unit-tested and covered by CLI/full-pipeline output assertions
 - ✅ **GUI batch processing** - FIXED: Add to Batch buttons now re-enable after analysis (Session 2025-10-19c)
 - ⚠️ **pose_validity_analysis.py** - Shared hierarchy/adaptive thresholds are in the main path; broader anatomical modeling remains future work
-- ⚠️ **motion_transition_detection.py** - Gap-based thresholds and tests exist; fallback behavior and full-pipeline integration remain the current caveats
+- ⚠️ **motion_transition_detection.py** - Gap-based thresholds, tests, and full-pipeline integration exist; fallback behavior remains the current caveat
 
 **Historical Issues (many resolved):**
 
@@ -378,7 +378,7 @@ This document is no longer the task queue. For active work, start from:
 3. Current tests in `tests/unit/` and `tests/integration/`
 4. `docs/agentic/TASK_TEMPLATE.md` for scoped task handoff
 
-The next high-value implementation task is focused analysis completion: update `examples/run_analysis.py` and `tests/integration/test_full_analysis_pipeline.py` so advanced operations are proven end-to-end before broadening the anatomical model.
+The focused analysis completion task is done: `examples/run_analysis.py` and `tests/integration/test_full_analysis_pipeline.py` now prove advanced operations end-to-end. The next high-value implementation task is broadening the pose-validity anatomical model without weakening the current adaptive hierarchy path.
 
 **Note:** Per TDD methodology, all new implementations should have tests written FIRST.
 
