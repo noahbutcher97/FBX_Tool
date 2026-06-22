@@ -106,9 +106,6 @@ python fbx_tool/gui/main_window.py
 ```bash
 # Single file
 python examples/run_analysis.py path/to/animation.fbx
-
-# Or using module entry point
-python -m fbx_tool path/to/animation.fbx
 ```
 
 ### 3D Visualization Controls
@@ -157,7 +154,13 @@ output/
     ├── chain_confidence.csv               # Per-chain IK suitability
     ├── chain_gait_segments.csv            # Stride segments
     ├── gait_summary.csv                   # Overall gait metrics
-    └── analysis_summary.json              # Complete summary
+    ├── movement_segments.csv              # Directional movement segments
+    ├── motion_states.csv                  # Locomotion state segments
+    ├── temporal_segments.csv              # Unified movement phrases
+    ├── motion_summary.txt                 # Natural-language motion summary
+    ├── animation_metadata.json            # Structured motion metadata
+    ├── motion_classification.json         # Animation type classification
+    └── analysis_summary.json              # GUI workflow summary model
 ```
 
 ### File Descriptions
@@ -191,13 +194,21 @@ output/
 - Left/right phase shift
 - Gait type (Walk/Run)
 
+**movement_segments.csv / motion_states.csv / temporal_segments.csv**
+- Directional segments, locomotion states, and unified movement phrases
+- Used by motion summary generation and downstream review
+
+**motion_summary.txt / animation_metadata.json / motion_classification.json**
+- Natural-language summary, structured metadata, and animation type classification
+- Intended for quick review and AI-assisted downstream tooling
+
 ## Project Structure
 
 ```
 FBX_Tool/
 ├── fbx_tool/                    # Main package
 │   ├── __init__.py
-│   ├── __main__.py             # Module entry point
+│   ├── __main__.py             # Package entry point
 │   ├── analysis/               # Core analysis modules
 │   │   ├── fbx_loader.py       # FBX scene loading
 │   │   ├── dopesheet_export.py # Dopesheet generation

@@ -16,26 +16,38 @@ import time
 import traceback
 from pathlib import Path
 
-# Fix Windows console encoding for Unicode characters
-if sys.platform == "win32":
-    import io
-
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
-
 from fbx_tool.analysis.chain_analysis import analyze_chains
 from fbx_tool.analysis.constraint_violation_detection import analyze_constraint_violations
+from fbx_tool.analysis.directional_change_detection import analyze_directional_changes
 from fbx_tool.analysis.dopesheet_export import export_dopesheet
 from fbx_tool.analysis.fbx_loader import get_scene_metadata
 from fbx_tool.analysis.foot_contact_analysis import analyze_foot_contacts
 from fbx_tool.analysis.gait_analysis import analyze_gait
-from fbx_tool.analysis.gait_summary import GaitSummaryAnalysis
 from fbx_tool.analysis.joint_analysis import analyze_joints
+from fbx_tool.analysis.motion_classification import generate_motion_summary
+from fbx_tool.analysis.motion_transition_detection import analyze_motion_transitions
 from fbx_tool.analysis.pose_validity_analysis import analyze_pose_validity
 from fbx_tool.analysis.root_motion_analysis import analyze_root_motion
 from fbx_tool.analysis.scene_manager import get_scene_manager
+from fbx_tool.analysis.temporal_segmentation import analyze_temporal_segmentation
 from fbx_tool.analysis.utils import ensure_output_dir
 from fbx_tool.analysis.velocity_analysis import analyze_velocity
+
+TOTAL_ANALYSIS_STEPS = 14
+
+
+def _configure_console_encoding():
+    """Use UTF-8 console streams for direct Windows CLI execution."""
+    if sys.platform != "win32":
+        return
+
+    import io
+
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name)
+        buffer = getattr(stream, "buffer", None)
+        if buffer is not None:
+            setattr(sys, stream_name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace"))
 
 
 def run_analysis(fbx_file):
@@ -59,6 +71,14 @@ def run_analysis(fbx_file):
     # Error tracking
     errors = []
     results = {}
+    metadata = {}
+    gait_summary = {}
+    root_motion = {}
+    movement_segments = []
+    turning_events = []
+    motion_states = []
+    temporal_segments = []
+    segment_transitions = []
 
     print(f"\n{'='*70}")
     print(f"FBX Tool - Comprehensive Analysis")
@@ -75,7 +95,7 @@ def run_analysis(fbx_file):
             scene = scene_ref.scene
 
             # STEP 1: Extract Scene Metadata
-            print("\n[1/10] Extracting scene metadata...")
+            print(f"\n[1/{TOTAL_ANALYSIS_STEPS}] Extracting scene metadata...")
             try:
                 metadata = get_scene_metadata(scene)
                 print(f"  Duration: {metadata.get('duration', 0):.2f}s")
@@ -88,7 +108,7 @@ def run_analysis(fbx_file):
                 errors.append(("Metadata Extraction", str(e), traceback.format_exc()))
 
             # STEP 2: Export Dopesheet
-            print("\n[2/10] Exporting dopesheet...")
+            print(f"\n[2/{TOTAL_ANALYSIS_STEPS}] Exporting dopesheet...")
             try:
                 dopesheet_path = os.path.join(output_dir, "dopesheet.csv")
                 export_dopesheet(scene, dopesheet_path)
@@ -99,7 +119,7 @@ def run_analysis(fbx_file):
                 errors.append(("Dopesheet Export", str(e), traceback.format_exc()))
 
             # STEP 3: Joint Analysis
-            print("\n[3/10] Analyzing joints...")
+            print(f"\n[3/{TOTAL_ANALYSIS_STEPS}] Analyzing joints...")
             try:
                 joint_conf = analyze_joints(scene, output_dir=output_dir)
                 print(f"  SUCCESS: {len(joint_conf)} joints analyzed")
@@ -109,7 +129,7 @@ def run_analysis(fbx_file):
                 errors.append(("Joint Analysis", str(e), traceback.format_exc()))
 
             # STEP 4: Chain Analysis
-            print("\n[4/10] Analyzing IK chains...")
+            print(f"\n[4/{TOTAL_ANALYSIS_STEPS}] Analyzing IK chains...")
             try:
                 chain_conf = analyze_chains(scene, output_dir=output_dir)
                 print(f"  SUCCESS: {len(chain_conf)} chains detected")
@@ -119,7 +139,7 @@ def run_analysis(fbx_file):
                 errors.append(("Chain Analysis", str(e), traceback.format_exc()))
 
             # STEP 5: Velocity Analysis
-            print("\n[5/10] Analyzing velocity patterns...")
+            print(f"\n[5/{TOTAL_ANALYSIS_STEPS}] Analyzing velocity patterns...")
             try:
                 velocity_data = analyze_velocity(scene, output_dir=output_dir)
                 print(f"  SUCCESS: {velocity_data.get('total_bones', 0)} bones analyzed")
@@ -129,7 +149,7 @@ def run_analysis(fbx_file):
                 errors.append(("Velocity Analysis", str(e), traceback.format_exc()))
 
             # STEP 6: Foot Contact Analysis
-            print("\n[6/10] Detecting foot contacts...")
+            print(f"\n[6/{TOTAL_ANALYSIS_STEPS}] Detecting foot contacts...")
             try:
                 foot_contacts = analyze_foot_contacts(scene, output_dir=output_dir)
                 print(f"  SUCCESS: {foot_contacts.get('total_contacts', 0)} contacts detected")
@@ -139,7 +159,7 @@ def run_analysis(fbx_file):
                 errors.append(("Foot Contact Analysis", str(e), traceback.format_exc()))
 
             # STEP 7: Root Motion Analysis
-            print("\n[7/10] Analyzing root motion...")
+            print(f"\n[7/{TOTAL_ANALYSIS_STEPS}] Analyzing root motion...")
             try:
                 root_motion = analyze_root_motion(scene, output_dir=output_dir)
                 print(f"  SUCCESS: Total distance = {root_motion.get('total_distance', 0):.2f} units")
@@ -149,7 +169,7 @@ def run_analysis(fbx_file):
                 errors.append(("Root Motion Analysis", str(e), traceback.format_exc()))
 
             # STEP 8: Gait Analysis
-            print("\n[8/10] Analyzing gait patterns...")
+            print(f"\n[8/{TOTAL_ANALYSIS_STEPS}] Analyzing gait patterns...")
             try:
                 stride_segments, gait_summary = analyze_gait(scene, output_dir=output_dir)
                 print(f"  SUCCESS: {len(stride_segments)} stride segments detected")
@@ -159,7 +179,7 @@ def run_analysis(fbx_file):
                 errors.append(("Gait Analysis", str(e), traceback.format_exc()))
 
             # STEP 9: Pose Validity Analysis
-            print("\n[9/10] Validating pose integrity...")
+            print(f"\n[9/{TOTAL_ANALYSIS_STEPS}] Validating pose integrity...")
             try:
                 pose_validity = analyze_pose_validity(scene, output_dir=output_dir)
                 score = pose_validity.get("overall_validity_score", 0)
@@ -170,7 +190,7 @@ def run_analysis(fbx_file):
                 errors.append(("Pose Validity Analysis", str(e), traceback.format_exc()))
 
             # STEP 10: Constraint Violation Detection
-            print("\n[10/10] Detecting constraint violations...")
+            print(f"\n[10/{TOTAL_ANALYSIS_STEPS}] Detecting constraint violations...")
             try:
                 constraints = analyze_constraint_violations(scene, output_dir=output_dir)
                 score = constraints.get("overall_constraint_score", 0)
@@ -187,6 +207,92 @@ def run_analysis(fbx_file):
                 print(f"  FAILED: {str(e)}")
                 errors.append(("Constraint Violation Detection", str(e), traceback.format_exc()))
 
+            # STEP 11: Directional Change Detection
+            print(f"\n[11/{TOTAL_ANALYSIS_STEPS}] Detecting directional changes...")
+            try:
+                directional_changes = analyze_directional_changes(scene, output_dir=output_dir)
+                movement_segments = directional_changes.get("movement_segments", [])
+                turning_events = directional_changes.get("turning_events", [])
+                print(f"  SUCCESS: {len(movement_segments)} movement segments detected")
+                print(f"  Turning events: {len(turning_events)}")
+                results["directional_changes"] = directional_changes
+            except Exception as e:
+                print(f"  FAILED: {str(e)}")
+                errors.append(("Directional Change Detection", str(e), traceback.format_exc()))
+
+            # STEP 12: Motion Transition Detection
+            print(f"\n[12/{TOTAL_ANALYSIS_STEPS}] Detecting motion transitions...")
+            try:
+                motion_transitions = analyze_motion_transitions(scene, output_dir=output_dir)
+                motion_states = motion_transitions.get("motion_states", [])
+                print(f"  SUCCESS: {len(motion_states)} motion state segments detected")
+                print(f"  State transitions: {motion_transitions.get('transitions_count', 0)}")
+                results["motion_transitions"] = motion_transitions
+            except Exception as e:
+                print(f"  FAILED: {str(e)}")
+                errors.append(("Motion Transition Detection", str(e), traceback.format_exc()))
+
+            # STEP 13: Temporal Segmentation
+            print(f"\n[13/{TOTAL_ANALYSIS_STEPS}] Creating temporal segmentation...")
+            try:
+                frame_rate = metadata.get("frame_rate", 30.0)
+                duration = metadata.get("duration", 0)
+                total_frames = int(duration * frame_rate) + 1 if duration else 1
+
+                if not motion_states:
+                    motion_states = [
+                        {
+                            "start_frame": 0,
+                            "end_frame": total_frames - 1,
+                            "duration_frames": total_frames,
+                            "duration_seconds": duration,
+                            "motion_state": "continuous",
+                        }
+                    ]
+
+                if not movement_segments:
+                    movement_segments = [
+                        {
+                            "start_frame": 0,
+                            "end_frame": total_frames - 1,
+                            "direction": "unknown",
+                        }
+                    ]
+
+                temporal_segmentation = analyze_temporal_segmentation(
+                    motion_states, movement_segments, turning_events, frame_rate, output_dir=output_dir
+                )
+                temporal_segments = temporal_segmentation.get("segments", [])
+                segment_transitions = temporal_segmentation.get("transitions", [])
+                print(f"  SUCCESS: {len(temporal_segments)} unified segments created")
+                print(f"  Segment transitions: {len(segment_transitions)}")
+                results["temporal_segmentation"] = temporal_segmentation
+            except Exception as e:
+                print(f"  FAILED: {str(e)}")
+                errors.append(("Temporal Segmentation", str(e), traceback.format_exc()))
+
+            # STEP 14: Motion Summary
+            print(f"\n[14/{TOTAL_ANALYSIS_STEPS}] Generating motion summary...")
+            try:
+                if not temporal_segments:
+                    raise ValueError("Temporal segmentation produced no segments")
+
+                motion_summary = generate_motion_summary(
+                    segments=temporal_segments,
+                    transitions=segment_transitions,
+                    turning_events=turning_events,
+                    root_motion_summary=root_motion,
+                    gait_summary=gait_summary,
+                    output_dir=output_dir,
+                )
+                classification = motion_summary.get("classification", {})
+                print(f"  SUCCESS: Animation type = {classification.get('type', 'unknown')}")
+                print(f"  Confidence: {classification.get('confidence', 0):.1%}")
+                results["motion_summary"] = motion_summary
+            except Exception as e:
+                print(f"  FAILED: {str(e)}")
+                errors.append(("Motion Summary Generation", str(e), traceback.format_exc()))
+
         # Scene automatically cleaned up when exiting context manager
 
         # Print Summary
@@ -194,7 +300,7 @@ def run_analysis(fbx_file):
         print(f"\n{'='*70}")
         print(f"Analysis Complete ({elapsed:.2f}s)")
         print(f"{'='*70}")
-        print(f"Modules completed: {len(results)}/10")
+        print(f"Modules completed: {len(results)}/{TOTAL_ANALYSIS_STEPS}")
         print(f"Output directory: {output_dir}")
 
         # Print error summary if any failures occurred
@@ -229,6 +335,8 @@ def run_analysis(fbx_file):
 
 def main():
     """Main entry point for CLI."""
+    _configure_console_encoding()
+
     if len(sys.argv) < 2:
         print("FBX Tool - Comprehensive Animation Analysis\n")
         print("Usage: python examples/run_analysis.py <fbx_file1> [fbx_file2 ...]\n")

@@ -4,7 +4,7 @@
 **Status:** Current-state refreshed
 **Goal:** Systematically verify error handling, logic correctness, and edge case handling across all analysis modules
 
-**Freshness note:** Sections 7-11 were refreshed against live source and unit/integration tests on 2026-06-22. Historical archived notes may still describe earlier 0% coverage states.
+**Freshness note:** Sections 7-11 were refreshed against live source and unit/integration tests on 2026-06-22. CLI/full-pipeline coverage now includes directional changes, motion transitions, temporal segmentation, and motion summary. Historical archived notes may still describe earlier 0% coverage states.
 
 ---
 
@@ -259,10 +259,10 @@ For each module, verify:
 
 **Remaining risk:**
 - Percentile fallback remains when gap detection cannot find clear boundaries. Treat that as a conservative fallback, not the primary path.
-- The CLI example and full integration test still exercise the older 10-step pipeline, so motion-transition outputs are not yet proven end-to-end with the rest of the advanced analysis surface.
+- Motion-transition outputs are now covered by the CLI pipeline and full integration test; percentile fallback behavior is still the main design caveat.
 
 **Action Required:**
-- [ ] Add/refresh full-pipeline coverage for motion-transition outputs
+- [x] ~~Add/refresh full-pipeline coverage for motion-transition outputs~~
 - [ ] Keep fallback behavior explicit in output metadata or documentation
 - [ ] Revisit broader threshold modeling only after the pipeline contract is proven
 
@@ -284,7 +284,7 @@ For each module, verify:
 - Anatomical constraints are still relatively narrow and should be broadened after the output contract is proven with integration tests.
 
 **Action Required:**
-- [ ] Add full-pipeline assertions for pose-validity output fields
+- [x] ~~Add full-pipeline assertions for pose-validity output fields~~
 - [ ] Preserve the current adaptive path while designing a broader anatomical model
 - [ ] Expand static joint/category constraints only after abstractable tests cover the current contract
 
@@ -311,7 +311,7 @@ For each module, verify:
 - ✅ Coordinate-system compatibility follows procedural `angular_velocity_yaw` naming
 
 **Remaining Action Required:**
-- [ ] Add full-pipeline assertions for directional-change output files
+- [x] ~~Add full-pipeline assertions for directional-change output files~~
 - [x] ~~Verify coordinate system compatibility~~ ✅ Fixed with procedural field name
 
 ---
@@ -323,7 +323,7 @@ For each module, verify:
 **Action Required:**
 - [x] ~~Write tests~~
 - [x] ~~Verify classification behavior with synthetic segment inputs~~
-- [ ] Add full-pipeline assertions for motion-summary/classification output
+- [x] ~~Add full-pipeline assertions for motion-summary/classification output~~
 
 **Current evidence:**
 - ✅ Unit coverage exists in `tests/unit/test_motion_classification.py`
@@ -339,7 +339,7 @@ For each module, verify:
 - [x] ~~Audit implementation~~
 - [x] ~~Write tests~~
 - [x] ~~Check edge cases~~
-- [ ] Add full-pipeline assertions for segmentation output
+- [x] ~~Add full-pipeline assertions for segmentation output~~
 
 **Current evidence:**
 - ✅ Unit coverage exists in `tests/unit/test_temporal_segmentation.py`
@@ -374,13 +374,13 @@ For each module, verify:
 
 ### 🔴 CRITICAL (Do Now)
 
-1. **Focused analysis completion** - Update `examples/run_analysis.py` and `tests/integration/test_full_analysis_pipeline.py` so CLI/full integration coverage includes directional changes, motion transitions, temporal segmentation, and motion summary.
-2. **Output contract proof** - Add assertions for the advanced output files and summary keys before widening internals.
+1. **Broader anatomical model** - Expand pose validity now that the advanced output contract is proven through CLI/full integration coverage.
+2. **Fallback transparency** - Decide how motion-transition percentile fallback should be represented in output metadata or documentation.
 
 ### 🟡 HIGH (Next)
 
-3. **pose_validity_analysis.py** - Broaden anatomical model after abstractable output tests are in place.
-4. **motion_transition_detection.py** - Decide whether percentile fallback needs richer metadata or replacement after pipeline behavior is proven.
+3. **pose_validity_analysis.py** - Add static joint/category coverage without weakening the adaptive hierarchy path.
+4. **motion_transition_detection.py** - Revisit fallback modeling after metadata expectations are explicit.
 
 ### 🟢 MEDIUM (After High)
 
@@ -415,4 +415,4 @@ For each module being refactored:
 ---
 
 **Last Updated:** 2026-06-22
-**Next Review:** After focused advanced-analysis pipeline completion
+**Next Review:** After broader anatomical-model design

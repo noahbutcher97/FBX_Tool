@@ -14,7 +14,7 @@ Use Python 3.10; the Autodesk FBX Python SDK is installed separately and is not 
 .\setup-environment.ps1
 .fbxenv\Scripts\activate
 pip install -r requirements-dev.txt
-python -m fbx_tool path\to\animation.fbx
+python examples\run_analysis.py path\to\animation.fbx
 python fbx_tool\gui\main_window.py
 pytest
 pytest tests\unit\test_gait_analysis.py -v
