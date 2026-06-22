@@ -45,11 +45,8 @@ Issues = "https://github.com/noahbutcher97/FBX_Tool/issues"
 [project.scripts]
 fbx-tool = "fbx_tool.gui.main_window:main"
 
-[tool.setuptools]
-packages = ["fbx_tool"]
-
-[tool.setuptools.package-data]
-fbx_tool = ["*.py"]
+[tool.setuptools.packages.find]
+include = ["fbx_tool*"]
 
 [tool.black]
 line-length = 120
