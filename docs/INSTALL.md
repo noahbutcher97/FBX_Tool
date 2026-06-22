@@ -90,10 +90,10 @@ py -3.10 -c "import fbx; m = fbx.FbxManager.Create(); print('OK' if m else 'FAIL
 ## Step 4: Create Virtual Environment
 
 ```powershell
-cd D:\Scripts\Python\Projects\FBX_Tool
+cd D:\DevTools\FBX_Tool
 
 # Create virtual environment
-python -m venv .fbxenv
+py -3.10 -m venv .fbxenv
 
 # Activate
 .fbxenv\Scripts\activate
@@ -239,7 +239,7 @@ When releasing a new version:
    2. Install Autodesk FBX Python SDK 2020.3.7
    3. Run FBX_Tool.exe
 
-   See [Installation Guide](docs/INSTALL.md) for detailed instructions.
+   See [Installation Guide](https://github.com/noahbutcher97/FBX_Tool/blob/main/docs/INSTALL.md) for detailed instructions.
    ```
 
 ---
@@ -253,8 +253,8 @@ When releasing a new version:
 - Verify with: `python -c "import fbx"`
 
 **Solution 2:** Virtual environment can't find FBX SDK
-- Use `--system-site-packages` when creating venv
-- Or manually copy FBX files to venv
+- Make sure the virtual environment is activated
+- Install the FBX SDK wheel from Step 6 into that environment
 
 ### Issue: `ImportError: DLL load failed`
 
@@ -271,17 +271,9 @@ When releasing a new version:
 # Recreate virtual environment
 ```
 
-### Issue: PyInstaller exe crashes with `fbx not found`
+### Issue: PyInstaller exe reports `fbx not found`
 
-**Solution:** Add hidden imports
-```powershell
-python -m PyInstaller --name="FBX_Tool" --onefile --windowed --hidden-import=fbx fbx_tool/gui/main_window.py
-```
-
-Or copy FBX DLLs to `dist/`:
-```powershell
-copy "C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.7\lib\vs2022\x64\release\*.dll" dist\
-```
+**Solution:** Install Python 3.10 and the Autodesk FBX Python SDK on the target machine. The executable intentionally does not bundle Autodesk FBX SDK binaries.
 
 ---
 
@@ -319,27 +311,28 @@ copy "C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.7\lib\vs2022\x64\release\*.dl
 ```powershell
 # Full setup from scratch
 python --version  # Verify 3.10.x
-python -m venv .fbxenv --system-site-packages
+py -3.10 -m venv .fbxenv
 .fbxenv\Scripts\activate
 pip install --upgrade pip
 pip install -r requirements.txt
-python main_gui.py
+pip install "C:\Program Files\Autodesk\FBX\FBX Python SDK\2020.3.7\fbx-2020.3.7-cp310-none-win_amd64.whl"
+python fbx_tool/gui/main_window.py
 ```
 
 ---
 
 ## Alternative: Pre-built Executable
 
-If you don't want to install Python and dependencies, download the pre-built executable from [Releases](https://github.com/yourusername/fbx-tool/releases).
+If you don't want to install project dependencies, download the pre-built executable from [Releases](https://github.com/noahbutcher97/FBX_Tool/releases).
 
-**Note:** The executable still requires FBX SDK DLLs to be present in the same directory or in your system PATH.
+**Note:** The executable still requires Python 3.10 and Autodesk FBX Python SDK 2020.3.7 to be installed separately.
 
 ---
 
 ## Support
 
 If you encounter issues not covered here:
-1. Check [Issues](https://github.com/yourusername/fbx-tool/issues)
+1. Check [Issues](https://github.com/noahbutcher97/FBX_Tool/issues)
 2. Create a new issue with:
    - Python version: `python --version`
    - OS version

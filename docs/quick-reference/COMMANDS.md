@@ -4,12 +4,13 @@
 
 ```bash
 # Create virtual environment (Python 3.10 required!)
-python -m venv .fbxenv --system-site-packages
+py -3.10 -m venv .fbxenv
 .fbxenv\Scripts\activate  # Windows
 source .fbxenv/bin/activate  # Linux/Mac
 
 # Install dependencies
 pip install -r requirements.txt
+pip install "C:\Program Files\Autodesk\FBX\FBX Python SDK\2020.3.7\fbx-2020.3.7-cp310-none-win_amd64.whl"
 pip install -r requirements-test.txt  # For development
 ```
 

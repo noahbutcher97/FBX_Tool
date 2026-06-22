@@ -24,7 +24,7 @@ This executable requires **two prerequisites** to be installed on your system:
 - Users get the latest FBX SDK version with security updates
 - Standard practice for open-source projects with proprietary dependencies
 
-📖 **[Complete Installation Guide](docs/INSTALL.md)** - Step-by-step instructions
+📖 **[Complete Installation Guide](https://github.com/noahbutcher97/FBX_Tool/blob/main/docs/INSTALL.md)** - Step-by-step instructions
 
 ### First-Time Setup (5 minutes)
 
@@ -63,7 +63,7 @@ If you're upgrading from a previous version:
 
 ### Full Changelog
 
-See [CHANGELOG.md](docs/CHANGELOG.md) for complete version history.
+See [CHANGELOG.md](https://github.com/noahbutcher97/FBX_Tool/blob/main/docs/CHANGELOG.md) for complete version history.
 
 ---
 
@@ -76,9 +76,9 @@ See [CHANGELOG.md](docs/CHANGELOG.md) for complete version history.
 1. Install Autodesk FBX Python SDK 2020.3.7
 2. Verify installation: Open Command Prompt and run:
    ```
-   python -c "import fbx; print(fbx.FbxManager.GetVersion())"
+   python -c "import fbx; m = fbx.FbxManager.Create(); print('OK' if m else 'FAIL'); m.Destroy()"
    ```
-3. If the above fails, see [Installation Guide](docs/INSTALL.md#step-3-install-autodesk-fbx-python-sdk)
+3. If the above fails, see [Installation Guide](https://github.com/noahbutcher97/FBX_Tool/blob/main/docs/INSTALL.md#step-3-install-autodesk-fbx-python-sdk)
 
 ### "ImportError: DLL load failed"
 
@@ -97,7 +97,7 @@ Download and install [Visual C++ Redistributable 2022](https://learn.microsoft.c
 
 ### More Help
 
-- 📖 [Full Documentation](docs/)
+- 📖 [Full Documentation](https://github.com/noahbutcher97/FBX_Tool/tree/main/docs)
 - 🐛 [Report a Bug](https://github.com/noahbutcher97/FBX_Tool/issues)
 - 💬 [Ask a Question](https://github.com/noahbutcher97/FBX_Tool/discussions)
 
@@ -122,9 +122,9 @@ Download and install [Visual C++ Redistributable 2022](https://learn.microsoft.c
 ## For Developers
 
 Want to build from source or contribute? See:
-- [Installation Guide](docs/INSTALL.md) - Development setup
-- [Contributing Guide](CONTRIBUTING.md) - How to contribute
-- [Development Documentation](docs/) - Architecture and patterns
+- [Installation Guide](https://github.com/noahbutcher97/FBX_Tool/blob/main/docs/INSTALL.md) - Development setup
+- [Contributor Guide](https://github.com/noahbutcher97/FBX_Tool/blob/main/AGENTS.md) - How to contribute
+- [Development Documentation](https://github.com/noahbutcher97/FBX_Tool/tree/main/docs) - Architecture and patterns
 
 ---
 

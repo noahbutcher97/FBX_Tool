@@ -153,8 +153,8 @@ End   - Last          T - Top
 ## Need Help?
 
 - **Documentation**: See [README.md](../README.md)
-- **Installation**: See [INSTALL.md](../INSTALL.md)
-- **Changes**: See [CHANGELOG.md](../CHANGELOG.md)
+- **Installation**: See [INSTALL.md](INSTALL.md)
+- **Changes**: See [CHANGELOG.md](CHANGELOG.md)
 - **Issues**: https://github.com/noahbutcher97/FBX_Tool/issues
 
 ---

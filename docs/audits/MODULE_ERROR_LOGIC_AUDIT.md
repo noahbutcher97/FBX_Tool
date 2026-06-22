@@ -1,8 +1,10 @@
 # Module Error & Logic Audit
 
-**Date:** 2025-10-18
-**Status:** In Progress
+**Date:** 2026-06-22
+**Status:** Current-state refreshed
 **Goal:** Systematically verify error handling, logic correctness, and edge case handling across all analysis modules
+
+**Freshness note:** Sections 7-11 were refreshed against live source and unit/integration tests on 2026-06-22. Historical archived notes may still describe earlier 0% coverage states.
 
 ---
 
@@ -244,76 +246,53 @@ For each module, verify:
 
 ---
 
-### ⚠️ 7. motion_transition_detection.py - NEEDS WORK
+### ⚠️ 7. motion_transition_detection.py - PARTIAL
 
-**Status:** 0% test coverage, hardcoded percentiles
+**Status:** Tested and mostly proceduralized; integration surface still needs completion.
 
-**Known Issues (from PROCEDURAL_THRESHOLD_IMPLEMENTATION_PLAN.md):**
+**Current evidence:**
+- ✅ Unit coverage exists in `tests/unit/test_motion_transition_detection.py`
+- ✅ Focused audit command passed with 170 tests across advanced modules
+- ✅ Module coverage in the focused run: 80.92%
+- ✅ `calculate_adaptive_velocity_thresholds()` uses velocity-distribution gap detection before percentile fallback
+- ✅ Vertical thresholds use data-driven percentiles for jump/land classification
 
-Lines 151-263: Hardcoded percentile values
-```python
-idle_threshold = np.percentile(sorted_velocities, 10)   # Why 10?
-walk_threshold = np.percentile(sorted_velocities, 40)   # Why 40?
-run_threshold = np.percentile(sorted_velocities, 75)    # Why 75?
-```
-
-**Recommendation:** Use gap detection in velocity distribution
-```python
-# Find natural gaps in velocity distribution
-sorted_velocities = np.sort(velocities)
-gaps = np.diff(sorted_velocities)
-large_gaps = np.where(gaps > np.percentile(gaps, 90))[0]  # Top 10% gaps
-
-# Use gaps to define motion state boundaries
-if len(large_gaps) >= 2:
-    idle_threshold = sorted_velocities[large_gaps[0]]
-    walk_threshold = sorted_velocities[large_gaps[1]]
-```
+**Remaining risk:**
+- Percentile fallback remains when gap detection cannot find clear boundaries. Treat that as a conservative fallback, not the primary path.
+- The CLI example and full integration test still exercise the older 10-step pipeline, so motion-transition outputs are not yet proven end-to-end with the rest of the advanced analysis surface.
 
 **Action Required:**
-- [ ] Write tests FIRST (TDD)
-- [ ] Implement gap-based threshold detection
-- [ ] Verify coordinate system independence
+- [ ] Add/refresh full-pipeline coverage for motion-transition outputs
+- [ ] Keep fallback behavior explicit in output metadata or documentation
+- [ ] Revisit broader threshold modeling only after the pipeline contract is proven
 
 ---
 
-### ⚠️ 8. pose_validity_analysis.py - NEEDS WORK
+### ⚠️ 8. pose_validity_analysis.py - PARTIAL
 
-**Status:** Some hardcoded thresholds, not using shared utilities
+**Status:** Core stale issues resolved; broader anatomical model remains future work.
 
-**Known Issues:**
+**Current evidence:**
+- ✅ Unit coverage exists in `tests/unit/test_pose_validity_analysis.py`
+- ✅ Focused module coverage: 77.85%
+- ✅ Main path uses `build_bone_hierarchy(scene)`
+- ✅ Bone-length tolerance adapts to skeleton bone-length distribution
+- ✅ Self-intersection distance defaults to `median_bone_length * 0.05` when available
 
-1. **Line 286: Hardcoded distance threshold**
-   ```python
-   distance_threshold = 0.5  # HARDCODED
-   ```
-   **Fix:** Scale to skeleton size
-   ```python
-   all_bone_lengths = [np.linalg.norm(bone_positions[i] - bone_positions[j])
-                       for i, j in bone_pairs]
-   median_bone_length = np.median(all_bone_lengths)
-   distance_threshold = median_bone_length * 0.05  # 5% of median bone length
-   ```
-
-2. **Line 81: Hardcoded tolerance**
-   ```python
-   tolerance = 0.05  # HARDCODED (same as constraint detection)
-   ```
-
-3. **Line 669: Direct `bone.GetParent()` instead of shared hierarchy**
-   - **Impact:** MEDIUM - Not leveraging cached hierarchy
-   - **Fix:** Use `build_bone_hierarchy()` from utils
+**Remaining risk:**
+- A small absolute fallback threshold remains for degenerate data where no median bone length is available.
+- Anatomical constraints are still relatively narrow and should be broadened after the output contract is proven with integration tests.
 
 **Action Required:**
-- [ ] Refactor to use `build_bone_hierarchy()`
-- [ ] Implement adaptive distance thresholds
-- [ ] Write comprehensive tests
+- [ ] Add full-pipeline assertions for pose-validity output fields
+- [ ] Preserve the current adaptive path while designing a broader anatomical model
+- [ ] Expand static joint/category constraints only after abstractable tests cover the current contract
 
 ---
 
-### ✅ 9. directional_change_detection.py - PASSED (Session 2025-10-19c)
+### ✅ 9. directional_change_detection.py - PASSED
 
-**Status:** 0% test coverage (needs tests), but KeyError fixed
+**Status:** KeyError fixed and unit coverage added.
 
 **Recent Fixes:**
 
@@ -326,31 +305,45 @@ if len(large_gaps) >= 2:
    angular_velocity_yaw = trajectory["angular_velocity_yaw"]  # ✅ Procedural name
    ```
 
+**Current evidence:**
+- ✅ Unit coverage exists in `tests/unit/test_directional_change_detection.py`
+- ✅ Focused module coverage: 99.39%
+- ✅ Coordinate-system compatibility follows procedural `angular_velocity_yaw` naming
+
 **Remaining Action Required:**
-- [ ] Write comprehensive tests (TDD)
+- [ ] Add full-pipeline assertions for directional-change output files
 - [x] ~~Verify coordinate system compatibility~~ ✅ Fixed with procedural field name
 
 ---
 
-### ⚠️ 10. motion_classification.py - NEEDS WORK
+### ✅ 10. motion_classification.py - PASSED
 
-**Status:** 0% test coverage
+**Status:** Unit-tested; pipeline integration still needs proof.
 
 **Action Required:**
-- [ ] Audit for hardcoded thresholds
-- [ ] Write tests
-- [ ] Verify uses procedural motion detection
+- [x] ~~Write tests~~
+- [x] ~~Verify classification behavior with synthetic segment inputs~~
+- [ ] Add full-pipeline assertions for motion-summary/classification output
+
+**Current evidence:**
+- ✅ Unit coverage exists in `tests/unit/test_motion_classification.py`
+- ✅ Focused module coverage: 100.00%
 
 ---
 
-### ⚠️ 11. temporal_segmentation.py - NEEDS WORK
+### ✅ 11. temporal_segmentation.py - PASSED
 
-**Status:** 0% test coverage
+**Status:** Unit-tested; pipeline integration still needs proof.
 
 **Action Required:**
-- [ ] Audit implementation
-- [ ] Write tests
-- [ ] Check for edge cases
+- [x] ~~Audit implementation~~
+- [x] ~~Write tests~~
+- [x] ~~Check edge cases~~
+- [ ] Add full-pipeline assertions for segmentation output
+
+**Current evidence:**
+- ✅ Unit coverage exists in `tests/unit/test_temporal_segmentation.py`
+- ✅ Focused module coverage: 100.00%
 
 ---
 
@@ -381,20 +374,18 @@ if len(large_gaps) >= 2:
 
 ### 🔴 CRITICAL (Do Now)
 
-1. **velocity_analysis.py** - Proceduralize jitter/coherence thresholds
-2. **foot_contact_analysis.py** - Verify coordinate system handling
-3. **root_motion_analysis.py** - Verify angular_velocity_yaw compatibility
+1. **Focused analysis completion** - Update `examples/run_analysis.py` and `tests/integration/test_full_analysis_pipeline.py` so CLI/full integration coverage includes directional changes, motion transitions, temporal segmentation, and motion summary.
+2. **Output contract proof** - Add assertions for the advanced output files and summary keys before widening internals.
 
 ### 🟡 HIGH (Next)
 
-4. **pose_validity_analysis.py** - Use shared hierarchy, adaptive thresholds
-5. **motion_transition_detection.py** - Gap-based thresholds, write tests
+3. **pose_validity_analysis.py** - Broaden anatomical model after abstractable output tests are in place.
+4. **motion_transition_detection.py** - Decide whether percentile fallback needs richer metadata or replacement after pipeline behavior is proven.
 
 ### 🟢 MEDIUM (After High)
 
-6. **directional_change_detection.py** - Audit + tests
-7. **motion_classification.py** - Audit + tests
-8. **temporal_segmentation.py** - Audit + tests
+5. **Documentation/API references** - Align user-facing output docs once the advanced CLI pipeline is complete.
+6. **Coverage tightening** - Raise partial modules toward the 80%+ target without testing private implementation details unnecessarily.
 
 ---
 
@@ -413,15 +404,15 @@ For each module being refactored:
 
 ## Success Criteria
 
-✅ **Complete when:**
-- All modules have >20% test coverage (target 80%+)
-- Zero hardcoded thresholds (except universal constants)
-- Zero hardcoded coordinate system assumptions
-- All modules use shared utilities (`build_bone_hierarchy`, `detect_coordinate_system`)
-- Graceful error handling for all edge cases
-- Documentation updated with procedural methodology
+✅ **Current quality bar:**
+- All active modules have meaningful unit coverage; new or widened modules should target 80%+
+- Hardcoded thresholds are either removed, data-driven, or documented as conservative fallbacks
+- No new hardcoded coordinate-system assumptions
+- Shared utilities are used where they reduce duplicate FBX traversal or coordinate logic
+- Graceful error handling for edge cases
+- Documentation updated when output contracts or procedural methodology change
 
 ---
 
-**Last Updated:** 2025-10-18
-**Next Review:** After completing Critical priority items
+**Last Updated:** 2026-06-22
+**Next Review:** After focused advanced-analysis pipeline completion
