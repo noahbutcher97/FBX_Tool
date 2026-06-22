@@ -322,7 +322,7 @@ output/your_animation/
 ├── animation_metadata.json            # Structured motion metadata
 ├── motion_classification.json         # Animation type classification
 ├── procedural_metadata.json           # Adaptive thresholds
-└── analysis_summary.json              # Complete summary
+└── analysis_summary.json              # GUI workflow summary model
 ```
 
 ## Success Metrics

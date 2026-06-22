@@ -30,6 +30,33 @@ from fbx_tool.analysis.velocity_analysis import analyze_velocity
 class TestFullAnalysisPipeline:
     """Integration tests for complete analysis pipeline."""
 
+    def test_cli_module_import_has_no_console_side_effects(self):
+        """Importing the CLI module should not rewrite process stdout or stderr."""
+        script_path = Path("examples/run_analysis.py").resolve()
+        repo_root = script_path.parent.parent
+        env = os.environ.copy()
+        env["PYTHONPATH"] = f"{repo_root}{os.pathsep}{env.get('PYTHONPATH', '')}"
+        probe = (
+            "import importlib, sys; "
+            "stdout = sys.stdout; stderr = sys.stderr; "
+            "module = importlib.import_module('examples.run_analysis'); "
+            "assert hasattr(module, 'run_analysis'); "
+            "raise SystemExit(0 if sys.stdout is stdout and sys.stderr is stderr else 1)"
+        )
+
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            cwd=repo_root,
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr or result.stdout
+
     def test_cli_pipeline_writes_advanced_analysis_outputs(self, tmp_path):
         """CLI pipeline should generate the same advanced analysis outputs exposed by the GUI."""
         test_fbx = Path("assets/Test/FBX/Female Walk.fbx").resolve()

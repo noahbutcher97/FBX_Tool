@@ -16,13 +16,6 @@ import time
 import traceback
 from pathlib import Path
 
-# Fix Windows console encoding for Unicode characters
-if sys.platform == "win32":
-    import io
-
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
-
 from fbx_tool.analysis.chain_analysis import analyze_chains
 from fbx_tool.analysis.constraint_violation_detection import analyze_constraint_violations
 from fbx_tool.analysis.directional_change_detection import analyze_directional_changes
@@ -41,6 +34,20 @@ from fbx_tool.analysis.utils import ensure_output_dir
 from fbx_tool.analysis.velocity_analysis import analyze_velocity
 
 TOTAL_ANALYSIS_STEPS = 14
+
+
+def _configure_console_encoding():
+    """Use UTF-8 console streams for direct Windows CLI execution."""
+    if sys.platform != "win32":
+        return
+
+    import io
+
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name)
+        buffer = getattr(stream, "buffer", None)
+        if buffer is not None:
+            setattr(sys, stream_name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace"))
 
 
 def run_analysis(fbx_file):
@@ -328,6 +335,8 @@ def run_analysis(fbx_file):
 
 def main():
     """Main entry point for CLI."""
+    _configure_console_encoding()
+
     if len(sys.argv) < 2:
         print("FBX Tool - Comprehensive Animation Analysis\n")
         print("Usage: python examples/run_analysis.py <fbx_file1> [fbx_file2 ...]\n")
